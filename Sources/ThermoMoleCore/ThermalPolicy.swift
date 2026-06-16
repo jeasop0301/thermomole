@@ -7,8 +7,8 @@ public enum TemperatureWarningLevel: String, Codable, Sendable {
 
     public static func batteryLevel(for temperatureC: Double?) -> TemperatureWarningLevel {
         guard let temperatureC else { return .normal }
-        if temperatureC >= 40 { return .hot }
-        if temperatureC >= 35 { return .caution }
+        if temperatureC >= ThermalThresholds.batteryHotC { return .hot }
+        if temperatureC >= ThermalThresholds.batteryCautionC { return .caution }
         return .normal
     }
 }

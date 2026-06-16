@@ -21,7 +21,7 @@ final class HealthScoreTests: XCTestCase {
             cpuUsagePercent: 15,
             memoryUsedPercent: 40,
             diskUsedPercent: 50,
-            batteryTemperatureC: 35.0,
+            batteryTemperatureC: ThermalThresholds.batteryCautionC,
             uptimeSeconds: 1_800
         )
 
@@ -34,7 +34,7 @@ final class HealthScoreTests: XCTestCase {
             cpuUsagePercent: 15,
             memoryUsedPercent: 40,
             diskUsedPercent: 50,
-            batteryTemperatureC: 40.0,
+            batteryTemperatureC: ThermalThresholds.batteryHotC,
             uptimeSeconds: 1_800
         )
 

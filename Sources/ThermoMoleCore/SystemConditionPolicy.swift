@@ -17,7 +17,7 @@ public enum SystemConditionPolicy {
             return .hot
         }
 
-        if let cpuTemperatureC, cpuTemperatureC >= 95 {
+        if let cpuTemperatureC, cpuTemperatureC >= ThermalThresholds.cpuHotC {
             return .hot
         }
 
@@ -25,7 +25,7 @@ public enum SystemConditionPolicy {
             return .caution
         }
 
-        if let cpuTemperatureC, cpuTemperatureC >= 85 {
+        if let cpuTemperatureC, cpuTemperatureC >= ThermalThresholds.cpuWarmC {
             return .caution
         }
 

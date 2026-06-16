@@ -58,20 +58,20 @@ public enum HealthScorer {
         }
 
         if let batteryTemperatureC {
-            if batteryTemperatureC >= 40 {
+            if batteryTemperatureC >= ThermalThresholds.batteryHotC {
                 raw -= 18
                 issues.insert(.batteryHot)
-            } else if batteryTemperatureC >= 35 {
+            } else if batteryTemperatureC >= ThermalThresholds.batteryCautionC {
                 raw -= 7
                 issues.insert(.batteryWarm)
             }
         }
 
         if let cpuTemperatureC {
-            if cpuTemperatureC >= 95 {
+            if cpuTemperatureC >= ThermalThresholds.cpuHotC {
                 raw -= 18
                 issues.insert(.cpuHot)
-            } else if cpuTemperatureC >= 85 {
+            } else if cpuTemperatureC >= ThermalThresholds.cpuWarmC {
                 raw -= 7
                 issues.insert(.cpuWarm)
             }
