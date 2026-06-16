@@ -3,6 +3,13 @@ import XCTest
 @testable import ThermoMoleCore
 
 final class OptimizeExecutorTests: XCTestCase {
+    func testDefaultMaintenanceStagesAdminOnlyPeriodic() {
+        // periodic needs root to do anything; a one-click default must not pretend to run it.
+        let batch = OptimizeBatchPlan.defaultMaintenance()
+        XCTAssertFalse(batch.plans.contains { $0.task == .periodicMaintenance }, "periodic must not run from the one-click default")
+        XCTAssertTrue(batch.skippedTasks.contains(.periodicMaintenance))
+    }
+
     func testLaunchServicesUsesSafeIncrementalRefresh() {
         // -kill wipes and rebuilds the whole LaunchServices DB (freezes the GUI while it
         // rebuilds); the system domain needs root (fails). The default action must use a
@@ -89,7 +96,7 @@ final class OptimizeExecutorTests: XCTestCase {
         XCTAssertTrue(summary.confirmationMessage.contains("Runnable: Rebuild Quick Look"))
         XCTAssertTrue(summary.confirmationMessage.contains("Command: qlmanage -r"))
         XCTAssertTrue(summary.confirmationMessage.contains("Refresh Launch Services: Active VPN detected"))
-        XCTAssertTrue(summary.confirmationMessage.contains("Run periodic maintenance: Mac is on battery power"))
+        XCTAssertTrue(summary.confirmationMessage.contains("Run periodic maintenance: Needs administrator privileges"))
         XCTAssertTrue(summary.confirmationMessage.contains("Clean saved application state"))
         XCTAssertTrue(summary.confirmationMessage.contains("Mode: Run local maintenance commands"))
     }
@@ -171,8 +178,9 @@ final class OptimizeExecutorTests: XCTestCase {
         XCTAssertEqual(summary.title, "Ready")
         XCTAssertTrue(summary.activeSignals.isEmpty)
         XCTAssertGreaterThan(summary.runnableTaskCount, 0)
-        XCTAssertEqual(summary.stagedTaskCount, 1)
-        XCTAssertTrue(summary.detail.contains("1 staged"))
+        // savedApplicationState (empty commands) + periodicMaintenance (admin-only) are staged.
+        XCTAssertEqual(summary.stagedTaskCount, 2)
+        XCTAssertTrue(summary.detail.contains("2 staged"))
     }
 
     func testOptimizeSafetySummaryNamesActiveContextAndStagedTasks() {
