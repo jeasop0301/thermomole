@@ -45,12 +45,15 @@ final class AppModel: ObservableObject {
     @Published var batteryHealthSeries: [Double] = []
     @Published var latestBatteryHealth: DailyBatteryHealth?
     @Published var batteryLongevity: BatteryLongevityReport?
+    @Published var todayCPUExposure = CPUExposureSummary.empty
+    @Published var longevityAssessment = LongevityAssessment(score: 100, factors: [], actions: [])
 
     private let provider = NativeSensorProvider()
     private let historyStore = OperationHistoryStore.live
     private let statusSnapshotStore = StatusSnapshotStore.live
     private let exposureCoordinator = ThermalExposureCoordinator()
     private let chargeCoordinator = ChargeExposureCoordinator()
+    private let cpuExposureCoordinator = CPUExposureCoordinator()
     private let batteryHealthStore = BatteryHealthStore()
     private var batteryHealthLog = BatteryHealthLog()
     private var lastSavedHealthRecord: BatteryHealthRecord?
@@ -90,8 +93,11 @@ final class AppModel: ObservableObject {
         Task {
             await exposureCoordinator.bootstrap()
             await chargeCoordinator.bootstrap()
+            await cpuExposureCoordinator.bootstrap()
             todayExposure = await exposureCoordinator.summary(at: Date(), calendar: .current)
             todayChargeExposure = await chargeCoordinator.summary(at: Date(), calendar: .current)
+            todayCPUExposure = await cpuExposureCoordinator.summary(at: Date(), calendar: .current)
+            recomputeLongevity()
         }
         showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         loadOperationHistory()
@@ -139,10 +145,33 @@ final class AppModel: ObservableObject {
                 calendar: .current
             )
             todayChargeExposure = await chargeCoordinator.summary(at: next.sampledAt, calendar: .current)
+            await cpuExposureCoordinator.record(
+                temperatureC: next.thermal.cpuDisplayC,
+                at: next.sampledAt,
+                calendar: .current
+            )
+            todayCPUExposure = await cpuExposureCoordinator.summary(at: next.sampledAt, calendar: .current)
             recordBatteryHealth(from: next)
+            recomputeLongevity()
             refreshDoctorReport()
             samplingGate.finish(startedAt: sampleStartedAt)
         }
+    }
+
+    private func recomputeLongevity() {
+        let signals = LongevitySignals(
+            batteryLongevity: batteryLongevity,
+            batteryExposure: todayExposure,
+            cpuExposure: todayCPUExposure,
+            chargeExposure: todayChargeExposure,
+            diskFreePercent: max(0, 100 - snapshot.disk.usedPercent),
+            diskUsedPercent: snapshot.disk.usedPercent,
+            memoryPressure: snapshot.memory.pressure.rawValue,
+            isChargingWhileHot: StatusBrief(snapshot: snapshot).isChargingWhileHot,
+            batteryTempC: snapshot.thermal.batteryDisplayC,
+            ssdTempC: nil
+        )
+        longevityAssessment = LongevityAdvisor.assess(signals)
     }
 
     private func recordBatteryHealth(from snapshot: SystemSnapshot) {
@@ -167,6 +196,7 @@ final class AppModel: ObservableObject {
     nonisolated func flushExposureForTermination() async {
         await exposureCoordinator.flushNow(at: Date())
         await chargeCoordinator.flushNow(at: Date())
+        await cpuExposureCoordinator.flushNow(at: Date())
     }
 
     func analyzeHome() {

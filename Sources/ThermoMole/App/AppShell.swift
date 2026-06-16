@@ -3,6 +3,7 @@ import ThermoMoleCore
 
 enum AppSection: String, CaseIterable, Identifiable {
     case status
+    case longevity
     case clean
     case software
     case optimize
@@ -14,6 +15,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .status: "Status"
+        case .longevity: "Longevity"
         case .clean: "Clean"
         case .software: "Software"
         case .optimize: "Optimize"
@@ -25,6 +27,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .status: "Battery heat, CPU warmth"
+        case .longevity: "Keep it long-lived"
         case .clean: "Safe clutter review"
         case .software: "Apps and quiet starters"
         case .optimize: "Small repairs, staged"
@@ -36,6 +39,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .status: "gauge.with.dots.needle.67percent"
+        case .longevity: "heart.text.square"
         case .clean: "sparkles"
         case .software: "shippingbox"
         case .optimize: "wand.and.stars"
@@ -79,6 +83,8 @@ struct MainWindowView: View {
         switch selection {
         case .status:
             StatusTab(model: model)
+        case .longevity:
+            LongevityTab(model: model)
         case .clean:
             CleanTab(clean: model.clean)
         case .software:
