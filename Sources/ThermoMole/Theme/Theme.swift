@@ -108,7 +108,6 @@ func revealInFinder(_ url: URL) {
     NSWorkspace.shared.activateFileViewerSelecting([url])
 }
 
-
 func formatUptime(_ seconds: UInt64) -> String {
     let days = seconds / 86_400
     let hours = (seconds % 86_400) / 3_600
