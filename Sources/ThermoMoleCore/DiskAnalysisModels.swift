@@ -110,21 +110,9 @@ public struct DiskTrashConfirmationSummary: Equatable, Sendable {
 
     public var confirmationMessage: String {
         [
-            "\(kind) · \(Self.formatBytes(sizeBytes))",
+            "\(kind) · \(formatBytes(sizeBytes))",
             "Path: \(path)",
             "Mode: Move to Trash"
         ].joined(separator: "\n")
-    }
-
-    private static func formatBytes(_ bytes: UInt64) -> String {
-        guard bytes >= 1_024 else { return "\(bytes) B" }
-        let units = ["KB", "MB", "GB", "TB"]
-        var value = Double(bytes)
-        var unitIndex = -1
-        repeat {
-            value /= 1_024
-            unitIndex += 1
-        } while value >= 1_024 && unitIndex < units.count - 1
-        return String(format: "%.1f %@", value, units[unitIndex])
     }
 }
