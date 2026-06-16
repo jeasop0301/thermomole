@@ -186,7 +186,7 @@ public struct CleanupConfirmationSummary: Equatable, Sendable {
 
     public var confirmationMessage: String {
         var lines = [
-            "\(itemCount) \(itemCount == 1 ? "item" : "items") · \(Self.formatBytes(selectedBytes))",
+            "\(itemCount) \(itemCount == 1 ? "item" : "items") · \(formatBytes(selectedBytes))",
             "Mode: Move to Trash"
         ]
         if !categoryLines.isEmpty {
@@ -199,18 +199,6 @@ public struct CleanupConfirmationSummary: Equatable, Sendable {
             lines.append("\(skippedCount) protected or privacy-sensitive paths skipped.")
         }
         return lines.joined(separator: "\n")
-    }
-
-    private static func formatBytes(_ bytes: UInt64) -> String {
-        guard bytes >= 1_024 else { return "\(bytes) B" }
-        let units = ["KB", "MB", "GB", "TB"]
-        var value = Double(bytes)
-        var unitIndex = -1
-        repeat {
-            value /= 1_024
-            unitIndex += 1
-        } while value >= 1_024 && unitIndex < units.count - 1
-        return String(format: "%.1f %@", value, units[unitIndex])
     }
 }
 
