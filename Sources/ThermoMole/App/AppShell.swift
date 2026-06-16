@@ -43,11 +43,20 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .settings: "gearshape"
         }
     }
+
+    /// Initial tab; `THERMOMOLE_TAB=<rawValue>` overrides for dev/screenshot runs.
+    static var initial: AppSection {
+        if let raw = ProcessInfo.processInfo.environment["THERMOMOLE_TAB"],
+           let section = AppSection(rawValue: raw) {
+            return section
+        }
+        return .status
+    }
 }
 
 struct MainWindowView: View {
     @ObservedObject var model: AppModel
-    @State private var selection: AppSection = .status
+    @State private var selection: AppSection = AppSection.initial
 
     var body: some View {
         VStack(spacing: 0) {
