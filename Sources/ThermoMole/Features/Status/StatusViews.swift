@@ -18,49 +18,59 @@ struct StatusTab: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
-                    PageHeader(title: "Status", subtitle: "Battery heat, CPU warmth, and memory pressure without the noise.", symbol: "gauge.with.dots.needle.67percent")
-                    Spacer()
-                    FreshnessChip(sampledAt: model.snapshot.sampledAt)
-                    Button {
-                        model.refresh()
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-
-                HStack {
-                    Spacer()
-                    BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 150)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
+            VStack(alignment: .leading, spacing: 14) {
+                TabHeader(subtitle: "Battery heat, CPU warmth, and memory pressure without the noise.") {}
 
                 if statusBrief.isChargingWhileHot {
                     ChargeWhileHotBanner()
                 }
 
-                StatusBriefPanel(brief: statusBrief)
+                HStack(alignment: .top, spacing: 12) {
+                    BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 132)
+                        .frame(width: 188)
+                        .frame(maxHeight: .infinity)
+                        .padding(16)
+                        .softPanel()
+                    StatusBriefPanel(brief: statusBrief)
+                        .frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
 
-                ThermalExposureCard(
-                    summary: model.todayExposure,
-                    warningLevel: model.snapshot.thermal.batteryWarningLevel
-                )
-
-                ThermalOverviewPanel(snapshot: model.snapshot)
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 12)], spacing: 12) {
-                    TrendCard(title: "CPU Temp", value: formatTemperaturePrecise(model.snapshot.thermal.cpuDisplayC), series: model.statusHistory.cpuTemperatureSeries, tint: .orange)
-                    TrendCard(title: "Battery Temp", value: formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC), series: model.statusHistory.batteryTemperatureSeries, tint: batteryColor(model.snapshot.thermal.batteryWarningLevel))
-                    TrendCard(title: "Memory", value: "\(model.snapshot.memory.usedPercent)%", series: model.statusHistory.memoryPercentSeries, tint: Color.oceanAccent)
-                    TrendCard(title: "CPU Load", value: "\(Int(model.snapshot.cpu.usagePercent.rounded()))%", series: model.statusHistory.cpuUsageSeries, tint: Color.plumAccent)
+                HStack(spacing: 12) {
+                    TrendTile(
+                        title: "Real battery pack",
+                        value: formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC),
+                        detail: batterySourceLabel(model.snapshot.thermal.batteryTemperatureSource),
+                        series: model.statusHistory.batteryTemperatureSeries,
+                        tint: batteryColor(model.snapshot.thermal.batteryWarningLevel)
+                    )
+                    TrendTile(
+                        title: "CPU warmth",
+                        value: formatTemperaturePrecise(model.snapshot.thermal.cpuDisplayC),
+                        detail: cpuSourceLabel(model.snapshot.thermal.cpuTemperatureSource),
+                        series: model.statusHistory.cpuTemperatureSeries,
+                        tint: .orange
+                    )
+                    TrendTile(
+                        title: "Memory",
+                        value: "\(model.snapshot.memory.usedPercent)%",
+                        detail: model.snapshot.memory.pressure.rawValue.capitalized,
+                        series: model.statusHistory.memoryPercentSeries,
+                        tint: Color.oceanAccent
+                    )
                 }
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
-                    MetricTile(title: "CPU Temperature", value: formatTemperature(model.snapshot.thermal.cpuDisplayC), detail: cpuSourceLabel(model.snapshot.thermal.cpuTemperatureSource), tint: .orange)
-                    MetricTile(title: "Memory", value: "\(model.snapshot.memory.usedPercent)%", detail: model.snapshot.memory.pressure.rawValue.capitalized, tint: Color.oceanAccent)
+                HStack(alignment: .top, spacing: 12) {
+                    ThermalExposureCard(
+                        summary: model.todayExposure,
+                        warningLevel: model.snapshot.thermal.batteryWarningLevel
+                    )
+                    .frame(maxWidth: .infinity)
+                    CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
+                        .frame(maxWidth: .infinity)
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
                     MetricTile(title: "Disk", value: String(format: "%.0f%%", model.snapshot.disk.usedPercent), detail: "\(formatBytes(model.snapshot.disk.freeBytes)) free", tint: .teal)
                     MetricTile(title: "Network Down", value: "\(formatBytes(model.snapshot.network.receivedBytesPerSecond))/s", detail: "Up \(formatBytes(model.snapshot.network.sentBytesPerSecond))/s", tint: Color.leafAccent)
                     MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: "\(model.snapshot.battery.healthPercent)% health · \(model.snapshot.battery.cycleCount) cycles", tint: .mint)
@@ -72,8 +82,6 @@ struct StatusTab: View {
                     state: model.memoryPurgeState,
                     runPurge: { isShowingMemoryPurgeConfirmation = true }
                 )
-
-                ProcessTable(processes: model.snapshot.topProcesses)
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -366,182 +374,6 @@ struct MemoryDoctorPanel: View {
 }
 
 
-struct ThermalOverviewPanel: View {
-    var snapshot: SystemSnapshot
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Real battery pack", systemImage: "battery.100percent")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(formatTemperaturePrecise(snapshot.thermal.batteryDisplayC))
-                        .font(.system(size: 46, weight: .semibold, design: .rounded))
-                        .foregroundStyle(batteryColor(snapshot.thermal.batteryWarningLevel))
-                        .monospacedDigit()
-                    Text("AppleSmartBattery Temperature is shown here. VirtualTemperature stays out of the reading.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
-                        SourceChip(title: "Battery", value: batterySourceLabel(snapshot.thermal.batteryTemperatureSource))
-                        SourceChip(title: "CPU", value: cpuSourceLabel(snapshot.thermal.cpuTemperatureSource))
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("CPU warmth", systemImage: "cpu")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(formatTemperaturePrecise(snapshot.thermal.cpuDisplayC))
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.orange)
-                        .monospacedDigit()
-                    Text(cpuSourceLabel(snapshot.thermal.cpuTemperatureSource))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    Text("\(snapshot.chipName) · \(snapshot.modelIdentifier)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .frame(width: 190, alignment: .leading)
-
-                VStack(spacing: 4) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(healthColor(snapshot.health.band).opacity(0.14))
-                        Text("\(snapshot.health.value)")
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .foregroundStyle(healthColor(snapshot.health.band))
-                            .monospacedDigit()
-                    }
-                    .frame(width: 74, height: 74)
-                    Label(conditionTitle(systemCondition(for: snapshot)), systemImage: conditionSymbol(systemCondition(for: snapshot)))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(conditionColor(systemCondition(for: snapshot)))
-                        .lineLimit(1)
-                }
-            }
-
-            Divider()
-
-            HStack(spacing: 12) {
-                OverviewReading(title: "CPU", value: formatTemperaturePrecise(snapshot.thermal.cpuDisplayC), tint: .orange)
-                OverviewReading(title: "Battery", value: formatTemperaturePrecise(snapshot.thermal.batteryIORegC), tint: batteryColor(snapshot.thermal.batteryWarningLevel))
-                OverviewReading(title: "SMC TB Max", value: formatTemperaturePrecise(snapshot.thermal.batteryCellMaxC), tint: Color.plumAccent)
-                OverviewReading(title: "Memory", value: "\(snapshot.memory.usedPercent)%", tint: Color.oceanAccent)
-            }
-
-            if snapshot.thermal.hasBatterySensorMismatch {
-                Label("SMC TB differs from AppleSmartBattery. ThermoMole displays the physical AppleSmartBattery reading.", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(16)
-        .softPanel()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Thermal overview"))
-    }
-}
-
-struct SourceChip: View {
-    var title: String
-    var value: String
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .fontWeight(.semibold)
-        }
-        .font(.caption)
-        .lineLimit(1)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Color.insetFill)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
-        .accessibilityValue(Text(value))
-    }
-}
-
-struct OverviewReading: View {
-    var title: String
-    var value: String
-    var tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 6, height: 6)
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Text(value)
-                .font(.system(.headline, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(Color.insetFill)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
-        .accessibilityValue(Text(value))
-    }
-}
-
-struct BatteryProtectionPanel: View {
-    var snapshot: SystemSnapshot
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Label("Battery Pack", systemImage: "battery.100percent.bolt")
-                    .font(.headline)
-                Spacer()
-                Text(formatTemperaturePrecise(snapshot.thermal.batteryDisplayC))
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .foregroundStyle(batteryColor(snapshot.thermal.batteryWarningLevel))
-                    .monospacedDigit()
-            }
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                SensorValueRow(title: "Displayed", value: batterySourceLabel(snapshot.thermal.batteryTemperatureSource))
-                SensorValueRow(title: "AppleSmartBattery", value: formatTemperaturePrecise(snapshot.thermal.batteryIORegC))
-                SensorValueRow(title: "SMC TB Max", value: formatTemperaturePrecise(snapshot.thermal.batteryCellMaxC))
-                SensorValueRow(title: "Warning Lines", value: "\(Int(ThermalThresholds.batteryCautionC))° / \(Int(ThermalThresholds.batteryHotC))°")
-            }
-
-            if snapshot.thermal.hasBatterySensorMismatch {
-                Label("Diagnostic: SMC TB differs; displaying AppleSmartBattery Temperature.", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(14)
-        .softPanel()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Battery pack"))
-    }
-}
-
 struct SensorValueRow: View {
     var title: String
     var value: String
@@ -566,33 +398,43 @@ struct SensorValueRow: View {
     }
 }
 
-struct TrendCard: View {
+struct TrendTile: View {
     var title: String
     var value: String
+    var detail: String
     var series: [Double]
     var tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(tint.opacity(0.85))
+                    .frame(width: 7, height: 7)
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Text(value)
-                    .font(.headline)
-                    .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
             }
+            Text(value)
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             SparklineView(values: series, tint: tint)
-                .frame(height: 42)
+                .frame(height: 40)
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .softPanel()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(title))
-        .accessibilityValue(Text("\(value), \(series.count) samples"))
+        .accessibilityValue(Text("\(value), \(detail)"))
     }
 }
 
@@ -651,35 +493,6 @@ struct SparklineView: View {
     }
 }
 
-struct HealthHeader: View {
-    var snapshot: SystemSnapshot
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(healthColor(snapshot.health.band).opacity(0.14))
-                Text("\(snapshot.health.value)")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(healthColor(snapshot.health.band))
-            }
-            .frame(width: 72, height: 72)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("ThermoMole")
-                    .font(.title2.bold())
-                Text("\(snapshot.chipName) · \(snapshot.modelIdentifier)")
-                    .foregroundStyle(.secondary)
-                Text("Uptime \(formatUptime(snapshot.uptimeSeconds)) · \(snapshot.macOSVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(14)
-        .softPanel()
-    }
-}
-
 struct MetricTile: View {
     var title: String
     var value: String
@@ -732,36 +545,3 @@ struct MetricTile: View {
     }
 }
 
-struct ProcessTable: View {
-    var processes: [ProcessSnapshot]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Top Processes")
-                .font(.headline)
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
-                GridRow {
-                    Text("Name").foregroundStyle(.secondary)
-                        .frame(width: 220, alignment: .leading)
-                    Text("PID").foregroundStyle(.secondary)
-                    Text("CPU").foregroundStyle(.secondary)
-                    Text("Memory").foregroundStyle(.secondary)
-                }
-                ForEach(processes) { process in
-                    GridRow {
-                        Text(process.name)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(width: 220, alignment: .leading)
-                        Text("\(process.pid)").monospacedDigit()
-                        Text("\(process.cpuPercent, specifier: "%.1f")%").monospacedDigit()
-                        Text(formatBytes(process.memoryBytes)).monospacedDigit()
-                    }
-                }
-            }
-            .font(.caption)
-        }
-        .padding(14)
-        .softPanel()
-    }
-}

@@ -50,11 +50,12 @@ struct MainWindowView: View {
     @State private var selection: AppSection = .status
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
+        VStack(spacing: 0) {
+            AppToolbar(model: model)
+            TabPillBar(selection: $selection)
             Rectangle()
                 .fill(Color.subtleStroke)
-                .frame(width: 1)
+                .frame(height: 1)
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.appBackground)
@@ -62,60 +63,6 @@ struct MainWindowView: View {
         .frame(minWidth: 1040, minHeight: 680)
         .background(Color.appBackground)
         .tint(Color.thermoAccent)
-    }
-
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "thermometer.medium")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.thermoAccent)
-                    .frame(width: 34, height: 34)
-                    .background(Color.iconBadgeFill)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ThermoMole")
-                        .font(.system(.headline, design: .rounded).weight(.semibold))
-                    Text("Local Mac monitor")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 6)
-
-            VStack(spacing: 4) {
-                ForEach(AppSection.allCases) { section in
-                    Button {
-                        selection = section
-                    } label: {
-                        SidebarRow(section: section, isSelected: selection == section)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Real Battery Pack")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(batterySourceLabel(model.snapshot.thermal.batteryTemperatureSource))
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(1)
-                Text(formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(batteryColor(model.snapshot.thermal.batteryWarningLevel))
-                    .monospacedDigit()
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .softPanel()
-        }
-        .padding(14)
-        .frame(width: 244)
-        .background(Color.appSidebar)
     }
 
     @ViewBuilder
@@ -137,65 +84,122 @@ struct MainWindowView: View {
     }
 }
 
-struct SidebarRow: View {
-    var section: AppSection
-    var isSelected: Bool
+struct AppToolbar: View {
+    @ObservedObject var model: AppModel
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: section.symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 22)
-                .foregroundStyle(isSelected ? Color.thermoAccent : .secondary)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(section.title)
-                    .font(.callout.weight(.semibold))
-                Text(section.subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        HStack(spacing: 12) {
+            Image(systemName: "thermometer.medium")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(Color.thermoAccent)
+                .frame(width: 30, height: 30)
+                .background(Color.iconBadgeFill)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
+            Text("ThermoMole")
+                .font(.system(.headline, design: .rounded).weight(.semibold))
+
+            BatteryPackChip(
+                temperatureC: model.snapshot.thermal.batteryDisplayC,
+                level: model.snapshot.thermal.batteryWarningLevel
+            )
+
             Spacer()
+
+            FreshnessChip(sampledAt: model.snapshot.sampledAt)
+            Button {
+                model.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
         }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .background(isSelected ? Color.selectionFill : Color.clear)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.thermoAccent.opacity(0.22) : Color.clear)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(section.title), \(section.subtitle)"))
-        .accessibilityHint(Text(isSelected ? "Current section" : "Open section"))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 11)
+        .background(Color.appSidebar)
     }
 }
 
-struct PageHeader: View {
-    var title: String
-    var subtitle: String
-    var symbol: String
+struct BatteryPackChip: View {
+    var temperatureC: Double?
+    var level: TemperatureWarningLevel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("ThermoMole")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(Color.thermoAccent)
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.thermoAccent)
-                    .frame(width: 32, height: 32)
-                    .background(Color.iconBadgeFill.opacity(0.72))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(.system(size: 30, weight: .semibold, design: .rounded))
+        Label(formatTemperaturePrecise(temperatureC), systemImage: "battery.100percent")
+            .font(.callout.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(batteryColor(level))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(batteryColor(level).opacity(0.12))
+            .clipShape(Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("Battery pack temperature"))
+            .accessibilityValue(Text(formatTemperaturePrecise(temperatureC)))
+    }
+}
+
+struct TabPillBar: View {
+    @Binding var selection: AppSection
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(AppSection.allCases) { section in
+                    TabPill(section: section, isSelected: selection == section) {
+                        selection = section
+                    }
+                }
             }
+            .padding(4)
+            .background(Color.insetFill)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.subtleStroke))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+        }
+    }
+}
+
+struct TabPill: View {
+    var section: AppSection
+    var isSelected: Bool
+    var select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            HStack(spacing: 6) {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(section.title)
+                    .font(.callout.weight(.medium))
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.thermoAccent : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(section.title))
+        .accessibilityHint(Text(isSelected ? "Current section" : "Open section"))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+struct TabHeader<Actions: View>: View {
+    var subtitle: String
+    @ViewBuilder var actions: () -> Actions
+
+    var body: some View {
+        HStack(alignment: .center) {
             Text(subtitle)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            actions()
         }
     }
 }

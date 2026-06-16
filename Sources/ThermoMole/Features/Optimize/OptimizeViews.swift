@@ -12,9 +12,7 @@ struct OptimizeTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                PageHeader(title: "Optimize", subtitle: "Small maintenance tasks, shown before they run.", symbol: "wand.and.stars")
-                Spacer()
+            TabHeader(subtitle: "Small maintenance tasks, shown before they run.") {
                 OperationStatePill(state: model.optimizeState)
                 Button {
                     model.refreshOptimizeSafetyContext()

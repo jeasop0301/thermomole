@@ -12,9 +12,7 @@ struct AnalyzeTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                PageHeader(title: "Analyze", subtitle: "Follow storage from a wide branch into the heavy leaves.", symbol: "chart.pie")
-                Spacer()
+            TabHeader(subtitle: "Follow storage from a wide branch into the heavy leaves.") {
                 OperationStatePill(state: model.analyzeState)
                 if model.analyzeState.isRunning {
                     Button {
