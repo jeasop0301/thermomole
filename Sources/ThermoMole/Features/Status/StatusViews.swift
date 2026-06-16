@@ -66,6 +66,13 @@ struct StatusTab: View {
                         warningLevel: model.snapshot.thermal.batteryWarningLevel
                     )
                     .frame(maxWidth: .infinity)
+                    ChargeExposureCard(summary: model.todayChargeExposure)
+                        .frame(maxWidth: .infinity)
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    BatteryHealthCard(health: model.latestBatteryHealth, series: model.batteryHealthSeries)
+                        .frame(maxWidth: .infinity)
                     CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
                         .frame(maxWidth: .infinity)
                 }
@@ -143,6 +150,7 @@ struct ThermalExposureCard: View {
             ThermalExposureWeekStrip(days: summary.recent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
         .softPanel()
         .accessibilityElement(children: .contain)
     }
@@ -186,6 +194,116 @@ struct ThermalExposureWeekStrip: View {
                     .accessibilityLabel("No battery heat above 35 degrees in the last 7 days")
             }
         }
+    }
+}
+
+struct ChargeExposureCard: View {
+    let summary: ChargeExposureSummary
+
+    private func minutes(_ s: TimeInterval) -> Int { Int((s / 60).rounded()) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "powerplug.fill").foregroundStyle(Color.thermoAccent)
+                Text("High-charge dwell (on AC)").font(.headline)
+            }
+            HStack(spacing: 16) {
+                stat("≥80%", minutes(summary.today.secondsAbove80OnAC))
+                stat("≥95%", minutes(summary.today.secondsAbove95OnAC))
+                if let peak = summary.today.peakPercentOnAC {
+                    VStack(alignment: .leading) {
+                        Text("Peak").font(.caption).foregroundStyle(.secondary)
+                        Text("\(peak)%").font(.title3).monospacedDigit()
+                    }
+                }
+            }
+            ChargeDwellWeekStrip(days: summary.recent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("High charge dwell on AC today"))
+    }
+
+    private func stat(_ label: String, _ value: Int) -> some View {
+        VStack(alignment: .leading) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text("\(value) min").font(.title3).monospacedDigit()
+        }
+    }
+}
+
+struct ChargeDwellWeekStrip: View {
+    let days: [DailyChargeExposure]    // descending (today first); displayed chronologically
+
+    private func minutes(_ s: TimeInterval) -> Int { Int((s / 60).rounded()) }
+
+    var body: some View {
+        let chronological = Array(days.reversed())
+        let maxMinutes = max(1, chronological.map { minutes($0.secondsAbove80OnAC) }.max() ?? 1)
+        let hasAny = chronological.contains { minutes($0.secondsAbove80OnAC) > 0 }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Last 7 days (min ≥80% on AC)").font(.caption2).foregroundStyle(.secondary)
+            if hasAny {
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(chronological, id: \.day) { day in
+                        let m = minutes(day.secondsAbove80OnAC)
+                        let tint: Color = day.secondsAbove95OnAC > 0 ? Color.amberAccent : (m > 0 ? Color.thermoAccent : Color.secondary.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(tint)
+                            .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
+                            .accessibilityLabel("\(day.day): \(m) minutes at or above 80 percent on AC")
+                    }
+                }
+                .frame(height: 28, alignment: .bottom)
+            } else {
+                Text("No high-charge dwell on AC in the last 7 days")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(height: 28, alignment: .center)
+                    .accessibilityLabel("No high charge dwell on AC in the last 7 days")
+            }
+        }
+    }
+}
+
+struct BatteryHealthCard: View {
+    let health: DailyBatteryHealth?
+    let series: [Double]
+
+    private var tint: Color {
+        guard let h = health?.healthPercent else { return Color.oceanAccent }
+        if h >= 90 { return Color.leafAccent }
+        if h >= 80 { return Color.amberAccent }
+        return .red
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle().fill(tint.opacity(0.85)).frame(width: 7, height: 7)
+                Text("Battery health").font(.caption).foregroundStyle(.secondary)
+            }
+            Text(health.map { "\($0.healthPercent)%" } ?? "--")
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+            SparklineView(values: series, tint: tint)
+                .frame(height: 40)
+            Text(health.map { "\($0.cycleCount) cycles · \($0.maxCapacityMAh)/\($0.designCapacityMAh) mAh" } ?? "Collecting daily readings…")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Battery health"))
+        .accessibilityValue(Text(health.map { "\($0.healthPercent) percent, \($0.cycleCount) cycles" } ?? "collecting"))
     }
 }
 

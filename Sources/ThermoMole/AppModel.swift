@@ -41,11 +41,18 @@ final class AppModel: ObservableObject {
     @Published var lastError: String?
     @Published var doctorReport = DoctorReport.make(inputs: .placeholder)
     @Published var todayExposure = ThermalExposureSummary.empty
+    @Published var todayChargeExposure = ChargeExposureSummary.empty
+    @Published var batteryHealthSeries: [Double] = []
+    @Published var latestBatteryHealth: DailyBatteryHealth?
 
     private let provider = NativeSensorProvider()
     private let historyStore = OperationHistoryStore.live
     private let statusSnapshotStore = StatusSnapshotStore.live
     private let exposureCoordinator = ThermalExposureCoordinator()
+    private let chargeCoordinator = ChargeExposureCoordinator()
+    private let batteryHealthStore = BatteryHealthStore()
+    private var batteryHealthLog = BatteryHealthLog()
+    private var lastSavedHealthRecord: BatteryHealthRecord?
     private var timer: Timer?
     private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
@@ -70,9 +77,19 @@ final class AppModel: ObservableObject {
             snapshot = lastSnapshot
             statusHistory.append(lastSnapshot)
         }
+        if let healthRecord = try? batteryHealthStore.load() {
+            var seeded: [String: DailyBatteryHealth] = [:]
+            for day in healthRecord.days { seeded[day.day] = day }
+            batteryHealthLog = BatteryHealthLog(days: seeded)
+            lastSavedHealthRecord = healthRecord.pruned()
+            batteryHealthSeries = batteryHealthLog.healthSeries()
+            latestBatteryHealth = batteryHealthLog.latest
+        }
         Task {
             await exposureCoordinator.bootstrap()
+            await chargeCoordinator.bootstrap()
             todayExposure = await exposureCoordinator.summary(at: Date(), calendar: .current)
+            todayChargeExposure = await chargeCoordinator.summary(at: Date(), calendar: .current)
         }
         showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         loadOperationHistory()
@@ -113,13 +130,40 @@ final class AppModel: ObservableObject {
                 calendar: .current
             )
             todayExposure = await exposureCoordinator.summary(at: next.sampledAt, calendar: .current)
+            await chargeCoordinator.record(
+                percent: next.battery.percent,
+                isOnACPower: next.battery.isOnACPower,
+                at: next.sampledAt,
+                calendar: .current
+            )
+            todayChargeExposure = await chargeCoordinator.summary(at: next.sampledAt, calendar: .current)
+            recordBatteryHealth(from: next)
             refreshDoctorReport()
             samplingGate.finish(startedAt: sampleStartedAt)
         }
     }
 
+    private func recordBatteryHealth(from snapshot: SystemSnapshot) {
+        batteryHealthLog.record(
+            healthPercent: snapshot.battery.healthPercent,
+            cycleCount: snapshot.battery.cycleCount,
+            maxCapacityMAh: snapshot.battery.maxCapacityMAh,
+            designCapacityMAh: snapshot.battery.designCapacityMAh,
+            at: snapshot.sampledAt,
+            calendar: .current
+        )
+        batteryHealthSeries = batteryHealthLog.healthSeries()
+        latestBatteryHealth = batteryHealthLog.latest
+        let record = BatteryHealthRecord(days: batteryHealthLog.all()).pruned()
+        if record != lastSavedHealthRecord {
+            lastSavedHealthRecord = record
+            Task.detached { [batteryHealthStore] in try? batteryHealthStore.save(record) }
+        }
+    }
+
     nonisolated func flushExposureForTermination() async {
         await exposureCoordinator.flushNow(at: Date())
+        await chargeCoordinator.flushNow(at: Date())
     }
 
     func analyzeHome() {
