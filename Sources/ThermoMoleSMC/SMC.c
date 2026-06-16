@@ -1,3 +1,7 @@
+// SMC access uses the public AppleSMC IOKit pattern (IOServiceMatching("AppleSMC"),
+// KERNEL_INDEX_SMC struct calls, and the "flt"/"sp78" data-type decode). These ABI
+// constants are public and were reimplemented independently; this file contains no
+// code copied from MacMonitor or any GPL-licensed project.
 #include "ThermoMoleSMC.h"
 #include <stdio.h>
 #include <string.h>
