@@ -76,24 +76,50 @@ public enum MenuBarMetricStorage {
     }
 }
 
+public struct MenuBarSegment: Equatable, Sendable {
+    public let metric: MenuBarMetric
+    public let text: String
+    public let range: NSRange
+
+    public init(metric: MenuBarMetric, text: String, range: NSRange) {
+        self.metric = metric
+        self.text = text
+        self.range = range
+    }
+}
+
 public enum MenuBarTitleFormatter {
+    /// Inter-token separator used in the joined title; segment NSRange offsets account for its length.
+    public static let separator = " · "
+
     public static func title(for snapshot: SystemSnapshot, metrics: [MenuBarMetric]) -> String {
-        MenuBarMetric.sanitized(metrics).map { metric in
-            switch metric {
-            case .cpuTemperature:
-                return "CPU \(formatTemperature(snapshot.thermal.cpuDisplayC))"
-            case .batteryTemperature:
-                return "BAT \(formatTemperature(snapshot.thermal.batteryDisplayC))"
-            case .memoryPercent:
-                return "RAM \(snapshot.memory.usedPercent)%"
-            case .cpuUsage:
-                return "CPU \(Int(snapshot.cpu.usagePercent.rounded()))%"
-            case .diskActivity:
-                return "DSK \(Int(snapshot.disk.usedPercent.rounded()))%"
-            case .networkActivity:
-                return "NET \(formatBytes(snapshot.network.receivedBytesPerSecond))/s"
-            }
-        }.joined(separator: " · ")
+        segments(for: snapshot, metrics: metrics).map(\.text).joined(separator: separator)
+    }
+
+    public static func segments(for snapshot: SystemSnapshot, metrics: [MenuBarMetric]) -> [MenuBarSegment] {
+        let sanitized = MenuBarMetric.sanitized(metrics)
+        let sepLength = (separator as NSString).length
+        var result: [MenuBarSegment] = []
+        var location = 0
+        for (index, metric) in sanitized.enumerated() {
+            let text = tokenText(for: metric, snapshot: snapshot)
+            let length = (text as NSString).length
+            result.append(MenuBarSegment(metric: metric, text: text, range: NSRange(location: location, length: length)))
+            location += length
+            if index < sanitized.count - 1 { location += sepLength }
+        }
+        return result
+    }
+
+    private static func tokenText(for metric: MenuBarMetric, snapshot: SystemSnapshot) -> String {
+        switch metric {
+        case .cpuTemperature: return "CPU \(formatTemperature(snapshot.thermal.cpuDisplayC))"
+        case .batteryTemperature: return "BAT \(formatTemperature(snapshot.thermal.batteryDisplayC))"
+        case .memoryPercent: return "RAM \(snapshot.memory.usedPercent)%"
+        case .cpuUsage: return "CPU \(Int(snapshot.cpu.usagePercent.rounded()))%"
+        case .diskActivity: return "DSK \(Int(snapshot.disk.usedPercent.rounded()))%"
+        case .networkActivity: return "NET \(formatBytes(snapshot.network.receivedBytesPerSecond))/s"
+        }
     }
 
     private static func formatTemperature(_ value: Double?) -> String {
@@ -119,9 +145,11 @@ public struct MenuBarPresentation: Equatable, Sendable {
     public var toolTip: String
     public var accessibilityLabel: String
     public var freshnessLevel: StatusFreshnessLevel
+    public var segments: [MenuBarSegment]
 
     public init(snapshot: SystemSnapshot, metrics: [MenuBarMetric], now: Date = Date()) {
-        title = MenuBarTitleFormatter.title(for: snapshot, metrics: metrics)
+        segments = MenuBarTitleFormatter.segments(for: snapshot, metrics: metrics)
+        title = segments.map(\.text).joined(separator: MenuBarTitleFormatter.separator)
         let freshness = StatusFreshness(sampledAt: snapshot.sampledAt, now: now)
         freshnessLevel = freshness.level
         visibleTitle = "\(Self.statusPrefix(for: freshness.level)) \(title)"
@@ -145,6 +173,10 @@ public struct MenuBarPresentation: Equatable, Sendable {
             "battery \(Self.accessibleTemperature(snapshot.thermal.batteryDisplayC)), \(batterySource.lowercased())",
             "memory \(snapshot.memory.usedPercent) percent, \(snapshot.memory.pressure.rawValue) pressure"
         ].joined(separator: ", ")
+    }
+
+    public var batterySegment: MenuBarSegment? {
+        segments.first { $0.metric == .batteryTemperature }
     }
 
     private static func accessibleTemperature(_ value: Double?) -> String {

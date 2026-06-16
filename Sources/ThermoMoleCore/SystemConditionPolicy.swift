@@ -32,3 +32,13 @@ public enum SystemConditionPolicy {
         return .normal
     }
 }
+
+extension SystemConditionPolicy {
+    public static func batteryTint(for level: TemperatureWarningLevel) -> SystemConditionLevel {
+        switch level {
+        case .normal: .normal
+        case .caution: .caution
+        case .hot: .hot
+        }
+    }
+}
