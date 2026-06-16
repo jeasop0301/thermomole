@@ -22,7 +22,7 @@ struct SettingsTab: View {
 
                 SettingsPanel(title: "Menu Bar Metrics", symbol: "menubar.rectangle") {
                     ForEach(metricRows) { metric in
-                        SettingsRow {
+                        SettingsRow(accent: model.menuBarMetrics.contains(metric)) {
                             Toggle(metric.label, isOn: binding(for: metric))
                                 .toggleStyle(.checkbox)
                             Spacer()
@@ -575,14 +575,17 @@ struct SettingsPanel<Content: View>: View {
 }
 
 struct SettingsRow<Content: View>: View {
+    var accent: Bool = false
     @ViewBuilder var content: Content
 
     var body: some View {
         HStack(spacing: 10) {
             content
         }
-        .padding(10)
-        .background(Color.insetFill)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(accent ? Color.thermoAccent.opacity(0.10) : Color.insetFill)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(accent ? Color.thermoAccent.opacity(0.25) : Color.clear))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

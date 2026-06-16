@@ -197,6 +197,9 @@ struct OptimizeTaskCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(task.title)
                         .font(.headline)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(plan.riskLevel.rawValue.capitalized)
                         .font(.caption)
                         .foregroundStyle(tint)
