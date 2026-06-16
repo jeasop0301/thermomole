@@ -8,7 +8,7 @@ public protocol SensorProvider {
     func sample() async -> SystemSnapshot
 }
 
-public final class NativeSensorProvider: SensorProvider, @unchecked Sendable {
+public actor NativeSensorProvider: SensorProvider {
     private var previousCPUTicks: [[UInt32]] = []
     private var previousNetworkIn: UInt64 = 0
     private var previousNetworkOut: UInt64 = 0
@@ -17,9 +17,7 @@ public final class NativeSensorProvider: SensorProvider, @unchecked Sendable {
     public init() {}
 
     public func sample() async -> SystemSnapshot {
-        await Task.detached(priority: .utility) {
-            self.sampleSynchronously()
-        }.value
+        sampleSynchronously()
     }
 
     public func sampleSynchronously() -> SystemSnapshot {
@@ -60,12 +58,10 @@ public final class NativeSensorProvider: SensorProvider, @unchecked Sendable {
     }
 
     public func sampleMemoryReport() async -> MemoryDoctorReport {
-        await Task.detached(priority: .utility) {
-            MemoryDoctorReport(
-                memory: self.sampleMemory(),
-                topProcesses: self.sampleTopProcesses()
-            )
-        }.value
+        MemoryDoctorReport(
+            memory: sampleMemory(),
+            topProcesses: sampleTopProcesses()
+        )
     }
 
     private func sampleCPU() -> CPUStatus {
