@@ -3,6 +3,18 @@ import XCTest
 @testable import ThermoMoleCore
 
 final class OptimizeExecutorTests: XCTestCase {
+    func testLaunchServicesUsesSafeIncrementalRefresh() {
+        // -kill wipes and rebuilds the whole LaunchServices DB (freezes the GUI while it
+        // rebuilds); the system domain needs root (fails). The default action must use a
+        // safe, root-free incremental re-register.
+        let plan = OptimizePlan(task: .launchServices)
+        let command = plan.commands.first
+        XCTAssertNotNil(command)
+        XCTAssertFalse(command?.arguments.contains("-kill") ?? true, "lsregister -kill hangs the GUI")
+        XCTAssertFalse(command?.arguments.contains("system") ?? true, "system domain needs root and fails")
+        XCTAssertEqual(command?.arguments, ["-r", "-domain", "local", "-domain", "user"])
+    }
+
     func testOptimizeTaskBuildsReviewablePlan() {
         let plan = OptimizePlan(task: .quickLook)
 
