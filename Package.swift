@@ -32,9 +32,13 @@ let package = Package(
                 .linkedFramework("IOKit")
             ]
         ),
+        .target(
+            name: "ThermoMoleAppCore",
+            dependencies: ["ThermoMoleCore"]
+        ),
         .executableTarget(
             name: "ThermoMole",
-            dependencies: ["ThermoMoleCore", "ThermoMoleNative"],
+            dependencies: ["ThermoMoleCore", "ThermoMoleNative", "ThermoMoleAppCore"],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
@@ -56,6 +60,10 @@ let package = Package(
         .testTarget(
             name: "ThermoMoleCoreTests",
             dependencies: ["ThermoMoleCore"]
+        ),
+        .testTarget(
+            name: "ThermoMoleAppCoreTests",
+            dependencies: ["ThermoMoleAppCore"]
         )
     ]
 )
