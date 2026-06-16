@@ -11,7 +11,7 @@ struct SettingsTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                PageHeader(title: "Settings", subtitle: "Menu bar readings, local permissions, and reversible defaults.", symbol: "gearshape")
+                TabHeader(subtitle: "Menu bar readings, local permissions, and reversible defaults.") {}
 
                 DoctorSettingsPanel(
                     report: model.doctorReport,

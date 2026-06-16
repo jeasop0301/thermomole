@@ -21,9 +21,7 @@ struct SoftwareTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                PageHeader(title: "Software", subtitle: "Apps, versions, and launch items gathered in one quiet list.", symbol: "shippingbox")
-                Spacer()
+            TabHeader(subtitle: "Apps, versions, and launch items gathered in one quiet list.") {
                 OperationStatePill(state: model.softwareState)
                 Button {
                     model.loadSoftware()

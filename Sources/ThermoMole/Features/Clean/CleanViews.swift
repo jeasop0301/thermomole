@@ -35,9 +35,7 @@ struct CleanTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                PageHeader(title: "Clean", subtitle: "Find safe cache clutter; nothing leaves without review.", symbol: "sparkles")
-                Spacer()
+            TabHeader(subtitle: "Find safe cache clutter; nothing leaves without review.") {
                 OperationStatePill(state: clean.state)
                 Button {
                     Task { await clean.runScan() }
