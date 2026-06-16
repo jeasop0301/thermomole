@@ -31,6 +31,13 @@ struct StatusTab: View {
                     .buttonStyle(.borderedProminent)
                 }
 
+                HStack {
+                    Spacer()
+                    BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 150)
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+
                 if statusBrief.isChargingWhileHot {
                     ChargeWhileHotBanner()
                 }
