@@ -4,42 +4,50 @@ import ThermoMoleCore
 
 extension Color {
     static let appBackground = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.965, green: 0.955, blue: 0.925, alpha: 1),
-        dark: NSColor(calibratedRed: 0.085, green: 0.083, blue: 0.073, alpha: 1)
+        light: NSColor(calibratedRed: 0.957, green: 0.957, blue: 0.965, alpha: 1),
+        dark: NSColor(calibratedRed: 0.102, green: 0.102, blue: 0.110, alpha: 1)
     ))
     static let appSidebar = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.895, green: 0.925, blue: 0.875, alpha: 1),
-        dark: NSColor(calibratedRed: 0.115, green: 0.118, blue: 0.098, alpha: 1)
+        light: NSColor(calibratedRed: 0.925, green: 0.925, blue: 0.937, alpha: 1),
+        dark: NSColor(calibratedRed: 0.125, green: 0.125, blue: 0.133, alpha: 1)
     ))
     static let cardFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.992, green: 0.982, blue: 0.948, alpha: 1),
-        dark: NSColor(calibratedRed: 0.145, green: 0.137, blue: 0.118, alpha: 1)
+        light: NSColor(calibratedRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
+        dark: NSColor(calibratedRed: 0.165, green: 0.165, blue: 0.180, alpha: 1)
     ))
     static let insetFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.93, green: 0.94, blue: 0.895, alpha: 1),
-        dark: NSColor(calibratedRed: 0.108, green: 0.108, blue: 0.096, alpha: 1)
+        light: NSColor(calibratedRed: 0.937, green: 0.937, blue: 0.949, alpha: 1),
+        dark: NSColor(calibratedRed: 0.139, green: 0.139, blue: 0.153, alpha: 1)
     ))
     static let selectionFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.972, green: 0.855, blue: 0.70, alpha: 1),
-        dark: NSColor(calibratedRed: 0.235, green: 0.152, blue: 0.105, alpha: 1)
+        light: NSColor(calibratedRed: 0.894, green: 0.941, blue: 1.0, alpha: 1),
+        dark: NSColor(calibratedRed: 0.071, green: 0.227, blue: 0.388, alpha: 1)
     ))
     static let iconBadgeFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.985, green: 0.84, blue: 0.62, alpha: 1),
-        dark: NSColor(calibratedRed: 0.265, green: 0.164, blue: 0.108, alpha: 1)
+        light: NSColor(calibratedRed: 0.933, green: 0.945, blue: 0.961, alpha: 1),
+        dark: NSColor(calibratedRed: 0.173, green: 0.184, blue: 0.208, alpha: 1)
     ))
     static let subtleStroke = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.48, green: 0.39, blue: 0.28, alpha: 0.14),
-        dark: NSColor(calibratedRed: 0.85, green: 0.78, blue: 0.66, alpha: 0.12)
+        light: NSColor(calibratedWhite: 0, alpha: 0.10),
+        dark: NSColor(calibratedWhite: 1, alpha: 0.12)
     ))
     static let panelShadow = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedWhite: 0, alpha: 0.035),
-        dark: NSColor(calibratedWhite: 0, alpha: 0.18)
+        light: NSColor(calibratedWhite: 0, alpha: 0.06),
+        dark: NSColor(calibratedWhite: 0, alpha: 0.30)
     ))
-    static let thermoAccent = Color(red: 0.68, green: 0.27, blue: 0.16)
-    static let oceanAccent = Color(red: 0.22, green: 0.44, blue: 0.54)
-    static let leafAccent = Color(red: 0.28, green: 0.52, blue: 0.36)
-    static let amberAccent = Color(red: 0.76, green: 0.52, blue: 0.21)
-    static let plumAccent = Color(red: 0.46, green: 0.37, blue: 0.50)
+    static let thermoAccent = Color(red: 0.039, green: 0.518, blue: 1.0)
+    static let oceanAccent = Color(red: 0.353, green: 0.784, blue: 0.980)
+    static let leafAccent = Color(red: 0.204, green: 0.780, blue: 0.349)
+    static let amberAccent = Color(red: 1.0, green: 0.624, blue: 0.039)
+    static let plumAccent = Color(red: 0.369, green: 0.361, blue: 0.902)
+}
+
+extension Font {
+    static let thermoTitle = Font.system(size: 20, weight: .semibold)
+    static let thermoHeadline = Font.system(size: 16, weight: .semibold)
+    static let thermoMetric = Font.system(size: 22, weight: .medium, design: .rounded)
+    static let thermoBody = Font.system(size: 13)
+    static let thermoCaption = Font.system(size: 11, weight: .medium)
 }
 
 extension NSColor {
@@ -55,9 +63,9 @@ struct SoftPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Color.cardFill)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.subtleStroke))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(color: Color.panelShadow, radius: 2, x: 0, y: 1)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.subtleStroke, lineWidth: 0.75))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: Color.panelShadow, radius: 3, x: 0, y: 1)
     }
 }
 
