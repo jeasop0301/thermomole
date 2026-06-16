@@ -124,7 +124,7 @@ struct MainWindowView: View {
         case .status:
             StatusTab(model: model)
         case .clean:
-            CleanTab(model: model)
+            CleanTab(clean: model.clean)
         case .software:
             SoftwareTab(model: model)
         case .optimize:

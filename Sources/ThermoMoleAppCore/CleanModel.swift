@@ -72,6 +72,10 @@ public final class CleanModel {
         selection.selectedBytes(in: result.items)
     }
 
+    public func dismissSmartPlan() {
+        smartPlan = nil
+    }
+
     public func executeSelected() async {
         guard !state.isRunning, !selection.selectedIDs.isEmpty else { return }
         smartPlan = nil

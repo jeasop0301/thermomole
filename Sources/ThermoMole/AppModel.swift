@@ -6,6 +6,7 @@ import ServiceManagement
 import UniformTypeIdentifiers
 import ThermoMoleCore
 import ThermoMoleNative
+import ThermoMoleAppCore
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -15,10 +16,6 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(MenuBarMetricStorage.encode(menuBarMetrics), forKey: "menuBarMetrics")
         }
     }
-    @Published var cleanupResult = CleanupScanResult(items: [], skipped: [])
-    @Published var cleanupSelection = CleanupReviewSelection(items: [])
-    @Published var smartCleanupPlan: SmartCleanupReviewPlan?
-    @Published var cleanupLog = [CleanupOperationLogEntry]()
     @Published var diskEntries = [DiskEntry]()
     @Published var diskTrashLog = [DiskEntryTrashResult]()
     @Published var diskAnalysisPath = DiskAnalysisPath(rootURL: FileManager.default.homeDirectoryForCurrentUser)
@@ -26,7 +23,6 @@ final class AppModel: ObservableObject {
     @Published var startupItems = [StartupItem]()
     @Published var appUninstallLog = [AppUninstallResult]()
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var cleanupState = OperationState.idle
     @Published var analyzeState = OperationState.idle
     @Published var softwareState = OperationState.idle
     @Published var optimizeState = OperationState.idle
@@ -55,6 +51,13 @@ final class AppModel: ObservableObject {
     private var samplingGate = SamplingGate(timeout: 8)
     private var analyzeTask: Task<[DiskEntry], Never>?
     private var analyzeRequestID = UUID()
+
+    private(set) lazy var clean = CleanModel(
+        scan: { CleanupScanner().scan(preselection: $0) },
+        execute: { items, selection in CleanupExecutor().execute(items: items, selection: selection, mode: .trash) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onCleaned: { [weak self] in self?.refreshDoctorReport() }
+    )
 
     init() {
         let stored = UserDefaults.standard.stringArray(forKey: "menuBarMetrics") ?? []
@@ -117,89 +120,6 @@ final class AppModel: ObservableObject {
 
     nonisolated func flushExposureForTermination() async {
         await exposureCoordinator.flushNow(at: Date())
-    }
-
-    func scanCleanup() {
-        guard !cleanupState.isRunning else { return }
-        smartCleanupPlan = nil
-        cleanupState = cleanupState.started(message: "Scanning review items")
-        Task.detached(priority: .utility) {
-            let scanner = CleanupScanner()
-            return scanner.scan()
-        }.receive(on: MainActor.self) { [weak self] result in
-            self?.cleanupResult = result
-            self?.cleanupSelection = CleanupReviewSelection(items: result.items)
-            let summary = CleanupReviewSummary(result)
-            self?.cleanupState = self?.cleanupState.finished(
-                message: "\(summary.itemCount) items · \(formatBytes(summary.totalBytes))",
-                at: Date()
-            ) ?? .idle
-        }
-    }
-
-    func prepareSmartCleanup() {
-        guard !cleanupState.isRunning else { return }
-        smartCleanupPlan = nil
-        cleanupState = cleanupState.started(message: "Finding safe cleanup")
-        Task.detached(priority: .utility) {
-            let scanner = CleanupScanner()
-            return scanner.scan(preselection: .recommended)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            cleanupResult = result
-            cleanupSelection = CleanupReviewSelection(items: result.items)
-            let plan = SmartCleanupReviewPlan(result)
-            if plan.hasSelection {
-                smartCleanupPlan = plan
-                cleanupState = cleanupState.finished(
-                    message: "\(plan.selectedItemCount) ready · \(formatBytes(plan.selectedBytes))",
-                    at: Date()
-                )
-            } else {
-                cleanupState = cleanupState.finished(message: "Nothing safe to clean", at: Date())
-            }
-        }
-    }
-
-    func setCleanupItem(_ item: CleanupItem, selected: Bool) {
-        cleanupSelection.setSelected(item, isSelected: selected)
-    }
-
-    func setCleanupItems(_ items: [CleanupItem], selected: Bool) {
-        cleanupSelection.setSelected(items, isSelected: selected)
-    }
-
-    func selectedCleanupBytes() -> UInt64 {
-        cleanupSelection.selectedBytes(in: cleanupResult.items)
-    }
-
-    func executeSelectedCleanup() {
-        guard !cleanupState.isRunning, !cleanupSelection.selectedIDs.isEmpty else { return }
-        smartCleanupPlan = nil
-        cleanupState = cleanupState.started(message: "Moving selected items to Trash")
-        let items = cleanupResult.items
-        let selection = cleanupSelection
-        Task.detached(priority: .utility) {
-            let executor = CleanupExecutor()
-            return executor.execute(items: items, selection: selection, mode: .trash)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            cleanupLog = result.entries + cleanupLog
-            appendHistory(OperationHistoryEntry.cleanup(
-                kind: .clean,
-                title: "Clean Selected",
-                result: result
-            ))
-            let succeededIDs = Set(result.entries.filter { $0.status == .succeeded }.map(\.item.id))
-            let remainingItems = cleanupResult.items.filter { !succeededIDs.contains($0.id) }
-            cleanupResult = CleanupScanResult(items: remainingItems, skipped: cleanupResult.skipped)
-            cleanupSelection = CleanupReviewSelection(items: remainingItems)
-            refreshDoctorReport()
-            cleanupState = cleanupState.finished(
-                message: "\(result.succeededCount) moved · \(formatBytes(result.reclaimedBytes))",
-                at: Date()
-            )
-        }
     }
 
     func analyzeHome() {
