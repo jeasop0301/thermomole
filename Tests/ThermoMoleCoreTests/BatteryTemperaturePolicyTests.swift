@@ -45,4 +45,45 @@ final class BatteryTemperaturePolicyTests: XCTestCase {
 
         XCTAssertTrue(thermal.hasBatterySensorMismatch)
     }
+
+    func testRejectsImplausibleIORegAndFallsBackToCell() {
+        // 90°C is impossible for a battery pack (misread / wrong-units decode) — reject it.
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [35.8],
+            ioregTemperatureC: 90.0
+        )
+
+        XCTAssertEqual(thermal.batteryDisplayC, 35.8)
+        XCTAssertEqual(thermal.batteryTemperatureSource, .smcCellMax)
+        XCTAssertNil(thermal.batteryIORegC)
+    }
+
+    func testRejectsImplausibleCellsAsUnavailable() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [90.0, 127.0],
+            ioregTemperatureC: nil
+        )
+
+        XCTAssertNil(thermal.batteryDisplayC)
+        XCTAssertEqual(thermal.batteryTemperatureSource, .unavailable)
+        XCTAssertNil(thermal.batteryCellMaxC)
+    }
+
+    func testAcceptsHighButPlausibleBatteryTemperature() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [],
+            ioregTemperatureC: 79.0
+        )
+
+        XCTAssertEqual(thermal.batteryDisplayC, 79.0)
+        XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
+    }
+
+    func testIsValidBatteryTemperatureBounds() {
+        XCTAssertTrue(ThermalPolicy.isValidBatteryTemperature(0.1))
+        XCTAssertTrue(ThermalPolicy.isValidBatteryTemperature(79.9))
+        XCTAssertFalse(ThermalPolicy.isValidBatteryTemperature(0))
+        XCTAssertFalse(ThermalPolicy.isValidBatteryTemperature(80))
+        XCTAssertFalse(ThermalPolicy.isValidBatteryTemperature(127))
+    }
 }
