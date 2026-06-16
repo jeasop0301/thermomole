@@ -64,6 +64,22 @@ struct SettingsTab: View {
                     SettingsInfoRow(title: "Launch Status", value: model.launchAtLoginStatusText)
                 }
 
+                SettingsPanel(title: "Longevity Alerts", symbol: "bell.badge") {
+                    SettingsRow {
+                        Toggle("System notifications", isOn: Binding {
+                            model.notificationsEnabled
+                        } set: { isOn in
+                            model.setNotificationsEnabled(isOn)
+                        })
+                        .toggleStyle(.switch)
+                        Spacer()
+                    }
+                    Label("Quietly alerts you when charging-while-hot, sustained heat, long high-charge dwell, or low storage put the Mac's lifespan at risk. Throttled, and silent 22:00–07:00.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 SettingsPanel(title: "Temperature Policy", symbol: "thermometer.medium") {
                     SettingsInfoRow(title: "Battery source", value: "AppleSmartBattery first")
                     SettingsInfoRow(title: "Fallback", value: "SMC TB max diagnostic")

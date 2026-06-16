@@ -47,6 +47,7 @@ final class AppModel: ObservableObject {
     @Published var batteryLongevity: BatteryLongevityReport?
     @Published var todayCPUExposure = CPUExposureSummary.empty
     @Published var longevityAssessment = LongevityAssessment(score: 100, factors: [], actions: [])
+    @Published var notificationsEnabled = false
 
     private let provider = NativeSensorProvider()
     private let historyStore = OperationHistoryStore.live
@@ -54,6 +55,9 @@ final class AppModel: ObservableObject {
     private let exposureCoordinator = ThermalExposureCoordinator()
     private let chargeCoordinator = ChargeExposureCoordinator()
     private let cpuExposureCoordinator = CPUExposureCoordinator()
+    private let notifier = NotificationCenterClient()
+    private var lastNotified: [LongevityNotification: Date] = [:]
+    private let quietHours = QuietHours(startHour: 22, endHour: 7)
     private let batteryHealthStore = BatteryHealthStore()
     private var batteryHealthLog = BatteryHealthLog()
     private var lastSavedHealthRecord: BatteryHealthRecord?
@@ -100,6 +104,8 @@ final class AppModel: ObservableObject {
             recomputeLongevity()
         }
         showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
+        notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
+        if notificationsEnabled { notifier.requestAuthorization() }
         loadOperationHistory()
         refreshLaunchAtLoginStatus()
         refreshDoctorReport()
@@ -153,8 +159,36 @@ final class AppModel: ObservableObject {
             todayCPUExposure = await cpuExposureCoordinator.summary(at: next.sampledAt, calendar: .current)
             recordBatteryHealth(from: next)
             recomputeLongevity()
+            evaluateNotifications(for: next)
             refreshDoctorReport()
             samplingGate.finish(startedAt: sampleStartedAt)
+        }
+    }
+
+    func setNotificationsEnabled(_ enabled: Bool) {
+        notificationsEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "notificationsEnabled")
+        if enabled { notifier.requestAuthorization() }
+    }
+
+    private func evaluateNotifications(for snapshot: SystemSnapshot) {
+        guard notificationsEnabled else { return }
+        var active: Set<LongevityNotification> = []
+        if StatusBrief(snapshot: snapshot).isChargingWhileHot { active.insert(.chargingWhileHot) }
+        if snapshot.thermal.batteryWarningLevel == .hot { active.insert(.sustainedHotBattery) }
+        if todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
+        if (100 - snapshot.disk.usedPercent) < 10 { active.insert(.lowStorage) }
+
+        let due = NotificationPolicy.due(
+            active: active,
+            lastSent: lastNotified,
+            now: snapshot.sampledAt,
+            quietHours: quietHours,
+            calendar: .current
+        )
+        for notification in due {
+            notifier.post(notification)
+            lastNotified[notification] = snapshot.sampledAt
         }
     }
 
