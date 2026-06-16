@@ -95,6 +95,19 @@ final class CleanModelTests: XCTestCase {
         XCTAssertNil(model.smartPlan)
     }
 
+    func testDismissSmartPlanClearsPlan() async {
+        let a = item("a", 10, preselected: true)
+        let model = CleanModel(
+            scan: { _ in CleanupScanResult(items: [a], skipped: []) },
+            execute: { _, _ in CleanupExecutionResult(entries: []) },
+            logOperation: { _ in }, onCleaned: {}
+        )
+        await model.prepareSmartCleanup()
+        XCTAssertNotNil(model.smartPlan)
+        model.dismissSmartPlan()
+        XCTAssertNil(model.smartPlan)
+    }
+
     func testExecuteDropsOnlySucceededKeepsFailed() async {
         let a = item("a", 10), b = item("b", 20)
         let okA = CleanupOperationLogEntry(item: a, mode: .trash, status: .succeeded, message: "Moved to Trash")

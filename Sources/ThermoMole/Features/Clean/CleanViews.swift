@@ -1,15 +1,16 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 
 struct CleanTab: View {
-    @ObservedObject var model: AppModel
+    let clean: CleanModel
     @State private var isShowingCleanupConfirmation = false
     @State private var cleanupSearchQuery = ""
     @State private var selectedCleanupCategory: CleanupCategory?
     @State private var cleanupSort = CleanupReviewSort.largestFirst
 
     private var summary: CleanupReviewSummary {
-        CleanupReviewSummary(model.cleanupResult)
+        CleanupReviewSummary(clean.result)
     }
 
     private var filteredItems: [CleanupItem] {
@@ -17,7 +18,7 @@ struct CleanTab: View {
             query: cleanupSearchQuery,
             category: selectedCleanupCategory,
             sort: cleanupSort
-        ).apply(to: model.cleanupResult.items)
+        ).apply(to: clean.result.items)
     }
 
     private var filteredBytes: UInt64 {
@@ -25,11 +26,11 @@ struct CleanTab: View {
     }
 
     private var selectedVisibleCount: Int {
-        filteredItems.filter { model.cleanupSelection.contains($0) }.count
+        filteredItems.filter { clean.selection.contains($0) }.count
     }
 
     private var confirmationSummary: CleanupConfirmationSummary {
-        CleanupConfirmationSummary(result: model.cleanupResult, selection: model.cleanupSelection)
+        CleanupConfirmationSummary(result: clean.result, selection: clean.selection)
     }
 
     var body: some View {
@@ -37,42 +38,42 @@ struct CleanTab: View {
             HStack(alignment: .top) {
                 PageHeader(title: "Clean", subtitle: "Find safe cache clutter; nothing leaves without review.", symbol: "sparkles")
                 Spacer()
-                OperationStatePill(state: model.cleanupState)
+                OperationStatePill(state: clean.state)
                 Button {
-                    model.scanCleanup()
+                    Task { await clean.runScan() }
                 } label: {
-                    if model.cleanupState.isRunning {
+                    if clean.state.isRunning {
                         Label("Scanning", systemImage: "hourglass")
                     } else {
                         Label("Review Scan", systemImage: "magnifyingglass")
                     }
                 }
-                .disabled(model.cleanupState.isRunning)
+                .disabled(clean.state.isRunning)
                 Button {
-                    model.prepareSmartCleanup()
+                    Task { await clean.prepareSmartCleanup() }
                 } label: {
-                    if model.cleanupState.isRunning {
+                    if clean.state.isRunning {
                         Label("Scanning", systemImage: "hourglass")
                     } else {
                         Label("Smart Clean", systemImage: "sparkles")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.cleanupState.isRunning)
+                .disabled(clean.state.isRunning)
             }
 
             HStack(spacing: 12) {
                 MetricTile(title: "Review Items", value: "\(summary.itemCount)", tint: Color.oceanAccent)
                 MetricTile(title: "Visible", value: "\(filteredItems.count)", detail: formatBytes(filteredBytes), tint: .teal)
-                MetricTile(title: "Selected for Trash", value: formatBytes(model.selectedCleanupBytes()), tint: Color.leafAccent)
+                MetricTile(title: "Selected for Trash", value: formatBytes(clean.selectedBytes()), tint: Color.leafAccent)
                 MetricTile(title: "Skipped", value: "\(summary.skippedCount)", tint: .yellow)
             }
 
             CleanSafetyNotice(skippedCount: summary.skippedCount)
 
-            if model.cleanupState.isRunning {
-                ProgressPanel(title: "Scanning", message: model.cleanupState.message)
-            } else if model.cleanupResult.items.isEmpty {
+            if clean.state.isRunning {
+                ProgressPanel(title: "Scanning", message: clean.state.message)
+            } else if clean.result.items.isEmpty {
                 ContentUnavailableView(
                     "No Scan Results",
                     systemImage: "sparkles",
@@ -100,8 +101,8 @@ struct CleanTab: View {
                     category: $selectedCleanupCategory,
                     sort: $cleanupSort,
                     canSelectVisible: !filteredItems.isEmpty,
-                    selectVisible: { model.setCleanupItems(filteredItems, selected: true) },
-                    clearVisible: { model.setCleanupItems(filteredItems, selected: false) }
+                    selectVisible: { clean.setSelected(filteredItems, true) },
+                    clearVisible: { clean.setSelected(filteredItems, false) }
                 )
                 HStack(alignment: .top, spacing: 12) {
                     CleanupCategorySummaryView(categories: summary.categories)
@@ -110,9 +111,9 @@ struct CleanTab: View {
                         List(filteredItems) { item in
                             HStack {
                                 Toggle("", isOn: Binding {
-                                    model.cleanupSelection.contains(item)
+                                    clean.selection.contains(item)
                                 } set: { isSelected in
-                                    model.setCleanupItem(item, selected: isSelected)
+                                    clean.setSelected(item, isSelected)
                                 })
                                 .labelsHidden()
                                 .toggleStyle(.checkbox)
@@ -154,15 +155,15 @@ struct CleanTab: View {
                                 Label("Clean Selected", systemImage: "trash")
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(!confirmationSummary.hasSelection || model.cleanupState.isRunning)
+                            .disabled(!confirmationSummary.hasSelection || clean.state.isRunning)
                             .help("Moves selected items to Trash after confirmation.")
                         }
                     }
                 }
             }
 
-            if !model.cleanupLog.isEmpty {
-                CleanupOperationLogView(entries: Array(model.cleanupLog.prefix(8)))
+            if !clean.log.isEmpty {
+                CleanupOperationLogView(entries: Array(clean.log.prefix(8)))
             }
         }
         .padding(22)
@@ -170,26 +171,29 @@ struct CleanTab: View {
         .alert("Move selected items to Trash?", isPresented: $isShowingCleanupConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Move to Trash", role: .destructive) {
-                model.executeSelectedCleanup()
+                Task { await clean.executeSelected() }
             }
         } message: {
             Text(confirmationSummary.confirmationMessage)
         }
-        .alert(item: Binding(
-            get: { model.smartCleanupPlan },
-            set: { model.smartCleanupPlan = $0 }
-        )) { plan in
-            let summary = CleanupConfirmationSummary(result: model.cleanupResult, selection: plan.selection)
-            return Alert(
-                title: Text("Move Smart Clean items to Trash?"),
-                message: Text(summary.confirmationMessage),
-                primaryButton: .destructive(Text("Move to Trash")) {
-                    model.executeSelectedCleanup()
-                },
-                secondaryButton: .cancel(Text("Review List")) {
-                    model.smartCleanupPlan = nil
-                }
+        .alert(
+            "Move Smart Clean items to Trash?",
+            isPresented: Binding(
+                get: { clean.smartPlan != nil },
+                set: { isPresented in if !isPresented { clean.dismissSmartPlan() } }
             )
+        ) {
+            Button("Cancel", role: .cancel) {
+                clean.dismissSmartPlan()
+            }
+            Button("Move to Trash", role: .destructive) {
+                Task { await clean.executeSelected() }
+            }
+        } message: {
+            if clean.smartPlan != nil {
+                let summary = CleanupConfirmationSummary(result: clean.result, selection: clean.selection)
+                Text(summary.confirmationMessage)
+            }
         }
     }
 }
