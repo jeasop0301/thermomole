@@ -563,7 +563,7 @@ public extension OptimizeTask {
         case .quickLook:
             "Reset Quick Look generator cache."
         case .launchServices:
-            "Rebuild Launch Services app registration for local, system, and user domains."
+            "Re-register apps with Launch Services for the local and user domains."
         case .periodicMaintenance:
             "Run macOS daily, weekly, and monthly periodic maintenance scripts."
         case .savedApplicationState:
@@ -582,8 +582,8 @@ public extension OptimizeTask {
             ]
         case .launchServices:
             [
-                "Rebuilds app registration for local, system, and user domains.",
-                "May change Open With and default app resolution until macOS settles."
+                "Re-registers apps in the local and user domains (incremental, no full rebuild).",
+                "May briefly refresh Open With and default-app resolution."
             ]
         case .periodicMaintenance:
             [
@@ -608,7 +608,7 @@ public extension OptimizeTask {
         case .quickLook:
             "Run Quick Look cache reset now?"
         case .launchServices:
-            "Run Launch Services registration rebuild now?"
+            "Re-register apps with Launch Services now?"
         case .periodicMaintenance:
             "Run macOS periodic maintenance scripts now?"
         case .savedApplicationState:
@@ -632,9 +632,11 @@ public extension OptimizeTask {
         case .quickLook:
             [OptimizeCommand(executablePath: "/usr/bin/qlmanage", arguments: ["-r"])]
         case .launchServices:
+            // Incremental re-register only. NOT "-kill" (wipes the whole LaunchServices DB and
+            // hangs the GUI while it rebuilds) and NOT "-domain system" (needs root, fails).
             [OptimizeCommand(
                 executablePath: "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
-                arguments: ["-kill", "-r", "-domain", "local", "-domain", "system", "-domain", "user"]
+                arguments: ["-r", "-domain", "local", "-domain", "user"]
             )]
         case .periodicMaintenance:
             [OptimizeCommand(executablePath: "/usr/sbin/periodic", arguments: ["daily", "weekly", "monthly"])]
