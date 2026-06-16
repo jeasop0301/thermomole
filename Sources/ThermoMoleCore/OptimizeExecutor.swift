@@ -336,6 +336,9 @@ public struct OptimizeBatchPlan: Equatable, Sendable {
             if plan.commands.isEmpty {
                 skippedTasks.append(task)
                 skippedReasons[task] = plan.summary
+            } else if task.requiresAdmin {
+                skippedTasks.append(task)
+                skippedReasons[task] = "Needs administrator privileges — run it yourself when needed."
             } else if let skipReason = safetyPolicy.decision(for: task).skipReason {
                 skippedTasks.append(task)
                 skippedReasons[task] = skipReason
@@ -624,6 +627,15 @@ public extension OptimizeTask {
             .low
         case .launchServices, .savedApplicationState, .dockRefresh:
             .medium
+        }
+    }
+
+    /// Tasks that only do meaningful work as root. They stay individually runnable but are
+    /// kept out of the one-click default batch (which runs unprivileged).
+    var requiresAdmin: Bool {
+        switch self {
+        case .periodicMaintenance: true
+        default: false
         }
     }
 
