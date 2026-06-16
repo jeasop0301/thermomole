@@ -6,15 +6,26 @@ struct MenuBarPopoverView: View {
     var openMain: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             PopoverHeader(snapshot: model.snapshot)
+
+            HStack {
+                Spacer()
+                BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 104)
+                Spacer()
+            }
+            .padding(.vertical, 2)
+
+            if StatusBrief(snapshot: model.snapshot).isChargingWhileHot {
+                ChargeWhileHotBanner()
+            }
 
             PopoverMetricStack(snapshot: model.snapshot)
 
             HStack(spacing: 6) {
                 ThermalLevelGlyph(level: model.snapshot.thermal.batteryWarningLevel)
                 Text("Today: \(Int((model.todayExposure.today.secondsAbove35 / 60).rounded())) min ≥35°")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.thermoCaption).foregroundStyle(.secondary)
             }
 
             CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
@@ -33,7 +44,7 @@ struct MenuBarPopoverView: View {
         }
         .padding(16)
         .frame(width: 370)
-        .background(Color.appBackground)
+        .background(.regularMaterial)
         .tint(Color.thermoAccent)
     }
 }
