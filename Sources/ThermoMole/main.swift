@@ -1569,7 +1569,7 @@ struct BatteryProtectionPanel: View {
                 SensorValueRow(title: "Displayed", value: batterySourceLabel(snapshot.thermal.batteryTemperatureSource))
                 SensorValueRow(title: "AppleSmartBattery", value: formatTemperaturePrecise(snapshot.thermal.batteryIORegC))
                 SensorValueRow(title: "SMC TB Max", value: formatTemperaturePrecise(snapshot.thermal.batteryCellMaxC))
-                SensorValueRow(title: "Warning Lines", value: "35° / 40°")
+                SensorValueRow(title: "Warning Lines", value: "\(Int(ThermalThresholds.batteryCautionC))° / \(Int(ThermalThresholds.batteryHotC))°")
             }
 
             if snapshot.thermal.hasBatterySensorMismatch {
@@ -2464,7 +2464,7 @@ struct SettingsTab: View {
                     SettingsInfoRow(title: "Battery source", value: "AppleSmartBattery first")
                     SettingsInfoRow(title: "Fallback", value: "SMC TB max diagnostic")
                     SettingsInfoRow(title: "VirtualTemperature", value: "Ignored")
-                    SettingsInfoRow(title: "Warnings", value: "35°C caution · 40°C hot")
+                    SettingsInfoRow(title: "Warnings", value: "\(Int(ThermalThresholds.batteryCautionC))°C caution · \(Int(ThermalThresholds.batteryHotC))°C hot")
                 }
 
                 SettingsPanel(title: "Local App", symbol: "lock.laptopcomputer") {

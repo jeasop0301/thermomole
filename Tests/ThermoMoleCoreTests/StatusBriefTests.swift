@@ -35,7 +35,7 @@ final class StatusBriefTests: XCTestCase {
 
         XCTAssertEqual(brief.mood, .watch)
         XCTAssertEqual(brief.title, "Battery is warming")
-        XCTAssertTrue(brief.detail.contains("35° caution line"))
+        XCTAssertTrue(brief.detail.contains("\(Int(ThermalThresholds.batteryCautionC))° caution line"))
         XCTAssertEqual(brief.prioritySignal?.title, "Battery")
         XCTAssertEqual(brief.prioritySignal?.value, "36.2°")
     }

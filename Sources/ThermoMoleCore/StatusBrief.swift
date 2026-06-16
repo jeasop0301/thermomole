@@ -70,7 +70,7 @@ public struct StatusBrief: Equatable, Sendable {
             return
         }
 
-        if let cpu = snapshot.thermal.cpuDisplayC, cpu >= 95 {
+        if let cpu = snapshot.thermal.cpuDisplayC, cpu >= ThermalThresholds.cpuHotC {
             mood = .hot
             title = "CPU is running hot"
             detail = "CPU hotspot is at \(StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC)). Let sustained work settle."
@@ -89,12 +89,12 @@ public struct StatusBrief: Equatable, Sendable {
         if snapshot.thermal.batteryWarningLevel == .caution {
             mood = .watch
             title = "Battery is warming"
-            detail = "Physical battery crossed the 35° caution line. Keep airflow clear and avoid extra charging heat."
+            detail = "Physical battery crossed the \(Int(ThermalThresholds.batteryCautionC))° caution line. Keep airflow clear and avoid extra charging heat."
             prioritySignalID = "battery"
             return
         }
 
-        if let cpu = snapshot.thermal.cpuDisplayC, cpu >= 85 {
+        if let cpu = snapshot.thermal.cpuDisplayC, cpu >= ThermalThresholds.cpuWarmC {
             mood = .watch
             title = "CPU warmth is elevated"
             detail = "CPU hotspot is at \(StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC)). Sustained load may keep it warm."
