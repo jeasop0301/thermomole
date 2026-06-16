@@ -37,6 +37,13 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         guard designCapacityMAh > 0, rawMaxCapacityMAh > 0 else { return 100 }
         return min(100, Int((Double(rawMaxCapacityMAh) / Double(designCapacityMAh) * 100).rounded()))
     }
+
+    /// Instantaneous battery power in watts (V × A). Positive while charging into the pack,
+    /// negative while discharging. The magnitude is the direct heat source and the largest
+    /// driver of pack temperature.
+    public var instantPowerW: Double {
+        Double(voltageMV) * Double(amperageMA) / 1_000_000.0
+    }
 }
 
 public enum AppleSmartBatteryParser {

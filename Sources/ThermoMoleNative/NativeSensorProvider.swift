@@ -224,7 +224,8 @@ public actor NativeSensorProvider: SensorProvider {
             healthPercent: info.healthPercent,
             currentCapacityMAh: info.rawCurrentCapacityMAh,
             maxCapacityMAh: info.rawMaxCapacityMAh,
-            designCapacityMAh: info.designCapacityMAh
+            designCapacityMAh: info.designCapacityMAh,
+            instantPowerW: info.instantPowerW
         )
     }
 

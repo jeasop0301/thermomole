@@ -71,6 +71,7 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
     public var currentCapacityMAh: Int
     public var maxCapacityMAh: Int
     public var designCapacityMAh: Int
+    public var instantPowerW: Double
 
     public init(
         percent: Int,
@@ -82,7 +83,8 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         healthPercent: Int,
         currentCapacityMAh: Int,
         maxCapacityMAh: Int,
-        designCapacityMAh: Int
+        designCapacityMAh: Int,
+        instantPowerW: Double = 0
     ) {
         self.percent = percent
         self.isCharging = isCharging
@@ -94,6 +96,27 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         self.currentCapacityMAh = currentCapacityMAh
         self.maxCapacityMAh = maxCapacityMAh
         self.designCapacityMAh = designCapacityMAh
+        self.instantPowerW = instantPowerW
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case percent, isCharging, isCharged, isOnACPower, timeRemaining, cycleCount
+        case healthPercent, currentCapacityMAh, maxCapacityMAh, designCapacityMAh, instantPowerW
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        percent = try c.decode(Int.self, forKey: .percent)
+        isCharging = try c.decode(Bool.self, forKey: .isCharging)
+        isCharged = try c.decode(Bool.self, forKey: .isCharged)
+        isOnACPower = try c.decode(Bool.self, forKey: .isOnACPower)
+        timeRemaining = try c.decode(String.self, forKey: .timeRemaining)
+        cycleCount = try c.decode(Int.self, forKey: .cycleCount)
+        healthPercent = try c.decode(Int.self, forKey: .healthPercent)
+        currentCapacityMAh = try c.decode(Int.self, forKey: .currentCapacityMAh)
+        maxCapacityMAh = try c.decode(Int.self, forKey: .maxCapacityMAh)
+        designCapacityMAh = try c.decode(Int.self, forKey: .designCapacityMAh)
+        instantPowerW = try c.decodeIfPresent(Double.self, forKey: .instantPowerW) ?? 0
     }
 }
 
