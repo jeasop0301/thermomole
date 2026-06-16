@@ -183,7 +183,7 @@ struct CleanTab: View {
                 set: { isPresented in if !isPresented { clean.dismissSmartPlan() } }
             )
         ) {
-            Button("Cancel", role: .cancel) {
+            Button("Review List", role: .cancel) {
                 clean.dismissSmartPlan()
             }
             Button("Move to Trash", role: .destructive) {
