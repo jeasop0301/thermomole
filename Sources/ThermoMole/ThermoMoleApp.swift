@@ -13,7 +13,8 @@ enum ThermoMoleMain {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        let showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
+        let windowed = ProcessInfo.processInfo.environment["THERMOMOLE_WINDOWED"] == "1"
+        let showsDockIcon = windowed || UserDefaults.standard.bool(forKey: "showsDockIcon")
         app.setActivationPolicy(showsDockIcon ? .regular : .accessory)
         app.run()
     }
@@ -41,6 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         model.start()
         startMenuBarFreshnessTimer()
+
+        if ProcessInfo.processInfo.environment["THERMOMOLE_WINDOWED"] == "1" {
+            showMainWindow()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

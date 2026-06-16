@@ -155,19 +155,28 @@ struct ThermalExposureWeekStrip: View {
     var body: some View {
         let chronological = Array(days.reversed())
         let maxMinutes = max(1, chronological.map { minutes($0.secondsAbove35) }.max() ?? 1)
+        let hasAnyExposure = chronological.contains { minutes($0.secondsAbove35) > 0 }
         VStack(alignment: .leading, spacing: 4) {
             Text("Last 7 days (min ≥35°)").font(.caption2).foregroundStyle(.secondary)
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(chronological, id: \.day) { day in
-                    let m = minutes(day.secondsAbove35)
-                    let tint: Color = day.secondsAbove40 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(tint)
-                        .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
-                        .accessibilityLabel("\(day.day): \(m) minutes above 35 degrees")
+            if hasAnyExposure {
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(chronological, id: \.day) { day in
+                        let m = minutes(day.secondsAbove35)
+                        let tint: Color = day.secondsAbove40 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(tint)
+                            .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
+                            .accessibilityLabel("\(day.day): \(m) minutes above 35 degrees")
+                    }
                 }
+                .frame(height: 28, alignment: .bottom)
+            } else {
+                Text("No heat above 35° in the last 7 days")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(height: 28, alignment: .center)
+                    .accessibilityLabel("No battery heat above 35 degrees in the last 7 days")
             }
-            .frame(height: 28, alignment: .bottom)
         }
     }
 }
@@ -395,10 +404,12 @@ struct ThermalOverviewPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text("\(snapshot.chipName) · \(snapshot.modelIdentifier)")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .frame(width: 190, alignment: .leading)
 
@@ -589,13 +600,15 @@ struct SparklineView: View {
     var values: [Double]
     var tint: Color
 
+    private let lineWidth: CGFloat = 2
+
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .bottomLeading) {
                 Rectangle()
                     .fill(tint.opacity(0.08))
                 sparklinePath(in: proxy.size)
-                    .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -604,18 +617,31 @@ struct SparklineView: View {
 
     private func sparklinePath(in size: CGSize) -> Path {
         var path = Path()
-        guard values.count > 1, size.width > 0, size.height > 0 else { return path }
+        guard size.width > 0, size.height > 0 else { return path }
+        let fractions = SparklineScale.fractions(values)
+        guard !fractions.isEmpty else { return path }
 
-        let minValue = values.min() ?? 0
-        let maxValue = values.max() ?? 1
-        let spread = max(maxValue - minValue, 1)
+        // Inset the vertical range by the stroke width so a line at either
+        // extreme (or a centered flat line) is never clipped by the rounded frame.
+        let inset = lineWidth / 2
+        let usableHeight = max(size.height - lineWidth, 0)
+        func y(for fraction: Double) -> CGFloat {
+            size.height - inset - CGFloat(fraction) * usableHeight
+        }
 
-        for index in values.indices {
-            let x = CGFloat(index) / CGFloat(values.count - 1) * size.width
-            let normalized = (values[index] - minValue) / spread
-            let y = size.height - CGFloat(normalized) * size.height
-            let point = CGPoint(x: x, y: y)
-            if index == values.startIndex {
+        // A single sample has no horizontal extent: draw a flat line across the width
+        // so a freshly-started series still shows something instead of a blank box.
+        guard fractions.count > 1 else {
+            let midY = y(for: fractions[0])
+            path.move(to: CGPoint(x: 0, y: midY))
+            path.addLine(to: CGPoint(x: size.width, y: midY))
+            return path
+        }
+
+        for index in fractions.indices {
+            let x = CGFloat(index) / CGFloat(fractions.count - 1) * size.width
+            let point = CGPoint(x: x, y: y(for: fractions[index]))
+            if index == fractions.startIndex {
                 path.move(to: point)
             } else {
                 path.addLine(to: point)
@@ -659,6 +685,10 @@ struct MetricTile: View {
     var value: String
     var detail: String = ""
     var tint: Color
+    /// Free-form name values (e.g. a filename) keep full size and middle-truncate
+    /// instead of shrinking via monospacedDigit + scaling, so numeric siblings in a
+    /// row keep matching value baselines.
+    var valueIsName: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -671,11 +701,18 @@ struct MetricTile: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Text(value)
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            Group {
+                if valueIsName {
+                    Text(value)
+                        .truncationMode(.middle)
+                } else {
+                    Text(value)
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.72)
+                }
+            }
+            .font(.system(size: 22, weight: .semibold, design: .rounded))
+            .lineLimit(1)
             if !detail.isEmpty {
                 Text(detail)
                     .font(.caption)
@@ -705,13 +742,17 @@ struct ProcessTable: View {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                 GridRow {
                     Text("Name").foregroundStyle(.secondary)
+                        .frame(width: 220, alignment: .leading)
                     Text("PID").foregroundStyle(.secondary)
                     Text("CPU").foregroundStyle(.secondary)
                     Text("Memory").foregroundStyle(.secondary)
                 }
                 ForEach(processes) { process in
                     GridRow {
-                        Text(process.name).lineLimit(1)
+                        Text(process.name)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(width: 220, alignment: .leading)
                         Text("\(process.pid)").monospacedDigit()
                         Text("\(process.cpuPercent, specifier: "%.1f")%").monospacedDigit()
                         Text(formatBytes(process.memoryBytes)).monospacedDigit()

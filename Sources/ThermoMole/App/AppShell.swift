@@ -177,25 +177,25 @@ struct PageHeader: View {
     var symbol: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+        VStack(alignment: .leading, spacing: 5) {
+            Text("ThermoMole")
+                .font(.caption.weight(.medium))
                 .foregroundStyle(Color.thermoAccent)
-                .frame(width: 32, height: 32)
-                .background(Color.iconBadgeFill.opacity(0.72))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text("ThermoMole")
-                    .font(.caption.weight(.medium))
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.thermoAccent)
+                    .frame(width: 32, height: 32)
+                    .background(Color.iconBadgeFill.opacity(0.72))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
                 Text(title)
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
-                Text(subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            Text(subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
