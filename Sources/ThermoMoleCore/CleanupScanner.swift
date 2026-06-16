@@ -38,6 +38,13 @@ public struct CleanupItem: Identifiable, Equatable, Sendable {
     public var url: URL
     public var sizeBytes: UInt64
     public var isPreselected: Bool
+
+    public init(category: CleanupCategory, url: URL, sizeBytes: UInt64, isPreselected: Bool) {
+        self.category = category
+        self.url = url
+        self.sizeBytes = sizeBytes
+        self.isPreselected = isPreselected
+    }
 }
 
 public struct CleanupScanResult: Equatable, Sendable {
