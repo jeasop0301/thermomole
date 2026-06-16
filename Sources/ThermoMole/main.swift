@@ -43,6 +43,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startMenuBarFreshnessTimer()
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        freshnessTimer?.invalidate()
+        let semaphore = DispatchSemaphore(value: 0)
+        Task.detached { [model] in
+            await model.flushExposureForTermination()
+            semaphore.signal()
+        }
+        _ = semaphore.wait(timeout: .now() + 2)
+    }
+
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = statusItem?.button else { return }
@@ -135,13 +145,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem?.button else { return }
         let condition = systemCondition(for: snapshot)
         let presentation = MenuBarPresentation(snapshot: snapshot, metrics: metrics)
-        let color = presentation.freshnessLevel == .stale ? NSColor.systemRed : nsColor(for: condition)
+        let prefixColor = presentation.freshnessLevel == .stale ? NSColor.systemRed : nsColor(for: condition)
 
         let attributed = NSMutableAttributedString(string: presentation.visibleTitle)
-        attributed.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: 1))
+        attributed.addAttribute(.foregroundColor, value: prefixColor, range: NSRange(location: 0, length: 1))
+
+        let level = snapshot.thermal.batteryWarningLevel
+        if presentation.freshnessLevel != .stale, level != .normal, let segment = presentation.batterySegment {
+            let prefixLength = (presentation.visibleTitle as NSString).length - (presentation.title as NSString).length
+            let tintRange = NSRange(location: segment.range.location + prefixLength, length: segment.range.length)
+            if NSMaxRange(tintRange) <= attributed.length {
+                attributed.addAttribute(
+                    .foregroundColor,
+                    value: nsColor(for: SystemConditionPolicy.batteryTint(for: level)),
+                    range: tintRange
+                )
+            }
+        }
+
+        if level == .hot, snapshot.battery.isCharging {
+            let attachment = NSTextAttachment()
+            attachment.image = NSImage(systemSymbolName: "flame.fill", accessibilityDescription: "charging while hot")?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed]))
+            attachment.bounds = NSRect(x: 0, y: -2, width: 12, height: 12)
+            attributed.insert(NSAttributedString(string: " "), at: 0)
+            attributed.insert(NSAttributedString(attachment: attachment), at: 0)
+        }
+
         button.attributedTitle = attributed
         button.toolTip = presentation.toolTip
-        button.setAccessibilityLabel(presentation.accessibilityLabel)
+        if level == .hot, snapshot.battery.isCharging {
+            button.setAccessibilityLabel("Charging while hot. " + presentation.accessibilityLabel)
+        } else {
+            button.setAccessibilityLabel(presentation.accessibilityLabel)
+        }
     }
 }
 
@@ -182,10 +219,12 @@ final class AppModel: ObservableObject {
     @Published var launchAtLoginStatusText = "Off"
     @Published var lastError: String?
     @Published var doctorReport = DoctorReport.make(inputs: .placeholder)
+    @Published var todayExposure = ThermalExposureSummary.empty
 
     private let provider = NativeSensorProvider()
     private let historyStore = OperationHistoryStore.live
     private let statusSnapshotStore = StatusSnapshotStore.live
+    private let exposureCoordinator = ThermalExposureCoordinator()
     private var timer: Timer?
     private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
@@ -202,6 +241,10 @@ final class AppModel: ObservableObject {
         if let lastSnapshot = try? statusSnapshotStore.load() {
             snapshot = lastSnapshot
             statusHistory.append(lastSnapshot)
+        }
+        Task {
+            await exposureCoordinator.bootstrap()
+            todayExposure = await exposureCoordinator.summary(at: Date(), calendar: .current)
         }
         showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         loadOperationHistory()
@@ -235,10 +278,20 @@ final class AppModel: ObservableObject {
             let next = await provider.sample()
             snapshot = next
             statusHistory.append(next)
-            try? statusSnapshotStore.save(next)
+            Task.detached { [statusSnapshotStore] in try? statusSnapshotStore.save(next) }
+            await exposureCoordinator.record(
+                temperatureC: next.thermal.batteryDisplayC,
+                at: next.sampledAt,
+                calendar: .current
+            )
+            todayExposure = await exposureCoordinator.summary(at: next.sampledAt, calendar: .current)
             refreshDoctorReport()
             samplingGate.finish(startedAt: sampleStartedAt)
         }
+    }
+
+    nonisolated func flushExposureForTermination() async {
+        await exposureCoordinator.flushNow(at: Date())
     }
 
     func scanCleanup() {
@@ -953,6 +1006,12 @@ struct MenuBarPopoverView: View {
 
             PopoverMetricStack(snapshot: model.snapshot)
 
+            HStack(spacing: 6) {
+                ThermalLevelGlyph(level: model.snapshot.thermal.batteryWarningLevel)
+                Text("Today: \(Int((model.todayExposure.today.secondsAbove35 / 60).rounded())) min ≥35°")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
 
             Divider()
@@ -1156,7 +1215,16 @@ struct StatusTab: View {
                     .buttonStyle(.borderedProminent)
                 }
 
+                if statusBrief.isChargingWhileHot {
+                    ChargeWhileHotBanner()
+                }
+
                 StatusBriefPanel(brief: statusBrief)
+
+                ThermalExposureCard(
+                    summary: model.todayExposure,
+                    warningLevel: model.snapshot.thermal.batteryWarningLevel
+                )
 
                 ThermalOverviewPanel(snapshot: model.snapshot)
 
@@ -1194,6 +1262,89 @@ struct StatusTab: View {
             }
         } message: {
             Text(MemoryPurgePlan(report: memoryReport).confirmationMessage)
+        }
+    }
+}
+
+struct ThermalLevelGlyph: View {
+    let level: TemperatureWarningLevel
+    var body: some View {
+        Image(systemName: level == .hot ? "flame.fill" : "thermometer.medium")
+            .foregroundStyle(level == .normal ? Color.secondary : Color.amberAccent)
+    }
+}
+
+struct ChargeWhileHotBanner: View {
+    var body: some View {
+        Label("Charging while hot — unplug to let the battery cool. Heat plus charging accelerates aging.",
+              systemImage: "bolt.trianglebadge.exclamationmark.fill")
+            .font(.callout)
+            .foregroundStyle(.primary)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.amberAccent.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+struct ThermalExposureCard: View {
+    let summary: ThermalExposureSummary
+    let warningLevel: TemperatureWarningLevel
+
+    private func minutes(_ seconds: TimeInterval) -> Int { Int((seconds / 60).rounded()) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                ThermalLevelGlyph(level: warningLevel)
+                Text("Today's battery heat exposure").font(.headline)
+            }
+            HStack(spacing: 16) {
+                exposureStat("Above 35°", minutes(summary.today.secondsAbove35))
+                exposureStat("Above 40°", minutes(summary.today.secondsAbove40))
+                if let peak = summary.today.peakC {
+                    VStack(alignment: .leading) {
+                        Text("Peak").font(.caption).foregroundStyle(.secondary)
+                        Text(String(format: "%.1f°", peak)).font(.title3).monospacedDigit()
+                    }
+                }
+            }
+            ThermalExposureWeekStrip(days: summary.recent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .softPanel()
+        .accessibilityElement(children: .contain)
+    }
+
+    private func exposureStat(_ label: String, _ value: Int) -> some View {
+        VStack(alignment: .leading) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text("\(value) min").font(.title3).monospacedDigit()
+        }
+    }
+}
+
+struct ThermalExposureWeekStrip: View {
+    let days: [DailyThermalExposure]   // descending (today first); displayed chronologically
+
+    private func minutes(_ s: TimeInterval) -> Int { Int((s / 60).rounded()) }
+
+    var body: some View {
+        let chronological = Array(days.reversed())
+        let maxMinutes = max(1, chronological.map { minutes($0.secondsAbove35) }.max() ?? 1)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Last 7 days (min ≥35°)").font(.caption2).foregroundStyle(.secondary)
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(chronological, id: \.day) { day in
+                    let m = minutes(day.secondsAbove35)
+                    let tint: Color = day.secondsAbove40 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(tint)
+                        .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
+                        .accessibilityLabel("\(day.day): \(m) minutes above 35 degrees")
+                }
+            }
+            .frame(height: 28, alignment: .bottom)
         }
     }
 }
