@@ -16,6 +16,14 @@ struct StatusTab: View {
         StatusBrief(snapshot: model.snapshot)
     }
 
+    private var batteryPackDetail: String {
+        let source = batterySourceLabel(model.snapshot.thermal.batteryTemperatureSource)
+        if let power = formatBatteryPower(model.snapshot.battery.instantPowerW) {
+            return "\(source) · \(power)"
+        }
+        return source
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -40,7 +48,7 @@ struct StatusTab: View {
                     TrendTile(
                         title: "Real battery pack",
                         value: formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC),
-                        detail: batterySourceLabel(model.snapshot.thermal.batteryTemperatureSource),
+                        detail: batteryPackDetail,
                         series: model.statusHistory.batteryTemperatureSeries,
                         tint: batteryColor(model.snapshot.thermal.batteryWarningLevel)
                     )
@@ -71,7 +79,7 @@ struct StatusTab: View {
                 }
 
                 HStack(alignment: .top, spacing: 12) {
-                    BatteryHealthCard(health: model.latestBatteryHealth, series: model.batteryHealthSeries)
+                    BatteryHealthCard(report: model.batteryLongevity, health: model.latestBatteryHealth, series: model.batteryHealthSeries)
                         .frame(maxWidth: .infinity)
                     CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
                         .frame(maxWidth: .infinity)
@@ -270,29 +278,56 @@ struct ChargeDwellWeekStrip: View {
 }
 
 struct BatteryHealthCard: View {
+    let report: BatteryLongevityReport?
     let health: DailyBatteryHealth?
     let series: [Double]
 
     private var tint: Color {
-        guard let h = health?.healthPercent else { return Color.oceanAccent }
-        if h >= 90 { return Color.leafAccent }
-        if h >= 80 { return Color.amberAccent }
+        guard let s = report?.score else { return Color.oceanAccent }
+        if s >= 85 { return Color.leafAccent }
+        if s >= 65 { return Color.amberAccent }
         return .red
+    }
+
+    private var detailLine: String {
+        guard let h = health else { return "Collecting daily readings…" }
+        return "\(h.healthPercent)% health · \(h.cycleCount) cycles · \(h.maxCapacityMAh) mAh"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Circle().fill(tint.opacity(0.85)).frame(width: 7, height: 7)
-                Text("Battery health").font(.caption).foregroundStyle(.secondary)
+                Text("Battery longevity").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if let months = report?.projectedMonthsTo80 {
+                    Text("~\(Int(months.rounded())) mo to 80%")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
-            Text(health.map { "\($0.healthPercent)%" } ?? "--")
-                .font(.system(size: 26, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(tint)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(report.map { "\($0.score)" } ?? "--")
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(tint)
+                Text("/ 100").font(.caption).foregroundStyle(.secondary)
+            }
             SparklineView(values: series, tint: tint)
-                .frame(height: 40)
-            Text(health.map { "\($0.cycleCount) cycles · \($0.maxCapacityMAh)/\($0.designCapacityMAh) mAh" } ?? "Collecting daily readings…")
+                .frame(height: 36)
+            if let alerts = report?.alerts, !alerts.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(alerts, id: \.self) { alert in
+                        Label(alertText(alert), systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Color.amberAccent)
+                            .lineLimit(1)
+                    }
+                }
+                .minimumScaleFactor(0.8)
+            }
+            Text(detailLine)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -302,8 +337,17 @@ struct BatteryHealthCard: View {
         .padding(14)
         .softPanel()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Battery health"))
-        .accessibilityValue(Text(health.map { "\($0.healthPercent) percent, \($0.cycleCount) cycles" } ?? "collecting"))
+        .accessibilityLabel(Text("Battery longevity"))
+        .accessibilityValue(Text(report.map { "score \($0.score) of 100, \($0.healthPercent) percent health, \($0.cycleCount) cycles" } ?? "collecting"))
+    }
+
+    private func alertText(_ alert: BatteryLongevityAlert) -> String {
+        switch alert {
+        case .fastFade: "Fading fast"
+        case .healthBelow80: "Below 80%"
+        case .healthBelow60: "Below 60%"
+        case .highCycleRate: "High cycle rate"
+        }
     }
 }
 

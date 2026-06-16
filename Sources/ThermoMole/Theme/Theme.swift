@@ -91,6 +91,14 @@ func formatTemperaturePrecise(_ value: Double?) -> String {
     return String(format: "%.1f°", value)
 }
 
+/// Instantaneous battery power as a signed wattage ("+23 W" charging, "−18 W" discharging),
+/// or nil when effectively idle (< 0.5 W) so the UI can omit it.
+func formatBatteryPower(_ watts: Double) -> String? {
+    guard abs(watts) >= 0.5 else { return nil }
+    let sign = watts > 0 ? "+" : "−"
+    return String(format: "%@%.0f W", sign, abs(watts))
+}
+
 func batterySourceLabel(_ source: BatteryTemperatureSource) -> String {
     switch source {
     case .unavailable: "Unavailable"

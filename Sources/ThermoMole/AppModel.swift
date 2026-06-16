@@ -44,6 +44,7 @@ final class AppModel: ObservableObject {
     @Published var todayChargeExposure = ChargeExposureSummary.empty
     @Published var batteryHealthSeries: [Double] = []
     @Published var latestBatteryHealth: DailyBatteryHealth?
+    @Published var batteryLongevity: BatteryLongevityReport?
 
     private let provider = NativeSensorProvider()
     private let historyStore = OperationHistoryStore.live
@@ -84,6 +85,7 @@ final class AppModel: ObservableObject {
             lastSavedHealthRecord = healthRecord.pruned()
             batteryHealthSeries = batteryHealthLog.healthSeries()
             latestBatteryHealth = batteryHealthLog.latest
+            batteryLongevity = BatteryLongevity.evaluate(history: batteryHealthLog.all())
         }
         Task {
             await exposureCoordinator.bootstrap()
@@ -154,6 +156,7 @@ final class AppModel: ObservableObject {
         )
         batteryHealthSeries = batteryHealthLog.healthSeries()
         latestBatteryHealth = batteryHealthLog.latest
+        batteryLongevity = BatteryLongevity.evaluate(history: batteryHealthLog.all())
         let record = BatteryHealthRecord(days: batteryHealthLog.all()).pruned()
         if record != lastSavedHealthRecord {
             lastSavedHealthRecord = record
