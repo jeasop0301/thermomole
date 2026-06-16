@@ -63,8 +63,8 @@ struct SoftPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Color.cardFill)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.subtleStroke, lineWidth: 0.75))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.subtleStroke, lineWidth: 1))
             .shadow(color: Color.panelShadow, radius: 3, x: 0, y: 1)
     }
 }

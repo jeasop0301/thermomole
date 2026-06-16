@@ -62,7 +62,7 @@ struct CleanTab: View {
                 .disabled(clean.state.isRunning)
             }
 
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 MetricTile(title: "Review Items", value: "\(summary.itemCount)", tint: Color.oceanAccent)
                 MetricTile(title: "Visible", value: "\(filteredItems.count)", detail: formatBytes(filteredBytes), tint: .teal)
                 MetricTile(title: "Selected for Trash", value: formatBytes(clean.selectedBytes()), tint: Color.leafAccent)
@@ -133,6 +133,7 @@ struct CleanTab: View {
                                 Spacer()
                                 Text(formatBytes(item.sizeBytes))
                                     .monospacedDigit()
+                                    .frame(maxHeight: .infinity, alignment: .top)
                                 IconButton(systemName: "folder", help: "Reveal in Finder") {
                                     revealInFinder(item.url)
                                 }

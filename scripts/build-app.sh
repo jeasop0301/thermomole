@@ -19,7 +19,15 @@ swift build -c release
 mkdir -p "$MACOS"
 cp "$ROOT/.build/arm64-apple-macosx/release/ThermoMole" "$MACOS/ThermoMole"
 
-cat > "$CONTENTS/Info.plist" <<'PLIST'
+# WINDOWED=1 builds a regular (dock-visible) app so screen-control tools can
+# enumerate and grant it. Default is a menu-bar-only agent (LSUIElement=true).
+if [ "${WINDOWED:-0}" = "1" ]; then
+  LSUI_VALUE="false"
+else
+  LSUI_VALUE="true"
+fi
+
+cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -41,7 +49,7 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>LSUIElement</key>
-  <true/>
+  <${LSUI_VALUE}/>
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>

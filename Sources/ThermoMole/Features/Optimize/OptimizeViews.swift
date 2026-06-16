@@ -227,6 +227,8 @@ struct OptimizeTaskCard: View {
                 }
             }
 
+            Spacer(minLength: 0)
+
             HStack {
                 Text("\(plan.commands.count) command\(plan.commands.count == 1 ? "" : "s")")
                     .font(.caption)
@@ -240,6 +242,7 @@ struct OptimizeTaskCard: View {
                 .disabled(isRunning || isStaged)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(14)
         .softPanel()
     }
@@ -281,7 +284,9 @@ struct OptimizeOperationLogView: View {
                         .foregroundStyle(result.status == .succeeded ? Color.leafAccent : .red)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(result.task.title)
+                            .font(.callout.weight(.medium))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         Text(result.entries.first?.output.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? result.status.rawValue.capitalized)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -291,6 +296,7 @@ struct OptimizeOperationLogView: View {
                     Text("\(result.entries.count) command\(result.entries.count == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize()
                 }
                 .font(.caption)
             }

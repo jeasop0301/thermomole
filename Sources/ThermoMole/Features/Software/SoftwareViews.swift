@@ -131,12 +131,16 @@ struct InstalledAppList: View {
                     .foregroundStyle(Color.oceanAccent)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(app.name)
                             .font(.callout.weight(.semibold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 8)
                         Text(app.version)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize()
                     }
                     Text(app.bundleIdentifier)
                         .font(.caption)

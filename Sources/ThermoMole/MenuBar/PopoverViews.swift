@@ -181,21 +181,27 @@ struct CompactProcessList: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Top Processes")
                 .font(.headline)
-            ForEach(processes) { process in
-                HStack {
-                    Text(process.name)
-                        .lineLimit(1)
-                    Spacer()
-                Text("\(process.cpuPercent, specifier: "%.1f")%")
-                    .monospacedDigit()
+            if processes.isEmpty {
+                Text("No process data yet")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+            } else {
+                ForEach(processes) { process in
+                    HStack {
+                        Text(process.name)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(process.cpuPercent, specifier: "%.1f")%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(process.name))
+                    .accessibilityValue(Text("CPU \(process.cpuPercent, specifier: "%.1f") percent"))
+                }
             }
-            .font(.caption)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(process.name))
-            .accessibilityValue(Text("CPU \(process.cpuPercent, specifier: "%.1f") percent"))
         }
-    }
         .padding(12)
         .softPanel()
     }

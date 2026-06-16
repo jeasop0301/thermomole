@@ -6,17 +6,21 @@ struct OperationStatePill: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if state.phase == .running {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 7, height: 7)
+            ZStack {
+                if state.phase == .running {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Circle()
+                        .fill(tint)
+                        .frame(width: 7, height: 7)
+                }
             }
+            .frame(width: 14, height: 14)
             Text(state.message)
                 .font(.caption.weight(.medium))
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
@@ -24,6 +28,7 @@ struct OperationStatePill: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(tint.opacity(0.16)))
         .foregroundStyle(tint)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .help(state.message)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Operation status"))
         .accessibilityValue(Text(state.message))
@@ -75,15 +80,17 @@ struct ProgressPanel: View {
     var message: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             ProgressView()
                 .controlSize(.regular)
+                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.headline)
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
             Spacer()
         }

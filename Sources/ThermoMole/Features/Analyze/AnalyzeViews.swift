@@ -42,10 +42,10 @@ struct AnalyzeTab: View {
                 .disabled(model.analyzeState.isRunning)
             }
 
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 MetricTile(title: "Entries", value: "\(summary.entryCount)", tint: Color.oceanAccent)
                 MetricTile(title: "Mapped Size", value: formatBytes(summary.totalBytes), detail: "visible safe roots", tint: Color.leafAccent)
-                MetricTile(title: "Largest", value: summary.largestEntry?.url.lastPathComponent ?? "--", detail: formatBytes(summary.largestEntry?.sizeBytes ?? 0), tint: .gray)
+                MetricTile(title: "Largest", value: summary.largestEntry?.url.lastPathComponent ?? "--", detail: summary.largestEntry.map { formatBytes($0.sizeBytes) } ?? "", tint: .gray, valueIsName: true)
             }
 
             DiskBreadcrumbBar(
@@ -75,8 +75,10 @@ struct AnalyzeTab: View {
                                 .foregroundStyle(entry.isDirectory ? Color.oceanAccent : .secondary)
                             Text(entry.url.lastPathComponent)
                                 .lineLimit(1)
+                                .truncationMode(.middle)
+                                .layoutPriority(1)
                             DiskUsageBar(value: entry.sizeBytes, maxValue: model.diskEntries.first?.sizeBytes ?? entry.sizeBytes)
-                                .frame(width: 150)
+                                .frame(minWidth: 60, idealWidth: 120, maxWidth: 150)
                             Spacer()
                             Text(formatBytes(entry.sizeBytes))
                                 .monospacedDigit()
@@ -249,20 +251,27 @@ struct DiskTreemapView: View {
             Text("Treemap")
                 .font(.headline)
             GeometryReader { proxy in
-                let columns = treemapColumns(for: proxy.size.width)
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(items) { item in
-                        Button {
-                            select(item)
-                        } label: {
-                            DiskTreemapCell(item: item)
-                                .frame(height: treemapCellHeight(item, in: proxy.size))
+                if items.isEmpty {
+                    Text("No sized items")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    let columns = treemapColumns(for: proxy.size.width)
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(items) { item in
+                            Button {
+                                select(item)
+                            } label: {
+                                DiskTreemapCell(item: item)
+                                    .frame(height: treemapCellHeight(item, in: proxy.size))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!item.entry.isDirectory)
+                            .help(item.entry.isDirectory ? "Analyze folder" : "File")
+                            .accessibilityLabel(Text(item.entry.isDirectory ? "Analyze folder \(item.entry.url.lastPathComponent)" : "File \(item.entry.url.lastPathComponent)"))
+                            .accessibilityValue(Text(formatBytes(item.entry.sizeBytes)))
                         }
-                        .buttonStyle(.plain)
-                        .disabled(!item.entry.isDirectory)
-                        .help(item.entry.isDirectory ? "Analyze folder" : "File")
-                        .accessibilityLabel(Text(item.entry.isDirectory ? "Analyze folder \(item.entry.url.lastPathComponent)" : "File \(item.entry.url.lastPathComponent)"))
-                        .accessibilityValue(Text(formatBytes(item.entry.sizeBytes)))
                     }
                 }
             }
@@ -280,7 +289,7 @@ struct DiskTreemapView: View {
     }
 
     private func treemapCellHeight(_ item: DiskTreemapItem, in size: CGSize) -> CGFloat {
-        let base = max(66, min(120, size.height / 4))
+        let base = max(86, min(120, size.height / 4))
         if item.isLargest { return base + 34 }
         return base + CGFloat(item.ratio) * 64
     }
@@ -304,6 +313,8 @@ struct DiskTreemapCell: View {
             Text(item.entry.url.lastPathComponent)
                 .font(.callout.weight(.semibold))
                 .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .truncationMode(.middle)
                 .multilineTextAlignment(.leading)
             Text(formatBytes(item.entry.sizeBytes))
                 .font(.caption)
@@ -329,7 +340,7 @@ struct DiskUsageBar: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let width = proxy.size.width * ratio
+            let width = value > 0 ? max(3, proxy.size.width * ratio) : 0
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(Color.secondary.opacity(0.16))
