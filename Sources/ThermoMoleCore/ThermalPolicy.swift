@@ -84,6 +84,14 @@ public enum ThermalPolicy {
     public static func isValidTemperature(_ value: Double) -> Bool {
         value > 0 && value < 150
     }
+
+    /// Tighter bound for battery-pack readings. A battery realistically operates well under
+    /// 80°C, so a higher value indicates a sensor glitch or wrong-units decode and is rejected
+    /// (rather than displayed as an alarming wrong number). 80°C stays conservative so a
+    /// genuinely hot pack still reads through.
+    public static func isValidBatteryTemperature(_ value: Double) -> Bool {
+        value > 0 && value < 80
+    }
 }
 
 public enum BatteryTemperaturePolicy {
@@ -91,9 +99,9 @@ public enum BatteryTemperaturePolicy {
         smcCellTemperaturesC: [Double],
         ioregTemperatureC: Double?
     ) -> ThermalSnapshot {
-        let validCells = smcCellTemperaturesC.filter(ThermalPolicy.isValidTemperature)
+        let validCells = smcCellTemperaturesC.filter(ThermalPolicy.isValidBatteryTemperature)
         let cellMax = validCells.max()
-        let validIOReg = ioregTemperatureC.flatMap { ThermalPolicy.isValidTemperature($0) ? $0 : nil }
+        let validIOReg = ioregTemperatureC.flatMap { ThermalPolicy.isValidBatteryTemperature($0) ? $0 : nil }
 
         let display: Double?
         let source: BatteryTemperatureSource
