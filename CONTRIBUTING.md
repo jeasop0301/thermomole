@@ -26,7 +26,7 @@ bash ./scripts/test-core.sh
 
 - Keep changes focused; one logical change per PR.
 - Run `bash ./scripts/test-core.sh` and `swift build -c release` before opening a PR.
-- Match the surrounding code style. No fan control or SMC writes — ThermoMole measures and informs only.
+- Match the surrounding code style. No fan control and no SMC writes.
 
 ## Reporting bugs
 

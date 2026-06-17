@@ -108,7 +108,7 @@ A dedicated Longevity tab turns the raw signals into a single 0–100 score, per
 - Battery health trend log (daily health %, cycle count, capacity) → longevity score, fade/cycle-rate inference, and projected months to 80%.
 - Instant battery power (V × A watts) and internal SSD temperature (via IOHIDEvent sensors).
 - Optional local notifications (off by default) for charging-while-hot, sustained heat, prolonged high charge, and low storage — throttled, with quiet hours.
-- No charge control: ThermoMole measures and informs; it does not write to the SMC.
+- No charge control: ThermoMole reads sensors only and never writes to the SMC.
 
 ## License
 
