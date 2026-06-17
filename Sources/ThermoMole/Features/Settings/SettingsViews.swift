@@ -141,8 +141,6 @@ struct SettingsTab: View {
 
                 ProtectedPathPolicyPanel(catalog: .default())
 
-                AttributionPanel(catalog: .default)
-
                 OperationHistoryPanel(
                     entries: model.operationHistoryEntries,
                     error: model.operationHistoryError,
@@ -301,59 +299,6 @@ struct ImportedDiagnosticSummaryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Imported diagnostic report"))
-    }
-}
-
-struct AttributionPanel: View {
-    var catalog: AttributionCatalog
-
-    var body: some View {
-        SettingsPanel(title: "Attribution", symbol: "text.book.closed") {
-            Text(catalog.summary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            ForEach(catalog.entries) { entry in
-                AttributionRow(entry: entry)
-            }
-
-            Label(catalog.licenseNotice, systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(Color.amberAccent)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(Color.insetFill)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-    }
-}
-
-struct AttributionRow: View {
-    var entry: AttributionEntry
-
-    var body: some View {
-        SettingsRow {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.name)
-                    .font(.callout.weight(.semibold))
-                Text(entry.note)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(entry.url)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            if let url = URL(string: entry.url) {
-                Link(destination: url) {
-                    Label("Open", systemImage: "arrow.up.right.square")
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 

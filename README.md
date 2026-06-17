@@ -2,7 +2,7 @@
 
 ThermoMole is a menu-bar-first macOS SwiftUI system utility for Apple Silicon Macs.
 
-It combines a Mole-style five-tab product shape with MacMonitor-style native thermal reads:
+It pairs a menu-bar HUD with a multi-tab dashboard and native Apple Silicon thermal reads:
 
 - Menu bar HUD with configurable metrics. CPU temperature, battery temperature, and RAM percent are always available.
 - Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`-`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
@@ -19,7 +19,6 @@ It combines a Mole-style five-tab product shape with MacMonitor-style native the
 - Local operation history records GUI and CLI execute actions to `~/Library/Logs/ThermoMole/operations.jsonl`.
 - Status restores the last sampled snapshot from `~/Library/Application Support/ThermoMole/last-status.json` for instant launch before the first live sample completes.
 - Settings include a local Doctor panel, diagnostic JSON export/import with summary preview, protected item policy viewer, operation history viewer, Full Disk Access status/open action, menu bar metric selection/reordering, Dock icon visibility, and launch-at-login registration.
-- Settings includes an Attribution panel for MacMonitor and Mole references, with distribution-license cautions kept visible.
 - SwiftUI controls include first-pass accessibility labels for the menu bar popover, Status cards, cleanup selection, disk treemap, breadcrumb navigation, search clear controls, and icon-only actions.
 
 ## Run
@@ -116,5 +115,3 @@ A dedicated Longevity tab turns the raw signals into a single 0–100 score, per
 ThermoMole is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
 Copyright (C) 2026 jeasop0301.
-
-See [ATTRIBUTION.md](ATTRIBUTION.md) for prior-art references. All native sensor, SMC, and IOHIDEvent code is an independent reimplementation; no code is copied from MacMonitor, Mole, or any other project.

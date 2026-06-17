@@ -90,7 +90,7 @@ final class MaintenanceScannerTests: XCTestCase {
         XCTAssertTrue(result.skipped[0].hasSuffix("/Library/Caches/com.apple.Music"))
     }
 
-    func testCleanScannerFindsExpandedMoleStyleCacheCategories() throws {
+    func testCleanScannerFindsExpandedCacheCategories() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
