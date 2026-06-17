@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import AppKit
+import ServiceManagement
 import ThermoMoleCore
 import ThermoMoleNative
 import ThermoMoleAppCore
@@ -67,6 +68,10 @@ final class AppModel: ObservableObject {
 
     private(set) lazy var optimize = OptimizeModel(
         currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        hasExternalDisplay: { NSScreen.screens.count > 1 },
+        probeSafety: { OptimizeSafetyProbe.live() },
+        execute: { OptimizeExecutor().execute(plan: $0) },
+        executeBatch: { OptimizeExecutor().execute(batch: $0) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onChanged: { [weak self] in self?.refreshDoctorReport() }
     )
@@ -82,7 +87,16 @@ final class AppModel: ObservableObject {
         currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
         currentDoctorReport: { [weak self] in self?.doctorReport ?? DoctorReport.make(inputs: .placeholder) },
         currentHistory: { [weak self] in self?.operationHistoryEntries ?? [] },
-        reportError: { [weak self] message in self?.lastError = message }
+        reportError: { [weak self] message in self?.lastError = message },
+        launchStatus: { LaunchAgentStatus(SMAppService.mainApp.status) },
+        registerLaunch: { try SMAppService.mainApp.register() },
+        unregisterLaunch: { try SMAppService.mainApp.unregister() },
+        applyDockVisibility: { visible in
+            NSApp.setActivationPolicy(visible ? .regular : .accessory)
+            if visible { NSApp.activate(ignoringOtherApps: true) }
+        },
+        writeReport: { try DiagnosticReportStore().write($0, to: $1) },
+        readReport: { try DiagnosticReportStore().read(from: $0) }
     )
 
     init() {

@@ -1,30 +1,44 @@
 import Foundation
 import Observation
-import AppKit
 import ThermoMoleCore
 
 @MainActor
 @Observable
-final class OptimizeModel {
-    private(set) var optimizeState = OperationState.idle
-    private(set) var optimizeLog = [OptimizeExecutionResult]()
-    private(set) var optimizeSafetyContext = OptimizeSafetyContext()
+public final class OptimizeModel {
+    public private(set) var optimizeState = OperationState.idle
+    public private(set) var optimizeLog = [OptimizeExecutionResult]()
+    public private(set) var optimizeSafetyContext = OptimizeSafetyContext()
+
+    public typealias Execute = @Sendable (OptimizePlan) -> OptimizeExecutionResult
+    public typealias ExecuteBatch = @Sendable (OptimizeBatchPlan) -> [OptimizeExecutionResult]
 
     private let currentSnapshot: () -> SystemSnapshot
+    private let hasExternalDisplay: () -> Bool
+    private let probeSafety: @Sendable () -> OptimizeSafetyProbe
+    private let execute: Execute
+    private let executeBatch: ExecuteBatch
     private let logOperation: (OperationHistoryEntry) -> Void
     private let onChanged: () -> Void
 
-    init(
+    public init(
         currentSnapshot: @escaping () -> SystemSnapshot,
+        hasExternalDisplay: @escaping () -> Bool,
+        probeSafety: @escaping @Sendable () -> OptimizeSafetyProbe,
+        execute: @escaping Execute,
+        executeBatch: @escaping ExecuteBatch,
         logOperation: @escaping (OperationHistoryEntry) -> Void,
         onChanged: @escaping () -> Void
     ) {
         self.currentSnapshot = currentSnapshot
+        self.hasExternalDisplay = hasExternalDisplay
+        self.probeSafety = probeSafety
+        self.execute = execute
+        self.executeBatch = executeBatch
         self.logOperation = logOperation
         self.onChanged = onChanged
     }
 
-    func runOptimizeTask(_ task: OptimizeTask) {
+    public func runOptimizeTask(_ task: OptimizeTask) {
         guard !optimizeState.isRunning else { return }
         let context = makeOptimizeSafetyContext()
         optimizeSafetyContext = context
@@ -39,9 +53,9 @@ final class OptimizeModel {
         }
 
         optimizeState = optimizeState.started(message: "Running \(task.title)")
-        Task.detached(priority: .utility) {
-            OptimizeExecutor().execute(plan: plan)
-        }.receive(on: MainActor.self) { [weak self] result in
+        let execute = self.execute
+        Task { [weak self] in
+            let result = await Task.detached(priority: .utility) { execute(plan) }.value
             guard let self else { return }
             optimizeLog = [result] + optimizeLog
             logOperation(OperationHistoryEntry.optimize(
@@ -59,7 +73,7 @@ final class OptimizeModel {
         }
     }
 
-    func runDefaultOptimize() {
+    public func runDefaultOptimize() {
         guard !optimizeState.isRunning else { return }
         let context = makeOptimizeSafetyContext()
         optimizeSafetyContext = context
@@ -70,9 +84,9 @@ final class OptimizeModel {
         }
 
         optimizeState = optimizeState.started(message: "Running \(batch.plans.count) maintenance tasks")
-        Task.detached(priority: .utility) {
-            OptimizeExecutor().execute(batch: batch)
-        }.receive(on: MainActor.self) { [weak self] results in
+        let executeBatch = self.executeBatch
+        Task { [weak self] in
+            let results = await Task.detached(priority: .utility) { executeBatch(batch) }.value
             guard let self else { return }
             optimizeLog = results.reversed() + optimizeLog
             logOperation(OperationHistoryEntry.optimize(
@@ -93,21 +107,22 @@ final class OptimizeModel {
         }
     }
 
-    func refreshOptimizeSafetyContext() {
-        // Read main-actor state here; run the slow system_profiler/scutil probes
-        // off-main so the Optimize tab's onAppear no longer blocks for seconds.
+    public func refreshOptimizeSafetyContext() {
+        // Read main-actor state here; run the slow probes off-main so the Optimize
+        // tab's onAppear no longer blocks for seconds.
         let snapshot = currentSnapshot()
         let isOnBattery = snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower
-        let hasExternalDisplay = NSScreen.screens.count > 1
+        let hasExternalDisplay = self.hasExternalDisplay()
+        let probeSafety = self.probeSafety
         Task.detached(priority: .utility) { [weak self] in
-            let bluetooth = Self.probeBluetooth()
+            let probe = probeSafety()
             let context = OptimizeSafetyContext(
                 isOnBatteryPower: isOnBattery,
-                hasActiveVPN: Self.probeActiveVPN(),
+                hasActiveVPN: probe.hasActiveVPN,
                 hasExternalDisplay: hasExternalDisplay,
-                hasExternalAudio: Self.probeExternalAudio(),
-                hasBluetoothHID: bluetooth.hid,
-                hasBluetoothAudio: bluetooth.audio
+                hasExternalAudio: probe.hasExternalAudio,
+                hasBluetoothHID: probe.hasBluetoothHID,
+                hasBluetoothAudio: probe.hasBluetoothAudio
             )
             await MainActor.run { self?.optimizeSafetyContext = context }
         }
@@ -115,37 +130,14 @@ final class OptimizeModel {
 
     private func makeOptimizeSafetyContext() -> OptimizeSafetyContext {
         let snapshot = currentSnapshot()
-        let bluetooth = Self.probeBluetooth()
+        let probe = probeSafety()
         return OptimizeSafetyContext(
             isOnBatteryPower: snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower,
-            hasActiveVPN: Self.probeActiveVPN(),
-            hasExternalDisplay: NSScreen.screens.count > 1,
-            hasExternalAudio: Self.probeExternalAudio(),
-            hasBluetoothHID: bluetooth.hid,
-            hasBluetoothAudio: bluetooth.audio
-        )
-    }
-
-    // These probes only shell out (no actor state), so they are nonisolated static
-    // and safe to run off the main actor — see refreshOptimizeSafetyContext.
-    nonisolated private static func probeActiveVPN() -> Bool {
-        let result = Shell.run("/usr/sbin/scutil", ["--nc", "list"], timeoutSeconds: 1)
-        guard result.status == 0 else { return false }
-        return OptimizeSafetyContextParser.hasActiveVPN(scutilOutput: result.stdout)
-    }
-
-    nonisolated private static func probeExternalAudio() -> Bool {
-        let result = Shell.run("/usr/sbin/system_profiler", ["SPAudioDataType"], timeoutSeconds: 2)
-        guard result.status == 0 else { return false }
-        return OptimizeSafetyContextParser.hasExternalAudio(systemProfilerAudioOutput: result.stdout)
-    }
-
-    nonisolated private static func probeBluetooth() -> (hid: Bool, audio: Bool) {
-        let result = Shell.run("/usr/sbin/system_profiler", ["SPBluetoothDataType"], timeoutSeconds: 2)
-        guard result.status == 0 else { return (hid: false, audio: false) }
-        return (
-            hid: OptimizeSafetyContextParser.hasBluetoothHID(systemProfilerBluetoothOutput: result.stdout),
-            audio: OptimizeSafetyContextParser.hasBluetoothAudio(systemProfilerBluetoothOutput: result.stdout)
+            hasActiveVPN: probe.hasActiveVPN,
+            hasExternalDisplay: hasExternalDisplay(),
+            hasExternalAudio: probe.hasExternalAudio,
+            hasBluetoothHID: probe.hasBluetoothHID,
+            hasBluetoothAudio: probe.hasBluetoothAudio
         )
     }
 }

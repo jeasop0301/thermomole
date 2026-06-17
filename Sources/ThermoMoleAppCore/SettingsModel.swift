@@ -1,55 +1,71 @@
 import Foundation
 import Observation
-import AppKit
-import ServiceManagement
 import ThermoMoleCore
 
 @MainActor
 @Observable
-final class SettingsModel {
-    private(set) var diagnosticExportState = OperationState.idle
-    private(set) var diagnosticImportState = OperationState.idle
-    private(set) var importedDiagnosticSummary: DiagnosticReportSummary?
-    private(set) var showsDockIcon = false
-    private(set) var launchAtLoginEnabled = false
-    private(set) var launchAtLoginStatusText = "Off"
+public final class SettingsModel {
+    public private(set) var diagnosticExportState = OperationState.idle
+    public private(set) var diagnosticImportState = OperationState.idle
+    public private(set) var importedDiagnosticSummary: DiagnosticReportSummary?
+    public private(set) var showsDockIcon = false
+    public private(set) var launchAtLoginEnabled = false
+    public private(set) var launchAtLoginStatusText = "Off"
+
+    public typealias WriteReport = (DiagnosticReport, URL) throws -> Void
+    public typealias ReadReport = (URL) throws -> DiagnosticReport
 
     private let currentSnapshot: () -> SystemSnapshot
     private let currentDoctorReport: () -> DoctorReport
     private let currentHistory: () -> [OperationHistoryEntry]
     private let reportError: (String?) -> Void
+    private let launchStatus: () -> LaunchAgentStatus
+    private let registerLaunch: () throws -> Void
+    private let unregisterLaunch: () throws -> Void
+    private let applyDockVisibility: (Bool) -> Void
+    private let writeReport: WriteReport
+    private let readReport: ReadReport
 
-    init(
+    public init(
         currentSnapshot: @escaping () -> SystemSnapshot,
         currentDoctorReport: @escaping () -> DoctorReport,
         currentHistory: @escaping () -> [OperationHistoryEntry],
-        reportError: @escaping (String?) -> Void
+        reportError: @escaping (String?) -> Void,
+        launchStatus: @escaping () -> LaunchAgentStatus,
+        registerLaunch: @escaping () throws -> Void,
+        unregisterLaunch: @escaping () throws -> Void,
+        applyDockVisibility: @escaping (Bool) -> Void,
+        writeReport: @escaping WriteReport,
+        readReport: @escaping ReadReport
     ) {
         self.currentSnapshot = currentSnapshot
         self.currentDoctorReport = currentDoctorReport
         self.currentHistory = currentHistory
         self.reportError = reportError
+        self.launchStatus = launchStatus
+        self.registerLaunch = registerLaunch
+        self.unregisterLaunch = unregisterLaunch
+        self.applyDockVisibility = applyDockVisibility
+        self.writeReport = writeReport
+        self.readReport = readReport
         showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         refreshLaunchAtLoginStatus()
     }
 
-    func setDockIconVisible(_ visible: Bool) {
+    public func setDockIconVisible(_ visible: Bool) {
         showsDockIcon = visible
         UserDefaults.standard.set(visible, forKey: "showsDockIcon")
-        NSApp.setActivationPolicy(visible ? .regular : .accessory)
-        if visible {
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        applyDockVisibility(visible)
     }
 
-    func setLaunchAtLogin(_ enabled: Bool) {
+    public func setLaunchAtLogin(_ enabled: Bool) {
         do {
             if enabled {
-                if SMAppService.mainApp.status != .enabled {
-                    try SMAppService.mainApp.register()
+                if launchStatus() != .enabled {
+                    try registerLaunch()
                 }
-            } else if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
+            } else if launchStatus() == .enabled {
+                try unregisterLaunch()
             }
             reportError(nil)
         } catch {
@@ -58,19 +74,19 @@ final class SettingsModel {
         refreshLaunchAtLoginStatus()
     }
 
-    func refreshLaunchAtLoginStatus() {
-        let status = SMAppService.mainApp.status
+    public func refreshLaunchAtLoginStatus() {
+        let status = launchStatus()
         launchAtLoginEnabled = status == .enabled
         launchAtLoginStatusText = switch status {
         case .enabled: "On"
         case .notRegistered: "Off"
         case .notFound: "Install to /Applications"
         case .requiresApproval: "Needs Approval"
-        @unknown default: "Unknown"
+        case .unknown: "Unknown"
         }
     }
 
-    func exportDiagnosticReport(to url: URL) {
+    public func exportDiagnosticReport(to url: URL) {
         let report = DiagnosticReport(
             appVersion: Self.appVersionString(),
             snapshot: currentSnapshot(),
@@ -78,7 +94,7 @@ final class SettingsModel {
             recentOperations: currentHistory()
         )
         do {
-            try DiagnosticReportStore().write(report, to: url)
+            try writeReport(report, url)
             diagnosticExportState = diagnosticExportState.finished(
                 message: "Diagnostic report exported",
                 at: Date()
@@ -93,9 +109,9 @@ final class SettingsModel {
         }
     }
 
-    func importDiagnosticReport(from url: URL) {
+    public func importDiagnosticReport(from url: URL) {
         do {
-            let report = try DiagnosticReportStore().read(from: url)
+            let report = try readReport(url)
             importedDiagnosticSummary = DiagnosticReportSummary(report: report)
             diagnosticImportState = diagnosticImportState.finished(
                 message: "Diagnostic report imported",
