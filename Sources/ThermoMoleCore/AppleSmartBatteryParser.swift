@@ -78,10 +78,17 @@ public enum AppleSmartBatteryParser {
     }
 
     private static func signedIntValue(for key: String, in raw: String) -> Int {
-        let unsigned = intValue(for: key, in: raw)
-        if unsigned > Int(Int32.max) {
-            return unsigned - Int(UInt64.max) - 1
+        // ioreg prints signed fields (e.g. Amperage) as a 64-bit two's-complement unsigned;
+        // reinterpret the raw bit pattern as signed. (The old `unsigned - Int(UInt64.max) - 1`
+        // trapped on 32-bit-range values and overflowed 64-bit discharge values to 0.)
+        guard let range = raw.range(
+            of: #""\#(key)"\s*=\s*(\d+)"#,
+            options: .regularExpression
+        ) else {
+            return 0
         }
-        return unsigned
+        let token = raw[range].split(separator: "=").last?.trimmingCharacters(in: .whitespaces) ?? ""
+        guard let unsigned = UInt64(token) else { return 0 }
+        return Int(Int64(bitPattern: unsigned))
     }
 }

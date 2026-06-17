@@ -49,6 +49,12 @@ double SSDTemperatureCelsius(void) {
   int usage = THERMOMOLE_HID_USAGE_TEMPERATURE;
   CFNumberRef pageNumber = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &page);
   CFNumberRef usageNumber = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &usage);
+  if (!pageNumber || !usageNumber) {
+    if (pageNumber) CFRelease(pageNumber);
+    if (usageNumber) CFRelease(usageNumber);
+    CFRelease(client);
+    return result;
+  }
   const void *keys[] = {CFSTR("PrimaryUsagePage"), CFSTR("PrimaryUsage")};
   const void *values[] = {pageNumber, usageNumber};
   CFDictionaryRef matching = CFDictionaryCreate(
