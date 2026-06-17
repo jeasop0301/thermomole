@@ -1,11 +1,15 @@
 #ifndef THERMOMOLE_SMC_H
 #define THERMOMOLE_SMC_H
 
+// The command indices and the SMCKeyData_t layout below are fixed by the
+// AppleSMC kernel user-client ABI — a long-public, reverse-engineered interface
+// that every SMC reader on macOS must match to talk to the driver. They are
+// interface facts, not an implementation; the reader itself lives in SMC.c.
 #include <IOKit/IOKitLib.h>
+#include <stdint.h>
 
 #define KERNEL_INDEX_SMC 2
 #define SMC_CMD_READ_BYTES 5
-#define SMC_CMD_READ_INDEX 8
 #define SMC_CMD_READ_KEYINFO 9
 
 typedef char SMCBytes_t[32];
