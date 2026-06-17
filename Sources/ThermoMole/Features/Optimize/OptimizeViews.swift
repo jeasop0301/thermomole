@@ -2,33 +2,33 @@ import SwiftUI
 import ThermoMoleCore
 
 struct OptimizeTab: View {
-    @ObservedObject var model: AppModel
+    let optimize: OptimizeModel
     @State private var pendingTask: OptimizeTask?
     @State private var isShowingDefaultOptimizeConfirmation = false
 
     private var safetyPolicy: OptimizeSafetyPolicy {
-        OptimizeSafetyPolicy(context: model.optimizeSafetyContext)
+        OptimizeSafetyPolicy(context: optimize.optimizeSafetyContext)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             TabHeader(subtitle: "Small maintenance tasks, shown before they run.") {
-                OperationStatePill(state: model.optimizeState)
+                OperationStatePill(state: optimize.optimizeState)
                 Button {
-                    model.refreshOptimizeSafetyContext()
+                    optimize.refreshOptimizeSafetyContext()
                     isShowingDefaultOptimizeConfirmation = true
                 } label: {
-                    if model.optimizeState.isRunning {
+                    if optimize.optimizeState.isRunning {
                         Label("Running", systemImage: "hourglass")
                     } else {
                         Label("Run Default", systemImage: "play.fill")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.optimizeState.isRunning)
+                .disabled(optimize.optimizeState.isRunning)
             }
 
-            OptimizeSafetySummaryPanel(summary: OptimizeSafetySummary(context: model.optimizeSafetyContext))
+            OptimizeSafetySummaryPanel(summary: OptimizeSafetySummary(context: optimize.optimizeSafetyContext))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
                 ForEach(OptimizeTask.allCases) { task in
@@ -37,28 +37,28 @@ struct OptimizeTab: View {
                         task: task,
                         plan: OptimizePlan(task: task),
                         skipReason: skipReason,
-                        isRunning: model.optimizeState.isRunning,
+                        isRunning: optimize.optimizeState.isRunning,
                         run: { pendingTask = task }
                     )
                 }
             }
 
-            if !model.optimizeLog.isEmpty {
-                OptimizeOperationLogView(results: Array(model.optimizeLog.prefix(6)))
+            if !optimize.optimizeLog.isEmpty {
+                OptimizeOperationLogView(results: Array(optimize.optimizeLog.prefix(6)))
             }
         }
         .padding(22)
         .background(Color.appBackground)
         .onAppear {
-            model.refreshOptimizeSafetyContext()
+            optimize.refreshOptimizeSafetyContext()
         }
         .alert("Run default maintenance?", isPresented: $isShowingDefaultOptimizeConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Run", role: .destructive) {
-                model.runDefaultOptimize()
+                optimize.runDefaultOptimize()
             }
         } message: {
-            let batch = OptimizeBatchPlan.defaultMaintenance(safetyContext: model.optimizeSafetyContext)
+            let batch = OptimizeBatchPlan.defaultMaintenance(safetyContext: optimize.optimizeSafetyContext)
             let summary = OptimizeBatchConfirmationSummary(batch: batch)
             Text(summary.confirmationMessage)
         }
@@ -69,7 +69,7 @@ struct OptimizeTab: View {
                 title: Text(summary.title),
                 message: Text(summary.confirmationMessage),
                 primaryButton: .destructive(Text("Run")) {
-                    model.runOptimizeTask(task)
+                    optimize.runOptimizeTask(task)
                 },
                 secondaryButton: .cancel()
             )

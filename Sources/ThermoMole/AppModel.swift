@@ -2,8 +2,6 @@ import Foundation
 import Combine
 import SwiftUI
 import AppKit
-import ServiceManagement
-import UniformTypeIdentifiers
 import ThermoMoleCore
 import ThermoMoleNative
 import ThermoMoleAppCore
@@ -16,28 +14,9 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(MenuBarMetricStorage.encode(menuBarMetrics), forKey: "menuBarMetrics")
         }
     }
-    @Published var diskEntries = [DiskEntry]()
-    @Published var diskTrashLog = [DiskEntryTrashResult]()
-    @Published var diskAnalysisPath = DiskAnalysisPath(rootURL: FileManager.default.homeDirectoryForCurrentUser)
-    @Published var installedApps = [InstalledApp]()
-    @Published var startupItems = [StartupItem]()
-    @Published var appUninstallLog = [AppUninstallResult]()
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var analyzeState = OperationState.idle
-    @Published var softwareState = OperationState.idle
-    @Published var optimizeState = OperationState.idle
-    @Published var optimizeLog = [OptimizeExecutionResult]()
-    @Published var optimizeSafetyContext = OptimizeSafetyContext()
-    @Published var memoryPurgeState = OperationState.idle
-    @Published var memoryPurgeLog = [MemoryPurgeResult]()
     @Published var operationHistoryEntries = [OperationHistoryEntry]()
     @Published var operationHistoryError: String?
-    @Published var diagnosticExportState = OperationState.idle
-    @Published var diagnosticImportState = OperationState.idle
-    @Published var importedDiagnosticSummary: DiagnosticReportSummary?
-    @Published var showsDockIcon = false
-    @Published var launchAtLoginEnabled = false
-    @Published var launchAtLoginStatusText = "Off"
     @Published var lastError: String?
     @Published var doctorReport = DoctorReport.make(inputs: .placeholder)
     @Published var todayExposure = ThermalExposureSummary.empty
@@ -64,14 +43,46 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
-    private var analyzeTask: Task<[DiskEntry], Never>?
-    private var analyzeRequestID = UUID()
 
     private(set) lazy var clean = CleanModel(
         scan: { CleanupScanner().scan(preselection: $0) },
         execute: { items, selection in CleanupExecutor().execute(items: items, selection: selection, mode: .trash) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onCleaned: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var analyze = AnalyzeModel(
+        analyze: { DiskAnalyzer().analyze($0, shouldCancel: $1) },
+        trash: { DiskEntryTrashExecutor().moveToTrash($0) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var software = SoftwareModel(
+        loadInventory: { let inventory = SoftwareInventory(); return (inventory.installedApps(), inventory.startupItems()) },
+        uninstall: { AppUninstallExecutor().moveToTrash($0) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var optimize = OptimizeModel(
+        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var memory = MemoryModel(
+        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        purge: { MemoryPurgeExecutor().execute(plan: $0) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var settings = SettingsModel(
+        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        currentDoctorReport: { [weak self] in self?.doctorReport ?? DoctorReport.make(inputs: .placeholder) },
+        currentHistory: { [weak self] in self?.operationHistoryEntries ?? [] },
+        reportError: { [weak self] message in self?.lastError = message }
     )
 
     init() {
@@ -103,11 +114,9 @@ final class AppModel: ObservableObject {
             todayCPUExposure = await cpuExposureCoordinator.summary(at: Date(), calendar: .current)
             recomputeLongevity()
         }
-        showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         if notificationsEnabled { notifier.requestAuthorization() }
         loadOperationHistory()
-        refreshLaunchAtLoginStatus()
         refreshDoctorReport()
     }
 
@@ -233,248 +242,6 @@ final class AppModel: ObservableObject {
         await cpuExposureCoordinator.flushNow(at: Date())
     }
 
-    func analyzeHome() {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.reset(to: FileManager.default.homeDirectoryForCurrentUser)
-        analyzeCurrentDiskURL(message: "Analyzing home folder")
-    }
-
-    func analyzeFolder(_ url: URL) {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.reset(to: url)
-        analyzeCurrentDiskURL(message: "Analyzing \(url.lastPathComponent)")
-    }
-
-    func analyzeDiskEntry(_ entry: DiskEntry) {
-        guard entry.isDirectory, !analyzeState.isRunning else { return }
-        diskAnalysisPath.push(entry.url)
-        analyzeCurrentDiskURL(message: "Analyzing \(entry.url.lastPathComponent)")
-    }
-
-    func analyzeDiskBreadcrumb(_ breadcrumb: DiskBreadcrumb) {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.popTo(breadcrumb.url)
-        analyzeCurrentDiskURL(message: "Analyzing \(breadcrumb.title)")
-    }
-
-    func analyzeParentDiskURL() {
-        guard diskAnalysisPath.canGoUp, !analyzeState.isRunning else { return }
-        diskAnalysisPath.popUp()
-        analyzeCurrentDiskURL(message: "Analyzing \(diskAnalysisPath.currentURL.lastPathComponent)")
-    }
-
-    func cancelAnalyze() {
-        guard analyzeState.isRunning else { return }
-        analyzeTask?.cancel()
-        analyzeTask = nil
-        analyzeRequestID = UUID()
-        analyzeState = analyzeState.finished(message: "Canceled", at: Date())
-    }
-
-    func canTrashDiskEntry(_ entry: DiskEntry) -> Bool {
-        let resolvedURL = entry.url.resolvingSymlinksInPath().standardizedFileURL
-        return ProtectedPathValidator().canDelete(entry.url, resolvedURL: resolvedURL)
-    }
-
-    func trashDiskEntry(_ entry: DiskEntry) {
-        guard !analyzeState.isRunning else { return }
-        analyzeState = analyzeState.started(message: "Moving \(entry.url.lastPathComponent) to Trash")
-        Task.detached(priority: .utility) {
-            DiskEntryTrashExecutor().moveToTrash(entry)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            diskTrashLog = [result] + diskTrashLog
-            appendHistory(OperationHistoryEntry.analyzeTrash(result))
-            if result.status == .succeeded {
-                diskEntries.removeAll { $0.id == result.entry.id }
-                refreshDoctorReport()
-            }
-            switch result.status {
-            case .succeeded:
-                analyzeState = analyzeState.finished(message: "Moved to Trash", at: result.executedAt)
-            case .skipped:
-                analyzeState = analyzeState.finished(message: "Protected path skipped", at: result.executedAt)
-            case .failed:
-                analyzeState = analyzeState.failed(message: result.message, at: result.executedAt)
-            }
-        }
-    }
-
-    private func analyzeCurrentDiskURL(message: String) {
-        let url = diskAnalysisPath.currentURL
-        analyzeTask?.cancel()
-        let requestID = UUID()
-        analyzeRequestID = requestID
-        analyzeState = analyzeState.started(message: message)
-        let task = Task.detached(priority: .utility) {
-            DiskAnalyzer().analyze(url, shouldCancel: { Task.isCancelled })
-        }
-        analyzeTask = task
-        Task { [weak self] in
-            let entries = await task.value
-            await MainActor.run {
-                guard let self, self.analyzeRequestID == requestID, !task.isCancelled else { return }
-                self.diskEntries = entries
-                self.analyzeTask = nil
-                self.analyzeState = self.analyzeState.finished(
-                    message: "\(entries.count) entries",
-                    at: Date()
-                )
-            }
-        }
-    }
-
-    func loadSoftware() {
-        guard !softwareState.isRunning else { return }
-        softwareState = softwareState.started(message: "Loading applications")
-        Task.detached(priority: .utility) {
-            let inventory = SoftwareInventory()
-            return (inventory.installedApps(), inventory.startupItems())
-        }.receive(on: MainActor.self) { [weak self] apps, startupItems in
-            self?.installedApps = apps
-            self?.startupItems = startupItems
-            self?.softwareState = self?.softwareState.finished(
-                message: "\(apps.count) apps · \(startupItems.count) startup items",
-                at: Date()
-            ) ?? .idle
-        }
-    }
-
-    func uninstallApp(_ app: InstalledApp) {
-        guard !softwareState.isRunning else { return }
-        softwareState = softwareState.started(message: "Moving \(app.name) to Trash")
-        Task.detached(priority: .utility) {
-            AppUninstallExecutor().moveToTrash(app)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            appUninstallLog = [result] + appUninstallLog
-            appendHistory(OperationHistoryEntry.uninstall(result))
-            refreshDoctorReport()
-            if result.status == .succeeded {
-                installedApps.removeAll { $0.id == result.app.id }
-                softwareState = softwareState.finished(message: "\(result.app.name) moved to Trash", at: Date())
-            } else {
-                softwareState = softwareState.failed(message: "\(result.app.name) uninstall failed", at: Date())
-            }
-        }
-    }
-
-    func runOptimizeTask(_ task: OptimizeTask) {
-        guard !optimizeState.isRunning else { return }
-        let context = makeOptimizeSafetyContext()
-        optimizeSafetyContext = context
-        if let skipReason = OptimizeSafetyPolicy(context: context).decision(for: task).skipReason {
-            optimizeState = optimizeState.finished(message: "\(task.title) staged: \(skipReason)", at: Date())
-            return
-        }
-        let plan = OptimizePlan(task: task)
-        guard !plan.commands.isEmpty else {
-            optimizeState = optimizeState.failed(message: "No runnable command")
-            return
-        }
-
-        optimizeState = optimizeState.started(message: "Running \(task.title)")
-        Task.detached(priority: .utility) {
-            OptimizeExecutor().execute(plan: plan)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            optimizeLog = [result] + optimizeLog
-            appendHistory(OperationHistoryEntry.optimize(
-                title: result.task.title,
-                results: [result],
-                skippedCount: 0
-            ))
-            refreshDoctorReport()
-            switch result.status {
-            case .succeeded:
-                optimizeState = optimizeState.finished(message: "\(result.task.title) complete", at: Date())
-            case .failed:
-                optimizeState = optimizeState.failed(message: "\(result.task.title) failed", at: Date())
-            }
-        }
-    }
-
-    func runDefaultOptimize() {
-        guard !optimizeState.isRunning else { return }
-        let context = makeOptimizeSafetyContext()
-        optimizeSafetyContext = context
-        let batch = OptimizeBatchPlan.defaultMaintenance(safetyContext: context)
-        guard !batch.plans.isEmpty else {
-            optimizeState = optimizeState.failed(message: "No runnable maintenance")
-            return
-        }
-
-        optimizeState = optimizeState.started(message: "Running \(batch.plans.count) maintenance tasks")
-        Task.detached(priority: .utility) {
-            OptimizeExecutor().execute(batch: batch)
-        }.receive(on: MainActor.self) { [weak self] results in
-            guard let self else { return }
-            optimizeLog = results.reversed() + optimizeLog
-            appendHistory(OperationHistoryEntry.optimize(
-                title: "Default Optimize",
-                results: results,
-                skippedCount: batch.skippedTasks.count
-            ))
-            refreshDoctorReport()
-            if let failed = results.first(where: { $0.status == .failed }) {
-                optimizeState = optimizeState.failed(message: "\(failed.task.title) failed", at: Date())
-            } else {
-                let skippedText = batch.skippedTasks.isEmpty ? "" : " · \(batch.skippedTasks.count) staged"
-                optimizeState = optimizeState.finished(
-                    message: "\(results.count) tasks complete\(skippedText)",
-                    at: Date()
-                )
-            }
-        }
-    }
-
-    func refreshOptimizeSafetyContext() {
-        // Read main-actor state here; run the slow system_profiler/scutil probes
-        // off-main so the Optimize tab's onAppear no longer blocks for seconds.
-        let isOnBattery = snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower
-        let hasExternalDisplay = NSScreen.screens.count > 1
-        Task.detached(priority: .utility) { [weak self] in
-            let bluetooth = Self.probeBluetooth()
-            let context = OptimizeSafetyContext(
-                isOnBatteryPower: isOnBattery,
-                hasActiveVPN: Self.probeActiveVPN(),
-                hasExternalDisplay: hasExternalDisplay,
-                hasExternalAudio: Self.probeExternalAudio(),
-                hasBluetoothHID: bluetooth.hid,
-                hasBluetoothAudio: bluetooth.audio
-            )
-            await MainActor.run { self?.optimizeSafetyContext = context }
-        }
-    }
-
-    func runMemoryPurge() {
-        guard !memoryPurgeState.isRunning else { return }
-        let report = MemoryDoctorReport(memory: snapshot.memory, topProcesses: snapshot.topProcesses)
-        let plan = MemoryPurgePlan(report: report)
-        guard plan.canExecute else {
-            memoryPurgeState = memoryPurgeState.failed(message: "Requires critical memory pressure", at: Date())
-            return
-        }
-
-        memoryPurgeState = memoryPurgeState.started(message: "Running advanced purge")
-        Task.detached(priority: .utility) {
-            MemoryPurgeExecutor().execute(plan: plan)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            memoryPurgeLog = [result] + memoryPurgeLog
-            appendHistory(OperationHistoryEntry.memoryPurge(result))
-            refreshDoctorReport()
-            switch result.status {
-            case .succeeded:
-                memoryPurgeState = memoryPurgeState.finished(message: "Advanced purge complete", at: result.executedAt)
-            case .skipped:
-                memoryPurgeState = memoryPurgeState.finished(message: result.message, at: result.executedAt)
-            case .failed:
-                memoryPurgeState = memoryPurgeState.failed(message: result.message, at: result.executedAt)
-            }
-        }
-    }
-
     func setMenuBarMetric(_ metric: MenuBarMetric, enabled: Bool) {
         if enabled {
             if !menuBarMetrics.contains(metric) {
@@ -487,43 +254,6 @@ final class AppModel: ObservableObject {
 
     func moveMenuBarMetric(_ metric: MenuBarMetric, direction: MenuBarMetricMoveDirection) {
         menuBarMetrics = MenuBarMetric.move(metric, in: menuBarMetrics, direction: direction)
-    }
-
-    func setDockIconVisible(_ visible: Bool) {
-        showsDockIcon = visible
-        UserDefaults.standard.set(visible, forKey: "showsDockIcon")
-        NSApp.setActivationPolicy(visible ? .regular : .accessory)
-        if visible {
-            NSApp.activate(ignoringOtherApps: true)
-        }
-    }
-
-    func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                if SMAppService.mainApp.status != .enabled {
-                    try SMAppService.mainApp.register()
-                }
-            } else if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            }
-            lastError = nil
-        } catch {
-            lastError = "Launch at Login: \(error.localizedDescription)"
-        }
-        refreshLaunchAtLoginStatus()
-    }
-
-    func refreshLaunchAtLoginStatus() {
-        let status = SMAppService.mainApp.status
-        launchAtLoginEnabled = status == .enabled
-        launchAtLoginStatusText = switch status {
-        case .enabled: "On"
-        case .notRegistered: "Off"
-        case .notFound: "Install to /Applications"
-        case .requiresApproval: "Needs Approval"
-        @unknown default: "Unknown"
-        }
     }
 
     func refreshDoctorReport(now: Date = Date()) {
@@ -560,85 +290,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func exportDiagnosticReport(to url: URL) {
-        let report = DiagnosticReport(
-            appVersion: appVersionString(),
-            snapshot: snapshot,
-            doctorReport: doctorReport,
-            recentOperations: operationHistoryEntries
-        )
-        do {
-            try DiagnosticReportStore().write(report, to: url)
-            diagnosticExportState = diagnosticExportState.finished(
-                message: "Diagnostic report exported",
-                at: Date()
-            )
-            lastError = nil
-        } catch {
-            diagnosticExportState = diagnosticExportState.failed(
-                message: "Diagnostic export failed",
-                at: Date()
-            )
-            lastError = "Diagnostic report: \(error.localizedDescription)"
-        }
-    }
-
-    func importDiagnosticReport(from url: URL) {
-        do {
-            let report = try DiagnosticReportStore().read(from: url)
-            importedDiagnosticSummary = DiagnosticReportSummary(report: report)
-            diagnosticImportState = diagnosticImportState.finished(
-                message: "Diagnostic report imported",
-                at: Date()
-            )
-            lastError = nil
-        } catch {
-            importedDiagnosticSummary = nil
-            diagnosticImportState = diagnosticImportState.failed(
-                message: "Diagnostic import failed",
-                at: Date()
-            )
-            lastError = "Diagnostic report: \(error.localizedDescription)"
-        }
-    }
-
     private func recentOperationFailureCount() -> Int {
         operationHistoryEntries.filter { $0.status == .failed }.count
-    }
-
-    private func makeOptimizeSafetyContext() -> OptimizeSafetyContext {
-        let bluetooth = Self.probeBluetooth()
-        return OptimizeSafetyContext(
-            isOnBatteryPower: snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower,
-            hasActiveVPN: Self.probeActiveVPN(),
-            hasExternalDisplay: NSScreen.screens.count > 1,
-            hasExternalAudio: Self.probeExternalAudio(),
-            hasBluetoothHID: bluetooth.hid,
-            hasBluetoothAudio: bluetooth.audio
-        )
-    }
-
-    // These probes only shell out (no actor state), so they are nonisolated static
-    // and safe to run off the main actor — see refreshOptimizeSafetyContext.
-    nonisolated private static func probeActiveVPN() -> Bool {
-        let result = Shell.run("/usr/sbin/scutil", ["--nc", "list"], timeoutSeconds: 1)
-        guard result.status == 0 else { return false }
-        return OptimizeSafetyContextParser.hasActiveVPN(scutilOutput: result.stdout)
-    }
-
-    nonisolated private static func probeExternalAudio() -> Bool {
-        let result = Shell.run("/usr/sbin/system_profiler", ["SPAudioDataType"], timeoutSeconds: 2)
-        guard result.status == 0 else { return false }
-        return OptimizeSafetyContextParser.hasExternalAudio(systemProfilerAudioOutput: result.stdout)
-    }
-
-    nonisolated private static func probeBluetooth() -> (hid: Bool, audio: Bool) {
-        let result = Shell.run("/usr/sbin/system_profiler", ["SPBluetoothDataType"], timeoutSeconds: 2)
-        guard result.status == 0 else { return (hid: false, audio: false) }
-        return (
-            hid: OptimizeSafetyContextParser.hasBluetoothHID(systemProfilerBluetoothOutput: result.stdout),
-            audio: OptimizeSafetyContextParser.hasBluetoothAudio(systemProfilerBluetoothOutput: result.stdout)
-        )
     }
 
     private func appendHistory(_ entry: OperationHistoryEntry) {
@@ -677,13 +330,4 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func appVersionString() -> String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        let joined = [version, build]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        return joined.isEmpty ? "debug" : joined
-    }
 }

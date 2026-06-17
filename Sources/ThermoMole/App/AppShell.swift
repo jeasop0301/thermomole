@@ -82,19 +82,19 @@ struct MainWindowView: View {
     private var detail: some View {
         switch selection {
         case .status:
-            StatusTab(model: model)
+            StatusTab(model: model, memory: model.memory)
         case .longevity:
             LongevityTab(model: model)
         case .clean:
             CleanTab(clean: model.clean)
         case .software:
-            SoftwareTab(model: model)
+            SoftwareTab(software: model.software)
         case .optimize:
-            OptimizeTab(model: model)
+            OptimizeTab(optimize: model.optimize)
         case .analyze:
-            AnalyzeTab(model: model)
+            AnalyzeTab(analyze: model.analyze)
         case .settings:
-            SettingsTab(model: model)
+            SettingsTab(model: model, settings: model.settings)
         }
     }
 }

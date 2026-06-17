@@ -3,6 +3,7 @@ import ThermoMoleCore
 
 struct SettingsTab: View {
     @ObservedObject var model: AppModel
+    let settings: SettingsModel
 
     private var doctorGuidance: DoctorGuidanceSummary {
         DoctorGuidanceSummary(report: model.doctorReport)
@@ -45,23 +46,23 @@ struct SettingsTab: View {
                 SettingsPanel(title: "App Presence", symbol: "macwindow") {
                     SettingsRow {
                         Toggle("Show Dock Icon", isOn: Binding {
-                            model.showsDockIcon
+                            settings.showsDockIcon
                         } set: { isOn in
-                            model.setDockIconVisible(isOn)
+                            settings.setDockIconVisible(isOn)
                         })
                         .toggleStyle(.switch)
                         Spacer()
                     }
                     SettingsRow {
                         Toggle("Launch at Login", isOn: Binding {
-                            model.launchAtLoginEnabled
+                            settings.launchAtLoginEnabled
                         } set: { isOn in
-                            model.setLaunchAtLogin(isOn)
+                            settings.setLaunchAtLogin(isOn)
                         })
                         .toggleStyle(.switch)
                         Spacer()
                     }
-                    SettingsInfoRow(title: "Launch Status", value: model.launchAtLoginStatusText)
+                    SettingsInfoRow(title: "Launch Status", value: settings.launchAtLoginStatusText)
                 }
 
                 SettingsPanel(title: "Longevity Alerts", symbol: "bell.badge") {
@@ -88,7 +89,7 @@ struct SettingsTab: View {
                 }
 
                 SettingsPanel(title: "Local App", symbol: "lock.laptopcomputer") {
-                    SettingsInfoRow(title: "Dock", value: model.showsDockIcon ? "Visible" : "Hidden by default")
+                    SettingsInfoRow(title: "Dock", value: settings.showsDockIcon ? "Visible" : "Hidden by default")
                     SettingsInfoRow(title: "Full Disk Access", value: doctorGuidance.fullDiskAccessStatus)
                     SettingsInfoRow(title: "Scan mode", value: "Local only")
                     Text(doctorGuidance.fullDiskAccessDetail)
@@ -110,11 +111,11 @@ struct SettingsTab: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if model.diagnosticExportState.phase != .idle {
-                            OperationStatePill(state: model.diagnosticExportState)
+                        if settings.diagnosticExportState.phase != .idle {
+                            OperationStatePill(state: settings.diagnosticExportState)
                         }
-                        if model.diagnosticImportState.phase != .idle {
-                            OperationStatePill(state: model.diagnosticImportState)
+                        if settings.diagnosticImportState.phase != .idle {
+                            OperationStatePill(state: settings.diagnosticImportState)
                         }
                         Button {
                             chooseDiagnosticReportURL()
@@ -127,7 +128,7 @@ struct SettingsTab: View {
                             Label("Import", systemImage: "square.and.arrow.down")
                         }
                     }
-                    if let summary = model.importedDiagnosticSummary {
+                    if let summary = settings.importedDiagnosticSummary {
                         ImportedDiagnosticSummaryView(summary: summary)
                     }
                     if let lastError = model.lastError {
@@ -173,7 +174,7 @@ struct SettingsTab: View {
         panel.prompt = "Export"
         panel.message = "Save a local ThermoMole diagnostic report."
         if panel.runModal() == .OK, let url = panel.url {
-            model.exportDiagnosticReport(to: url)
+            settings.exportDiagnosticReport(to: url)
         }
     }
 
@@ -186,7 +187,7 @@ struct SettingsTab: View {
         panel.prompt = "Import"
         panel.message = "Open a ThermoMole diagnostic report."
         if panel.runModal() == .OK, let url = panel.url {
-            model.importDiagnosticReport(from: url)
+            settings.importDiagnosticReport(from: url)
         }
     }
 }
