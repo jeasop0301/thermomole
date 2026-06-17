@@ -41,6 +41,7 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
     public var batteryIORegC: Double?
     public var batteryWarningLevel: TemperatureWarningLevel
     public var hasBatterySensorMismatch: Bool
+    public var ssdTemperatureC: Double?
 
     public init(
         cpuDisplayC: Double? = nil,
@@ -52,7 +53,8 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
         batteryCellMaxC: Double? = nil,
         batteryIORegC: Double? = nil,
         batteryWarningLevel: TemperatureWarningLevel = .normal,
-        hasBatterySensorMismatch: Bool = false
+        hasBatterySensorMismatch: Bool = false,
+        ssdTemperatureC: Double? = nil
     ) {
         self.cpuDisplayC = cpuDisplayC
         self.cpuTemperatureSource = cpuTemperatureSource
@@ -64,6 +66,7 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
         self.batteryIORegC = batteryIORegC
         self.batteryWarningLevel = batteryWarningLevel
         self.hasBatterySensorMismatch = hasBatterySensorMismatch
+        self.ssdTemperatureC = ssdTemperatureC
     }
 }
 

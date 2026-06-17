@@ -49,4 +49,8 @@ kern_return_t SMCClose(io_connect_t conn);
 kern_return_t SMCReadKey(io_connect_t conn, const char *key, SMCKeyData_t *val);
 double SMCGetFloatValue(io_connect_t conn, const char *key);
 
+// Reads the hottest internal SSD/NAND temperature sensor in °C, or a negative value if
+// unavailable. Uses the IOHIDEvent temperature sensors (resolved at runtime via dlsym).
+double SSDTemperatureCelsius(void);
+
 #endif
