@@ -203,4 +203,10 @@ final class MaintenanceScannerTests: XCTestCase {
         XCTAssertEqual(result.entries.first?.status, .skipped)
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.path))
     }
+
+    func testTrashIsNotACleanupCategory() {
+        // ~/.Trash cleanup can only work by permanently deleting, which ThermoMole
+        // intentionally excludes — so Trash must not be an offered cleanup category.
+        XCTAssertFalse(CleanupCategory.allCases.contains { $0.title == "Trash" })
+    }
 }

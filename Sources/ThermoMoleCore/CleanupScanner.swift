@@ -11,7 +11,6 @@ public enum CleanupCategory: String, CaseIterable, Identifiable, Codable, Sendab
     case cloudStorageCaches
     case temporaryFiles
     case installers
-    case trash
 
     public var id: String { rawValue }
 
@@ -27,7 +26,6 @@ public enum CleanupCategory: String, CaseIterable, Identifiable, Codable, Sendab
         case .cloudStorageCaches: "Cloud Caches"
         case .temporaryFiles: "Temporary Files"
         case .installers: "Installers"
-        case .trash: "Trash"
         }
     }
 }
@@ -426,8 +424,6 @@ public struct CleanupScanner {
                 homeDirectory.appendingPathComponent("Downloads", isDirectory: true),
                 homeDirectory.appendingPathComponent("Library/Caches/Homebrew/downloads", isDirectory: true)
             ])
-        case .trash:
-            return children(of: homeDirectory.appendingPathComponent(".Trash", isDirectory: true))
         }
     }
 
