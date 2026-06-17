@@ -5,6 +5,7 @@ final class StatusBriefChargingTests: XCTestCase {
     private func snapshot(charging: Bool, level: TemperatureWarningLevel) -> SystemSnapshot {
         var snap = SystemSnapshot.placeholder
         snap.battery.isCharging = charging
+        snap.battery.isOnACPower = charging   // charging implies AC is connected
         snap.thermal.batteryWarningLevel = level
         return snap
     }
@@ -23,5 +24,13 @@ final class StatusBriefChargingTests: XCTestCase {
 
     func testHotButNotChargingIsFalse() {
         XCTAssertFalse(StatusBrief(snapshot: snapshot(charging: false, level: .hot)).isChargingWhileHot)
+    }
+
+    func testOnACPowerAtFullChargeWhileHotIsTrue() {
+        var snap = SystemSnapshot.placeholder
+        snap.battery.isCharging = false       // battery topped off / charge hold
+        snap.battery.isOnACPower = true
+        snap.thermal.batteryWarningLevel = .hot
+        XCTAssertTrue(StatusBrief(snapshot: snap).isChargingWhileHot)
     }
 }

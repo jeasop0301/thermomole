@@ -26,8 +26,9 @@ public struct StatusBrief: Equatable, Sendable {
     public var detail: String
     public var signals: [StatusBriefSignal]
     public var prioritySignalID: String?
-    /// `true` when charging at caution level or above (≥35°C). Intentionally fires earlier than
-    /// the `.hot` (≥40°C) level — the charge-while-hot banner should read this, not check `.hot`.
+    /// `true` when on AC power with the battery at caution level or above (≥35°C). Keyed off AC
+    /// power rather than `isCharging`, so it still fires when the pack is topped off / holding at
+    /// 100% on AC — the worst aging case. Fires earlier than `.hot` (≥40°C); the banner reads this.
     public var isChargingWhileHot: Bool
 
     public var prioritySignal: StatusBriefSignal? {
@@ -36,7 +37,7 @@ public struct StatusBrief: Equatable, Sendable {
     }
 
     public init(snapshot: SystemSnapshot) {
-        isChargingWhileHot = snapshot.battery.isCharging && snapshot.thermal.batteryWarningLevel != .normal
+        isChargingWhileHot = snapshot.battery.isOnACPower && snapshot.thermal.batteryWarningLevel != .normal
         signals = [
             StatusBriefSignal(
                 id: "battery",
