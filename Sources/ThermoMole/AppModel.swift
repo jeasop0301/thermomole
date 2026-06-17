@@ -2,8 +2,6 @@ import Foundation
 import Combine
 import SwiftUI
 import AppKit
-import ServiceManagement
-import UniformTypeIdentifiers
 import ThermoMoleCore
 import ThermoMoleNative
 import ThermoMoleAppCore
