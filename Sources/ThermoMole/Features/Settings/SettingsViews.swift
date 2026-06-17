@@ -83,9 +83,9 @@ struct SettingsTab: View {
                 }
 
                 SettingsPanel(title: "Temperature Policy", symbol: "thermometer.medium") {
-                    SettingsInfoRow(title: "Battery source", value: "AppleSmartBattery first")
-                    SettingsInfoRow(title: "Fallback", value: "SMC TB max diagnostic")
-                    SettingsInfoRow(title: "VirtualTemperature", value: "Ignored")
+                    SettingsInfoRow(title: "Battery source", value: "AppleSmartBattery (BMS) — shown")
+                    SettingsInfoRow(title: "Hottest cell", value: "SMC TB max — upper bound")
+                    SettingsInfoRow(title: "VirtualTemperature", value: "Shown as reference")
                     SettingsInfoRow(title: "Warnings", value: "\(Int(ThermalThresholds.batteryCautionC))°C caution · \(Int(ThermalThresholds.batteryHotC))°C hot")
                 }
 

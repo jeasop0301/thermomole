@@ -86,4 +86,35 @@ final class BatteryTemperaturePolicyTests: XCTestCase {
         XCTAssertFalse(ThermalPolicy.isValidBatteryTemperature(80))
         XCTAssertFalse(ThermalPolicy.isValidBatteryTemperature(127))
     }
+
+    func testVirtualTemperaturePropagatedWhenValid() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [31.4],
+            ioregTemperatureC: 30.45,
+            virtualTemperatureC: 31.19
+        )
+
+        XCTAssertEqual(thermal.batteryVirtualC, 31.19)
+        XCTAssertEqual(thermal.batteryDisplayC, 30.45)          // 주값 불변(ioreg)
+        XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
+    }
+
+    func testVirtualTemperatureRejectedWhenOutOfRange() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [],
+            ioregTemperatureC: 30.0,
+            virtualTemperatureC: 999.0
+        )
+
+        XCTAssertNil(thermal.batteryVirtualC)
+    }
+
+    func testVirtualTemperatureNilByDefault() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [30.0],
+            ioregTemperatureC: 30.0
+        )
+
+        XCTAssertNil(thermal.batteryVirtualC)
+    }
 }

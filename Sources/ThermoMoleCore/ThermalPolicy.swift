@@ -39,6 +39,7 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
     public var batteryTemperatureSource: BatteryTemperatureSource
     public var batteryCellMaxC: Double?
     public var batteryIORegC: Double?
+    public var batteryVirtualC: Double?
     public var batteryWarningLevel: TemperatureWarningLevel
     public var hasBatterySensorMismatch: Bool
     public var ssdTemperatureC: Double?
@@ -52,6 +53,7 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
         batteryTemperatureSource: BatteryTemperatureSource = .unavailable,
         batteryCellMaxC: Double? = nil,
         batteryIORegC: Double? = nil,
+        batteryVirtualC: Double? = nil,
         batteryWarningLevel: TemperatureWarningLevel = .normal,
         hasBatterySensorMismatch: Bool = false,
         ssdTemperatureC: Double? = nil
@@ -64,6 +66,7 @@ public struct ThermalSnapshot: Codable, Equatable, Sendable {
         self.batteryTemperatureSource = batteryTemperatureSource
         self.batteryCellMaxC = batteryCellMaxC
         self.batteryIORegC = batteryIORegC
+        self.batteryVirtualC = batteryVirtualC
         self.batteryWarningLevel = batteryWarningLevel
         self.hasBatterySensorMismatch = hasBatterySensorMismatch
         self.ssdTemperatureC = ssdTemperatureC
@@ -100,11 +103,13 @@ public enum ThermalPolicy {
 public enum BatteryTemperaturePolicy {
     public static func resolve(
         smcCellTemperaturesC: [Double],
-        ioregTemperatureC: Double?
+        ioregTemperatureC: Double?,
+        virtualTemperatureC: Double? = nil
     ) -> ThermalSnapshot {
         let validCells = smcCellTemperaturesC.filter(ThermalPolicy.isValidBatteryTemperature)
         let cellMax = validCells.max()
         let validIOReg = ioregTemperatureC.flatMap { ThermalPolicy.isValidBatteryTemperature($0) ? $0 : nil }
+        let validVirtual = virtualTemperatureC.flatMap { ThermalPolicy.isValidBatteryTemperature($0) ? $0 : nil }
 
         let display: Double?
         let source: BatteryTemperatureSource
@@ -131,6 +136,7 @@ public enum BatteryTemperaturePolicy {
             batteryTemperatureSource: source,
             batteryCellMaxC: cellMax,
             batteryIORegC: validIOReg,
+            batteryVirtualC: validVirtual,
             batteryWarningLevel: TemperatureWarningLevel.batteryLevel(for: display),
             hasBatterySensorMismatch: mismatch
         )
