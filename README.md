@@ -88,5 +88,24 @@ codesign --force --sign - .build/arm64-apple-macosx/debug/ThermoMoleCoreCheck
 - Settings shows the protected roots, allowed Trash prefixes, and default scan skips used by cleanup and analyze flows.
 - Smart Clean auto-selects recommended safe cleanup items, then requires confirmation before moving anything to Trash. Manual Review Scan remains unselected-by-default. Permanent deletion is intentionally excluded.
 - Memory Doctor is pressure-first diagnosis, not a classic "free RAM" button. Advanced purge is only executable at critical pressure with explicit confirmation and operation history logging.
-- Optimize safety checks are conservative: Quick Look remains runnable, periodic maintenance is staged on battery power, Launch Services is staged when an active VPN is detected, and Dock refresh is staged when external display, default external audio output, connected Bluetooth input, or connected Bluetooth audio is detected. External audio and Bluetooth checks use short-timeout `system_profiler` probes; failed probes are treated as absent context.
+- Optimize safety checks are conservative: Quick Look remains runnable, periodic maintenance is kept out of the one-click default because it needs administrator privileges (still runnable individually), Launch Services uses a safe incremental re-register (no `-kill` database wipe, no `system` domain), and Dock refresh is staged when external display, default external audio output, connected Bluetooth input, or connected Bluetooth audio is detected. External audio and Bluetooth checks use short-timeout `system_profiler` probes; failed probes are treated as absent context.
 - Diagnostic reports are local JSON files containing status, Doctor checks, and recent operation history for troubleshooting. Settings can export a new report or import an existing report and show a local summary preview.
+
+## Longevity
+
+A dedicated Longevity tab turns the raw signals into a single 0–100 score, per-factor status (battery, heat, charging habits, storage, memory), and a prioritized list of plain-language actions to keep the Mac healthy longer. Backing it:
+
+- Battery thermal-exposure and CPU/system thermal-exposure tracking (per-day minutes above thresholds, 7-day strips), persisted locally.
+- High state-of-charge dwell tracking — time held at ≥80% / ≥95% while on AC power (a primary aging factor), persisted locally.
+- Battery health trend log (daily health %, cycle count, capacity) → longevity score, fade/cycle-rate inference, and projected months to 80%.
+- Instant battery power (V × A watts) and internal SSD temperature (via IOHIDEvent sensors).
+- Optional local notifications (off by default) for charging-while-hot, sustained heat, prolonged high charge, and low storage — throttled, with quiet hours.
+- No charge control: ThermoMole measures and informs; it does not write to the SMC.
+
+## License
+
+ThermoMole is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).
+
+Copyright (C) 2026 jeasop0301.
+
+See [ATTRIBUTION.md](ATTRIBUTION.md) for prior-art references. All native sensor, SMC, and IOHIDEvent code is an independent reimplementation; no code is copied from MacMonitor, Mole, or any other project.
