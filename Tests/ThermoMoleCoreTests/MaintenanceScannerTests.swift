@@ -209,4 +209,24 @@ final class MaintenanceScannerTests: XCTestCase {
         // intentionally excludes — so Trash must not be an offered cleanup category.
         XCTAssertFalse(CleanupCategory.allCases.contains { $0.title == "Trash" })
     }
+
+    func testDirectoryChildrenAreSortedByName() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let logs = root.appendingPathComponent("Library/Logs", isDirectory: true)
+        try FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
+        for name in ["zebra.log", "alpha.log", "mango.log", "delta.log"] {
+            try Data(repeating: 7, count: 48).write(to: logs.appendingPathComponent(name))
+        }
+
+        let scanner = CleanupScanner(
+            homeDirectory: root,
+            validator: ProtectedPathValidator(homeDirectory: root)
+        )
+        let result = scanner.scan(categories: [.logs])
+
+        let names = result.items.filter { $0.category == .logs }.map { $0.url.lastPathComponent }
+        XCTAssertEqual(names, ["alpha.log", "delta.log", "mango.log", "zebra.log"])
+    }
 }

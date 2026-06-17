@@ -450,14 +450,14 @@ public struct CleanupScanner {
     }
 
     private func children(of directory: URL) -> [URL] {
-        (try? fileManager.contentsOfDirectory(
+        let contents = (try? fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .totalFileAllocatedSizeKey],
             options: [.skipsHiddenFiles]
         )) ?? []
-            .sorted {
-                $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending
-            }
+        return contents.sorted {
+            $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending
+        }
     }
 
     private func directorySize(_ url: URL) -> UInt64 {
