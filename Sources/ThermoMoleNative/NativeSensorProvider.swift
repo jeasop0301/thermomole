@@ -234,7 +234,8 @@ public actor NativeSensorProvider: SensorProvider {
         guard conn != 0 else {
             let battery = BatteryTemperaturePolicy.resolve(
                 smcCellTemperaturesC: [],
-                ioregTemperatureC: batteryInfo.temperatureC
+                ioregTemperatureC: batteryInfo.temperatureC,
+                virtualTemperatureC: batteryInfo.virtualTemperatureC
             )
             let cpu = ThermalPolicy.resolveCPUTemperature(cpuDieHotspotC: nil, cpuAverageC: nil)
             var thermal = battery
@@ -253,7 +254,8 @@ public actor NativeSensorProvider: SensorProvider {
         )
         var thermal = BatteryTemperaturePolicy.resolve(
             smcCellTemperaturesC: ["TB0T", "TB1T", "TB2T"].map { smcValue(conn: conn, key: $0) },
-            ioregTemperatureC: batteryInfo.temperatureC
+            ioregTemperatureC: batteryInfo.temperatureC,
+            virtualTemperatureC: batteryInfo.virtualTemperatureC
         )
         thermal.cpuDisplayC = cpu.valueC
         thermal.cpuTemperatureSource = cpu.source

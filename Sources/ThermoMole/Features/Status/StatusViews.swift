@@ -95,6 +95,8 @@ struct StatusTab: View {
                     MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : "Read-only", detail: "No fan control", tint: .gray)
                 }
 
+                BatterySensorDetailCard(summary: BatterySensorSummary(thermal: model.snapshot.thermal))
+
                 MemoryDoctorPanel(
                     report: memoryReport,
                     state: memory.memoryPurgeState,
@@ -534,6 +536,67 @@ struct MemoryDoctorPanel: View {
         case .calm: "memorychip"
         case .watch: "memorychip.fill"
         case .critical: "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+
+struct BatterySensorDetailCard: View {
+    let summary: BatterySensorSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Battery Sensors", systemImage: "thermometer.medium")
+                    .font(.headline)
+                Spacer()
+                if summary.hasMismatch {
+                    Label("differ ≥2°C", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.amberAccent)
+                }
+            }
+            ForEach(summary.rows, id: \.kind) { row in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(label(row.kind))
+                            .font(.callout.weight(.semibold))
+                        Text(detail(row.kind))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(formatTemperaturePrecise(row.temperatureC))
+                        .font(.callout)
+                        .monospacedDigit()
+                }
+            }
+            Text(summary.hasMismatch
+                 ? "Sensors read different spots (pack vs hottest cell). ~1°C difference is normal."
+                 : "BMS pack is the trend basis; hottest cell is the conservative upper bound.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("Battery temperature sensors"))
+    }
+
+    private func label(_ kind: BatterySensorKind) -> String {
+        switch kind {
+        case .bms: "BMS pack"
+        case .cellMax: "Hottest cell"
+        case .virtual: "Virtual"
+        }
+    }
+
+    private func detail(_ kind: BatterySensorKind) -> String {
+        switch kind {
+        case .bms: "shown · trend basis"
+        case .cellMax: "SMC thermistor max"
+        case .virtual: "BMS estimate"
         }
     }
 }
