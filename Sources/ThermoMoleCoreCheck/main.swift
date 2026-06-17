@@ -60,8 +60,8 @@ let condition = SystemConditionPolicy.resolve(
 )
 check(condition == .hot, "CPU hotspot drives menu bar condition")
 
-let validator = ProtectedPathValidator(homeDirectory: URL(fileURLWithPath: "/Users/jisub"))
+let validator = ProtectedPathValidator(homeDirectory: URL(fileURLWithPath: "/Users/test"))
 check(!validator.canDelete(URL(fileURLWithPath: "/")), "root is protected")
-check(validator.canDelete(URL(fileURLWithPath: "/Users/jisub/Library/Caches/com.example")), "cache descendant allowed")
+check(validator.canDelete(URL(fileURLWithPath: "/Users/test/Library/Caches/com.example")), "cache descendant allowed")
 
 print("ThermoMoleCoreCheck passed")
