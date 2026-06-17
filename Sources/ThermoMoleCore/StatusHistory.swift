@@ -6,19 +6,22 @@ public struct StatusHistorySample: Equatable, Sendable {
     public var batteryTemperatureC: Double?
     public var memoryPercent: Int
     public var cpuUsagePercent: Double
+    public var batteryPowerW: Double
 
     public init(
         sampledAt: Date,
         cpuTemperatureC: Double?,
         batteryTemperatureC: Double?,
         memoryPercent: Int,
-        cpuUsagePercent: Double
+        cpuUsagePercent: Double,
+        batteryPowerW: Double = 0
     ) {
         self.sampledAt = sampledAt
         self.cpuTemperatureC = cpuTemperatureC
         self.batteryTemperatureC = batteryTemperatureC
         self.memoryPercent = memoryPercent
         self.cpuUsagePercent = cpuUsagePercent
+        self.batteryPowerW = batteryPowerW
     }
 
     public init(snapshot: SystemSnapshot) {
@@ -27,7 +30,8 @@ public struct StatusHistorySample: Equatable, Sendable {
             cpuTemperatureC: snapshot.thermal.cpuDisplayC,
             batteryTemperatureC: snapshot.thermal.batteryDisplayC,
             memoryPercent: snapshot.memory.usedPercent,
-            cpuUsagePercent: snapshot.cpu.usagePercent
+            cpuUsagePercent: snapshot.cpu.usagePercent,
+            batteryPowerW: snapshot.battery.instantPowerW
         )
     }
 }
@@ -66,5 +70,11 @@ public struct BoundedStatusHistory: Equatable, Sendable {
 
     public var cpuUsageSeries: [Double] {
         samples.map(\.cpuUsagePercent)
+    }
+
+    /// Magnitude of battery power flow (charge or discharge) over time — the direct
+    /// heat driver. Sign is dropped here; the instantaneous label shows direction.
+    public var batteryPowerSeries: [Double] {
+        samples.map { abs($0.batteryPowerW) }
     }
 }
