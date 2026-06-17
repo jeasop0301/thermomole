@@ -94,7 +94,7 @@ struct MainWindowView: View {
         case .analyze:
             AnalyzeTab(analyze: model.analyze)
         case .settings:
-            SettingsTab(model: model)
+            SettingsTab(model: model, settings: model.settings)
         }
     }
 }

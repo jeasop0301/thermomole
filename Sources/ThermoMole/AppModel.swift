@@ -19,12 +19,6 @@ final class AppModel: ObservableObject {
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
     @Published var operationHistoryEntries = [OperationHistoryEntry]()
     @Published var operationHistoryError: String?
-    @Published var diagnosticExportState = OperationState.idle
-    @Published var diagnosticImportState = OperationState.idle
-    @Published var importedDiagnosticSummary: DiagnosticReportSummary?
-    @Published var showsDockIcon = false
-    @Published var launchAtLoginEnabled = false
-    @Published var launchAtLoginStatusText = "Off"
     @Published var lastError: String?
     @Published var doctorReport = DoctorReport.make(inputs: .placeholder)
     @Published var todayExposure = ThermalExposureSummary.empty
@@ -86,6 +80,13 @@ final class AppModel: ObservableObject {
         onChanged: { [weak self] in self?.refreshDoctorReport() }
     )
 
+    private(set) lazy var settings = SettingsModel(
+        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        currentDoctorReport: { [weak self] in self?.doctorReport ?? DoctorReport.make(inputs: .placeholder) },
+        currentHistory: { [weak self] in self?.operationHistoryEntries ?? [] },
+        reportError: { [weak self] message in self?.lastError = message }
+    )
+
     init() {
         let stored = UserDefaults.standard.stringArray(forKey: "menuBarMetrics") ?? []
         let decoded = MenuBarMetricStorage.decode(stored)
@@ -115,11 +116,9 @@ final class AppModel: ObservableObject {
             todayCPUExposure = await cpuExposureCoordinator.summary(at: Date(), calendar: .current)
             recomputeLongevity()
         }
-        showsDockIcon = UserDefaults.standard.bool(forKey: "showsDockIcon")
         notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         if notificationsEnabled { notifier.requestAuthorization() }
         loadOperationHistory()
-        refreshLaunchAtLoginStatus()
         refreshDoctorReport()
     }
 
@@ -259,43 +258,6 @@ final class AppModel: ObservableObject {
         menuBarMetrics = MenuBarMetric.move(metric, in: menuBarMetrics, direction: direction)
     }
 
-    func setDockIconVisible(_ visible: Bool) {
-        showsDockIcon = visible
-        UserDefaults.standard.set(visible, forKey: "showsDockIcon")
-        NSApp.setActivationPolicy(visible ? .regular : .accessory)
-        if visible {
-            NSApp.activate(ignoringOtherApps: true)
-        }
-    }
-
-    func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                if SMAppService.mainApp.status != .enabled {
-                    try SMAppService.mainApp.register()
-                }
-            } else if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            }
-            lastError = nil
-        } catch {
-            lastError = "Launch at Login: \(error.localizedDescription)"
-        }
-        refreshLaunchAtLoginStatus()
-    }
-
-    func refreshLaunchAtLoginStatus() {
-        let status = SMAppService.mainApp.status
-        launchAtLoginEnabled = status == .enabled
-        launchAtLoginStatusText = switch status {
-        case .enabled: "On"
-        case .notRegistered: "Off"
-        case .notFound: "Install to /Applications"
-        case .requiresApproval: "Needs Approval"
-        @unknown default: "Unknown"
-        }
-    }
-
     func refreshDoctorReport(now: Date = Date()) {
         doctorReport = DoctorReport.make(inputs: DoctorInputs.make(
             snapshot: snapshot,
@@ -327,48 +289,6 @@ final class AppModel: ObservableObject {
             revealInFinder(url)
         } else {
             revealInFinder(url.deletingLastPathComponent())
-        }
-    }
-
-    func exportDiagnosticReport(to url: URL) {
-        let report = DiagnosticReport(
-            appVersion: appVersionString(),
-            snapshot: snapshot,
-            doctorReport: doctorReport,
-            recentOperations: operationHistoryEntries
-        )
-        do {
-            try DiagnosticReportStore().write(report, to: url)
-            diagnosticExportState = diagnosticExportState.finished(
-                message: "Diagnostic report exported",
-                at: Date()
-            )
-            lastError = nil
-        } catch {
-            diagnosticExportState = diagnosticExportState.failed(
-                message: "Diagnostic export failed",
-                at: Date()
-            )
-            lastError = "Diagnostic report: \(error.localizedDescription)"
-        }
-    }
-
-    func importDiagnosticReport(from url: URL) {
-        do {
-            let report = try DiagnosticReportStore().read(from: url)
-            importedDiagnosticSummary = DiagnosticReportSummary(report: report)
-            diagnosticImportState = diagnosticImportState.finished(
-                message: "Diagnostic report imported",
-                at: Date()
-            )
-            lastError = nil
-        } catch {
-            importedDiagnosticSummary = nil
-            diagnosticImportState = diagnosticImportState.failed(
-                message: "Diagnostic import failed",
-                at: Date()
-            )
-            lastError = "Diagnostic report: \(error.localizedDescription)"
         }
     }
 
@@ -412,13 +332,4 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func appVersionString() -> String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        let joined = [version, build]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        return joined.isEmpty ? "debug" : joined
-    }
 }
