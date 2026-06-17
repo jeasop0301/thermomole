@@ -4,3 +4,7 @@ DerivedData/
 dist/
 *.xcuserstate
 .DS_Store
+
+# stray build outputs / scratch binaries in repo root
+/codable_test2
+*.o
