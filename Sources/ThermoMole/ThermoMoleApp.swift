@@ -71,12 +71,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupPopover() {
         popover.behavior = .transient
         popover.animates = true
-        popover.contentSize = NSSize(width: 360, height: 520)
-        popover.contentViewController = NSHostingController(
+        let hosting = NSHostingController(
             rootView: MenuBarPopoverView(model: model) { [weak self] in
                 self?.showMainWindow()
             }
         )
+        // Size the popover to the SwiftUI content (the view is 370 wide with intrinsic
+        // height) instead of a fixed 360×520 box that clipped it and misaligned the arrow.
+        hosting.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = hosting
     }
 
     @objc private func statusItemClicked() {
@@ -86,7 +89,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if popover.isShown {
             popover.performClose(nil)
         } else {
+            // Activate + make the popover window key so a transient popover from an
+            // .accessory (menu-bar-only) app reliably dismisses on an outside click.
+            NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
         }
     }
 
