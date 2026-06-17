@@ -90,7 +90,7 @@ struct MainWindowView: View {
         case .software:
             SoftwareTab(software: model.software)
         case .optimize:
-            OptimizeTab(model: model)
+            OptimizeTab(optimize: model.optimize)
         case .analyze:
             AnalyzeTab(analyze: model.analyze)
         case .settings:
