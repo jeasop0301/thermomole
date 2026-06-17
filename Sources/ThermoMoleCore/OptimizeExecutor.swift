@@ -540,23 +540,11 @@ public struct OptimizeExecutor {
     }
 
     public static func defaultRunner(_ command: OptimizeCommand) -> CommandResult {
-        let process = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.executableURL = URL(fileURLWithPath: command.executablePath)
-        process.arguments = command.arguments
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let stdoutText = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let stderrText = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            return CommandResult(exitCode: process.terminationStatus, stdout: stdoutText, stderr: stderrText)
-        } catch {
-            return CommandResult(exitCode: 127, stdout: "", stderr: error.localizedDescription)
-        }
+        // Route through Shell.run: it reads stdout/stderr on background threads
+        // (avoiding the waitUntilExit-then-read pipe deadlock) and enforces a
+        // timeout so a hung maintenance command can't block indefinitely.
+        let result = Shell.run(command.executablePath, command.arguments, timeoutSeconds: 120)
+        return CommandResult(exitCode: result.status, stdout: result.stdout, stderr: result.stderr)
     }
 }
 
