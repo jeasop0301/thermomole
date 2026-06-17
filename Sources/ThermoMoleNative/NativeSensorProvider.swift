@@ -240,6 +240,7 @@ public actor NativeSensorProvider: SensorProvider {
             var thermal = battery
             thermal.cpuDisplayC = cpu.valueC
             thermal.cpuTemperatureSource = cpu.source
+            thermal.ssdTemperatureC = sampleSSDTemperatureC()
             return (thermal, 0)
         }
         defer { SMCClose(conn) }
@@ -258,9 +259,15 @@ public actor NativeSensorProvider: SensorProvider {
         thermal.cpuTemperatureSource = cpu.source
         thermal.cpuDieHotspotC = ThermalPolicy.isValidTemperature(cpuHotspot) ? cpuHotspot : nil
         thermal.cpuAverageC = cpuAverage.flatMap { ThermalPolicy.isValidTemperature($0) ? $0 : nil }
+        thermal.ssdTemperatureC = sampleSSDTemperatureC()
 
         let fan = smcValue(conn: conn, key: "F0Ac")
         return (thermal, fan > 0 ? Int(fan.rounded()) : 0)
+    }
+
+    private func sampleSSDTemperatureC() -> Double? {
+        let value = SSDTemperatureCelsius()
+        return ThermalPolicy.isValidTemperature(value) ? value : nil
     }
 
     private func sampleTopProcesses() -> [ProcessSnapshot] {
