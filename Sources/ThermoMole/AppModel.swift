@@ -429,7 +429,22 @@ final class AppModel: ObservableObject {
     }
 
     func refreshOptimizeSafetyContext() {
-        optimizeSafetyContext = makeOptimizeSafetyContext()
+        // Read main-actor state here; run the slow system_profiler/scutil probes
+        // off-main so the Optimize tab's onAppear no longer blocks for seconds.
+        let isOnBattery = snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower
+        let hasExternalDisplay = NSScreen.screens.count > 1
+        Task.detached(priority: .utility) { [weak self] in
+            let bluetooth = Self.probeBluetooth()
+            let context = OptimizeSafetyContext(
+                isOnBatteryPower: isOnBattery,
+                hasActiveVPN: Self.probeActiveVPN(),
+                hasExternalDisplay: hasExternalDisplay,
+                hasExternalAudio: Self.probeExternalAudio(),
+                hasBluetoothHID: bluetooth.hid,
+                hasBluetoothAudio: bluetooth.audio
+            )
+            await MainActor.run { self?.optimizeSafetyContext = context }
+        }
     }
 
     func runMemoryPurge() {
@@ -592,30 +607,32 @@ final class AppModel: ObservableObject {
     }
 
     private func makeOptimizeSafetyContext() -> OptimizeSafetyContext {
-        let bluetooth = bluetoothSafetyFlags()
+        let bluetooth = Self.probeBluetooth()
         return OptimizeSafetyContext(
             isOnBatteryPower: snapshot.battery.percent > 0 && !snapshot.battery.isOnACPower,
-            hasActiveVPN: hasActiveVPNConnection(),
+            hasActiveVPN: Self.probeActiveVPN(),
             hasExternalDisplay: NSScreen.screens.count > 1,
-            hasExternalAudio: hasExternalAudioDevice(),
+            hasExternalAudio: Self.probeExternalAudio(),
             hasBluetoothHID: bluetooth.hid,
             hasBluetoothAudio: bluetooth.audio
         )
     }
 
-    private func hasActiveVPNConnection() -> Bool {
+    // These probes only shell out (no actor state), so they are nonisolated static
+    // and safe to run off the main actor — see refreshOptimizeSafetyContext.
+    nonisolated private static func probeActiveVPN() -> Bool {
         let result = Shell.run("/usr/sbin/scutil", ["--nc", "list"], timeoutSeconds: 1)
         guard result.status == 0 else { return false }
         return OptimizeSafetyContextParser.hasActiveVPN(scutilOutput: result.stdout)
     }
 
-    private func hasExternalAudioDevice() -> Bool {
+    nonisolated private static func probeExternalAudio() -> Bool {
         let result = Shell.run("/usr/sbin/system_profiler", ["SPAudioDataType"], timeoutSeconds: 2)
         guard result.status == 0 else { return false }
         return OptimizeSafetyContextParser.hasExternalAudio(systemProfilerAudioOutput: result.stdout)
     }
 
-    private func bluetoothSafetyFlags() -> (hid: Bool, audio: Bool) {
+    nonisolated private static func probeBluetooth() -> (hid: Bool, audio: Bool) {
         let result = Shell.run("/usr/sbin/system_profiler", ["SPBluetoothDataType"], timeoutSeconds: 2)
         guard result.status == 0 else { return (hid: false, audio: false) }
         return (
