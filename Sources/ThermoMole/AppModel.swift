@@ -17,8 +17,6 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var memoryPurgeState = OperationState.idle
-    @Published var memoryPurgeLog = [MemoryPurgeResult]()
     @Published var operationHistoryEntries = [OperationHistoryEntry]()
     @Published var operationHistoryError: String?
     @Published var diagnosticExportState = OperationState.idle
@@ -77,6 +75,13 @@ final class AppModel: ObservableObject {
 
     private(set) lazy var optimize = OptimizeModel(
         currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var memory = MemoryModel(
+        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        purge: { MemoryPurgeExecutor().execute(plan: $0) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onChanged: { [weak self] in self?.refreshDoctorReport() }
     )
@@ -238,34 +243,6 @@ final class AppModel: ObservableObject {
         await exposureCoordinator.flushNow(at: Date())
         await chargeCoordinator.flushNow(at: Date())
         await cpuExposureCoordinator.flushNow(at: Date())
-    }
-
-    func runMemoryPurge() {
-        guard !memoryPurgeState.isRunning else { return }
-        let report = MemoryDoctorReport(memory: snapshot.memory, topProcesses: snapshot.topProcesses)
-        let plan = MemoryPurgePlan(report: report)
-        guard plan.canExecute else {
-            memoryPurgeState = memoryPurgeState.failed(message: "Requires critical memory pressure", at: Date())
-            return
-        }
-
-        memoryPurgeState = memoryPurgeState.started(message: "Running advanced purge")
-        Task.detached(priority: .utility) {
-            MemoryPurgeExecutor().execute(plan: plan)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            memoryPurgeLog = [result] + memoryPurgeLog
-            appendHistory(OperationHistoryEntry.memoryPurge(result))
-            refreshDoctorReport()
-            switch result.status {
-            case .succeeded:
-                memoryPurgeState = memoryPurgeState.finished(message: "Advanced purge complete", at: result.executedAt)
-            case .skipped:
-                memoryPurgeState = memoryPurgeState.finished(message: result.message, at: result.executedAt)
-            case .failed:
-                memoryPurgeState = memoryPurgeState.failed(message: result.message, at: result.executedAt)
-            }
-        }
     }
 
     func setMenuBarMetric(_ metric: MenuBarMetric, enabled: Bool) {

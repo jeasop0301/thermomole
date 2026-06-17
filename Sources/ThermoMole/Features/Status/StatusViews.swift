@@ -1,8 +1,10 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 
 struct StatusTab: View {
     @ObservedObject var model: AppModel
+    let memory: MemoryModel
     @State private var isShowingMemoryPurgeConfirmation = false
 
     private var memoryReport: MemoryDoctorReport {
@@ -95,7 +97,7 @@ struct StatusTab: View {
 
                 MemoryDoctorPanel(
                     report: memoryReport,
-                    state: model.memoryPurgeState,
+                    state: memory.memoryPurgeState,
                     runPurge: { isShowingMemoryPurgeConfirmation = true }
                 )
             }
@@ -105,7 +107,7 @@ struct StatusTab: View {
         .alert("Run advanced memory purge?", isPresented: $isShowingMemoryPurgeConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Run", role: .destructive) {
-                model.runMemoryPurge()
+                memory.runMemoryPurge()
             }
         } message: {
             Text(MemoryPurgePlan(report: memoryReport).confirmationMessage)
