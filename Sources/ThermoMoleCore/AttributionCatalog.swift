@@ -25,7 +25,7 @@ public struct AttributionCatalog: Equatable, Sendable {
     }
 
     public static let `default` = AttributionCatalog(
-        summary: "ThermoMole is private local software.",
+        summary: "ThermoMole is an open-source macOS menu-bar utility for Apple Silicon, released under the GNU General Public License v3.0.",
         entries: [
             AttributionEntry(
                 name: "MacMonitor",
@@ -43,6 +43,6 @@ public struct AttributionCatalog: Equatable, Sendable {
                 note: "The product site informed the quiet, local-first utility positioning."
             )
         ],
-        licenseNotice: "If ThermoMole is distributed later, revisit licensing before release. MacMonitor is MIT. Mole's GitHub repository includes GPL-3.0 licensing, so copied or derivative code from Mole may require GPL-compatible distribution."
+        licenseNotice: "ThermoMole is distributed under the GNU General Public License v3.0. MacMonitor (MIT) and Mole (GPL-3.0) are listed as prior-art inspiration only; no code is copied from either project. All native sensor, SMC, and IOHIDEvent code is an independent reimplementation. GPL-3.0 satisfies any GPL-compatibility concern regarding Mole."
     )
 }
