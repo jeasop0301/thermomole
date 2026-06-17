@@ -67,6 +67,10 @@ final class AppModel: ObservableObject {
 
     private(set) lazy var optimize = OptimizeModel(
         currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
+        hasExternalDisplay: { NSScreen.screens.count > 1 },
+        probeSafety: { OptimizeSafetyProbe.live() },
+        execute: { OptimizeExecutor().execute(plan: $0) },
+        executeBatch: { OptimizeExecutor().execute(batch: $0) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onChanged: { [weak self] in self?.refreshDoctorReport() }
     )

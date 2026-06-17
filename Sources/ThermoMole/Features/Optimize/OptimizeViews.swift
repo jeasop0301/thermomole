@@ -1,5 +1,6 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 
 struct OptimizeTab: View {
     let optimize: OptimizeModel
