@@ -66,6 +66,15 @@ open dist/ThermoMole.app
 
 The app bundle is menu-bar-first (`LSUIElement`) and hides the Dock icon by default.
 
+### Install a release build
+
+Download `ThermoMole.zip` from the latest [GitHub Release](../../releases), unzip,
+and move `ThermoMole.app` to `/Applications`. Release builds are signed with a
+Developer ID and notarized by Apple, so they launch without a Gatekeeper prompt.
+
+If you build from source instead, the app is ad-hoc signed; on first launch use
+Finder's right-click → Open, or run `xattr -dr com.apple.quarantine dist/ThermoMole.app`.
+
 ## Verify
 
 ```bash
