@@ -5,6 +5,8 @@ public enum LongevityNotification: String, Codable, Equatable, Sendable, CaseIte
     case sustainedHotBattery
     case highSoCDwell
     case lowStorage
+    case sustainedHotCPU
+    case highCycleRate
 
     public var title: String {
         switch self {
@@ -12,6 +14,8 @@ public enum LongevityNotification: String, Codable, Equatable, Sendable, CaseIte
         case .sustainedHotBattery: "Battery running hot"
         case .highSoCDwell: "Held at high charge"
         case .lowStorage: "Storage almost full"
+        case .sustainedHotCPU: "CPU running hot"
+        case .highCycleRate: "High charge cycles"
         }
     }
 
@@ -21,6 +25,8 @@ public enum LongevityNotification: String, Codable, Equatable, Sendable, CaseIte
         case .sustainedHotBattery: "The battery has been hot for a while. Ease the load to cool it down."
         case .highSoCDwell: "It's been near full on AC for hours. Unplug around 80% when you can."
         case .lowStorage: "Low free space forces swap to the SSD. Free up some room."
+        case .sustainedHotCPU: "CPU has been very hot. Ease the load to cool it down."
+        case .highCycleRate: "Charge cycles are climbing fast. Fewer full charge/discharge swings help."
         }
     }
 }
@@ -63,5 +69,26 @@ public enum NotificationPolicy {
                 return now.timeIntervalSince(last) >= throttle
             }
             .sorted { $0.rawValue < $1.rawValue }
+    }
+}
+
+public extension NotificationPolicy {
+    /// Pure decision of which longevity notifications are currently active, given a snapshot
+    /// and the day's exposure/longevity context. Throttling and quiet hours are applied
+    /// separately by `due(...)`.
+    static func activeNotifications(
+        snapshot: SystemSnapshot,
+        todayChargeExposure: ChargeExposureSummary,
+        todayCPUExposure: CPUExposureSummary,
+        batteryLongevity: BatteryLongevityReport?
+    ) -> Set<LongevityNotification> {
+        var active = Set<LongevityNotification>()
+        if StatusBrief(snapshot: snapshot).isChargingWhileHot { active.insert(.chargingWhileHot) }
+        if snapshot.thermal.batteryWarningLevel == .hot { active.insert(.sustainedHotBattery) }
+        if todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
+        if (100 - snapshot.disk.usedPercent) < 10 { active.insert(.lowStorage) }
+        if todayCPUExposure.today.secondsAbove95 >= 30 * 60 { active.insert(.sustainedHotCPU) }
+        if batteryLongevity?.alerts.contains(.highCycleRate) == true { active.insert(.highCycleRate) }
+        return active
     }
 }

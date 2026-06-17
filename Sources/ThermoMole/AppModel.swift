@@ -196,12 +196,12 @@ final class AppModel: ObservableObject {
 
     private func evaluateNotifications(for snapshot: SystemSnapshot) {
         guard notificationsEnabled else { return }
-        var active: Set<LongevityNotification> = []
-        if StatusBrief(snapshot: snapshot).isChargingWhileHot { active.insert(.chargingWhileHot) }
-        if snapshot.thermal.batteryWarningLevel == .hot { active.insert(.sustainedHotBattery) }
-        if todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
-        if (100 - snapshot.disk.usedPercent) < 10 { active.insert(.lowStorage) }
-
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: snapshot,
+            todayChargeExposure: todayChargeExposure,
+            todayCPUExposure: todayCPUExposure,
+            batteryLongevity: batteryLongevity
+        )
         let due = NotificationPolicy.due(
             active: active,
             lastSent: lastNotified,

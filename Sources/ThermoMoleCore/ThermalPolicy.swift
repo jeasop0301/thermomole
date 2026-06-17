@@ -131,13 +131,18 @@ public enum BatteryTemperaturePolicy {
             mismatch = false
         }
 
+        // Warn on the hottest cell, not the displayed pack value: battery aging is
+        // dominated by the weakest (hottest) cell, so the warning level uses
+        // max(BMS, SMC cell max). Display value stays BMS for trend stability.
+        let warnBasis = [display, cellMax].compactMap { $0 }.max()
+
         return ThermalSnapshot(
             batteryDisplayC: display,
             batteryTemperatureSource: source,
             batteryCellMaxC: cellMax,
             batteryIORegC: validIOReg,
             batteryVirtualC: validVirtual,
-            batteryWarningLevel: TemperatureWarningLevel.batteryLevel(for: display),
+            batteryWarningLevel: TemperatureWarningLevel.batteryLevel(for: warnBasis),
             hasBatterySensorMismatch: mismatch
         )
     }
