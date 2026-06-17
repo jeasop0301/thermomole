@@ -1,5 +1,6 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 
 struct SettingsTab: View {
     @ObservedObject var model: AppModel
