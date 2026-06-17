@@ -1,22 +1,23 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 import UniformTypeIdentifiers
 
 struct AnalyzeTab: View {
-    @ObservedObject var model: AppModel
+    let analyze: AnalyzeModel
     @State private var pendingTrashEntry: DiskEntry?
 
     private var summary: DiskAnalysisSummary {
-        DiskAnalysisSummary(scopeURL: model.diskAnalysisPath.currentURL, entries: model.diskEntries)
+        DiskAnalysisSummary(scopeURL: analyze.diskAnalysisPath.currentURL, entries: analyze.diskEntries)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             TabHeader(subtitle: "Follow storage from a wide branch into the heavy leaves.") {
-                OperationStatePill(state: model.analyzeState)
-                if model.analyzeState.isRunning {
+                OperationStatePill(state: analyze.analyzeState)
+                if analyze.analyzeState.isRunning {
                     Button {
-                        model.cancelAnalyze()
+                        analyze.cancelAnalyze()
                     } label: {
                         Label("Cancel", systemImage: "xmark")
                     }
@@ -26,18 +27,18 @@ struct AnalyzeTab: View {
                 } label: {
                     Label("Choose Folder", systemImage: "folder.badge.gearshape")
                 }
-                .disabled(model.analyzeState.isRunning)
+                .disabled(analyze.analyzeState.isRunning)
                 Button {
-                    model.analyzeHome()
+                    analyze.analyzeHome()
                 } label: {
-                    if model.analyzeState.isRunning {
+                    if analyze.analyzeState.isRunning {
                         Label("Analyzing", systemImage: "hourglass")
                     } else {
                         Label("Map Home", systemImage: "chart.pie")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.analyzeState.isRunning)
+                .disabled(analyze.analyzeState.isRunning)
             }
 
             HStack(alignment: .top, spacing: 12) {
@@ -47,27 +48,27 @@ struct AnalyzeTab: View {
             }
 
             DiskBreadcrumbBar(
-                path: model.diskAnalysisPath,
-                isBusy: model.analyzeState.isRunning,
-                goUp: { model.analyzeParentDiskURL() },
-                select: { model.analyzeDiskBreadcrumb($0) }
+                path: analyze.diskAnalysisPath,
+                isBusy: analyze.analyzeState.isRunning,
+                goUp: { analyze.analyzeParentDiskURL() },
+                select: { analyze.analyzeDiskBreadcrumb($0) }
             )
 
-            if model.analyzeState.isRunning {
-                ProgressPanel(title: "Analyzing Disk", message: model.analyzeState.message)
-            } else if model.diskEntries.isEmpty {
+            if analyze.analyzeState.isRunning {
+                ProgressPanel(title: "Analyzing Disk", message: analyze.analyzeState.message)
+            } else if analyze.diskEntries.isEmpty {
                 ContentUnavailableView("No Disk Map", systemImage: "chart.pie", description: Text("Map Home or choose a folder to rank large files and folders."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HSplitView {
-                    DiskTreemapView(items: DiskTreemapItem.items(from: model.diskEntries, limit: 18)) { item in
+                    DiskTreemapView(items: DiskTreemapItem.items(from: analyze.diskEntries, limit: 18)) { item in
                         if item.entry.isDirectory {
-                            model.analyzeDiskEntry(item.entry)
+                            analyze.analyzeDiskEntry(item.entry)
                         }
                     }
                     .frame(minWidth: 300)
 
-                    List(model.diskEntries) { entry in
+                    List(analyze.diskEntries) { entry in
                         HStack {
                             Image(systemName: entry.isDirectory ? "folder" : "doc")
                                 .foregroundStyle(entry.isDirectory ? Color.oceanAccent : .secondary)
@@ -75,24 +76,24 @@ struct AnalyzeTab: View {
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .layoutPriority(1)
-                            DiskUsageBar(value: entry.sizeBytes, maxValue: model.diskEntries.first?.sizeBytes ?? entry.sizeBytes)
+                            DiskUsageBar(value: entry.sizeBytes, maxValue: analyze.diskEntries.first?.sizeBytes ?? entry.sizeBytes)
                                 .frame(minWidth: 60, idealWidth: 120, maxWidth: 150)
                             Spacer()
                             Text(formatBytes(entry.sizeBytes))
                                 .monospacedDigit()
                             if entry.isDirectory {
                                 IconButton(systemName: "arrow.down.right.circle", help: "Analyze folder") {
-                                    model.analyzeDiskEntry(entry)
+                                    analyze.analyzeDiskEntry(entry)
                                 }
                             }
                             IconButton(systemName: "folder", help: "Reveal in Finder") {
                                 revealInFinder(entry.url)
                             }
-                            if model.canTrashDiskEntry(entry) {
+                            if analyze.canTrashDiskEntry(entry) {
                                 IconButton(systemName: "trash", help: "Move to Trash") {
                                     pendingTrashEntry = entry
                                 }
-                                .disabled(model.analyzeState.isRunning)
+                                .disabled(analyze.analyzeState.isRunning)
                             } else {
                                 Image(systemName: "lock")
                                     .font(.system(size: 13, weight: .semibold))
@@ -109,8 +110,8 @@ struct AnalyzeTab: View {
                 }
             }
 
-            if !model.diskTrashLog.isEmpty {
-                DiskEntryTrashLogView(results: Array(model.diskTrashLog.prefix(6)))
+            if !analyze.diskTrashLog.isEmpty {
+                DiskEntryTrashLogView(results: Array(analyze.diskTrashLog.prefix(6)))
             }
         }
         .padding(22)
@@ -121,7 +122,7 @@ struct AnalyzeTab: View {
                 title: Text(summary.title),
                 message: Text(summary.confirmationMessage),
                 primaryButton: .destructive(Text("Move to Trash")) {
-                    model.trashDiskEntry(entry)
+                    analyze.trashDiskEntry(entry)
                 },
                 secondaryButton: .cancel()
             )
@@ -136,7 +137,7 @@ struct AnalyzeTab: View {
         panel.prompt = "Analyze"
         panel.message = "Choose a folder to analyze."
         if panel.runModal() == .OK, let url = panel.url {
-            model.analyzeFolder(url)
+            analyze.analyzeFolder(url)
         }
     }
 }

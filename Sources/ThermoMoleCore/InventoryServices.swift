@@ -5,6 +5,12 @@ public struct DiskEntry: Identifiable, Equatable, Sendable {
     public var url: URL
     public var sizeBytes: UInt64
     public var isDirectory: Bool
+
+    public init(url: URL, sizeBytes: UInt64, isDirectory: Bool) {
+        self.url = url
+        self.sizeBytes = sizeBytes
+        self.isDirectory = isDirectory
+    }
 }
 
 public struct DiskAnalyzer {

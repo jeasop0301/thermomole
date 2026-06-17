@@ -16,14 +16,10 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(MenuBarMetricStorage.encode(menuBarMetrics), forKey: "menuBarMetrics")
         }
     }
-    @Published var diskEntries = [DiskEntry]()
-    @Published var diskTrashLog = [DiskEntryTrashResult]()
-    @Published var diskAnalysisPath = DiskAnalysisPath(rootURL: FileManager.default.homeDirectoryForCurrentUser)
     @Published var installedApps = [InstalledApp]()
     @Published var startupItems = [StartupItem]()
     @Published var appUninstallLog = [AppUninstallResult]()
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var analyzeState = OperationState.idle
     @Published var softwareState = OperationState.idle
     @Published var optimizeState = OperationState.idle
     @Published var optimizeLog = [OptimizeExecutionResult]()
@@ -64,14 +60,19 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
-    private var analyzeTask: Task<[DiskEntry], Never>?
-    private var analyzeRequestID = UUID()
 
     private(set) lazy var clean = CleanModel(
         scan: { CleanupScanner().scan(preselection: $0) },
         execute: { items, selection in CleanupExecutor().execute(items: items, selection: selection, mode: .trash) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onCleaned: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var analyze = AnalyzeModel(
+        analyze: { DiskAnalyzer().analyze($0, shouldCancel: $1) },
+        trash: { DiskEntryTrashExecutor().moveToTrash($0) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
     )
 
     init() {
@@ -231,97 +232,6 @@ final class AppModel: ObservableObject {
         await exposureCoordinator.flushNow(at: Date())
         await chargeCoordinator.flushNow(at: Date())
         await cpuExposureCoordinator.flushNow(at: Date())
-    }
-
-    func analyzeHome() {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.reset(to: FileManager.default.homeDirectoryForCurrentUser)
-        analyzeCurrentDiskURL(message: "Analyzing home folder")
-    }
-
-    func analyzeFolder(_ url: URL) {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.reset(to: url)
-        analyzeCurrentDiskURL(message: "Analyzing \(url.lastPathComponent)")
-    }
-
-    func analyzeDiskEntry(_ entry: DiskEntry) {
-        guard entry.isDirectory, !analyzeState.isRunning else { return }
-        diskAnalysisPath.push(entry.url)
-        analyzeCurrentDiskURL(message: "Analyzing \(entry.url.lastPathComponent)")
-    }
-
-    func analyzeDiskBreadcrumb(_ breadcrumb: DiskBreadcrumb) {
-        guard !analyzeState.isRunning else { return }
-        diskAnalysisPath.popTo(breadcrumb.url)
-        analyzeCurrentDiskURL(message: "Analyzing \(breadcrumb.title)")
-    }
-
-    func analyzeParentDiskURL() {
-        guard diskAnalysisPath.canGoUp, !analyzeState.isRunning else { return }
-        diskAnalysisPath.popUp()
-        analyzeCurrentDiskURL(message: "Analyzing \(diskAnalysisPath.currentURL.lastPathComponent)")
-    }
-
-    func cancelAnalyze() {
-        guard analyzeState.isRunning else { return }
-        analyzeTask?.cancel()
-        analyzeTask = nil
-        analyzeRequestID = UUID()
-        analyzeState = analyzeState.finished(message: "Canceled", at: Date())
-    }
-
-    func canTrashDiskEntry(_ entry: DiskEntry) -> Bool {
-        let resolvedURL = entry.url.resolvingSymlinksInPath().standardizedFileURL
-        return ProtectedPathValidator().canDelete(entry.url, resolvedURL: resolvedURL)
-    }
-
-    func trashDiskEntry(_ entry: DiskEntry) {
-        guard !analyzeState.isRunning else { return }
-        analyzeState = analyzeState.started(message: "Moving \(entry.url.lastPathComponent) to Trash")
-        Task.detached(priority: .utility) {
-            DiskEntryTrashExecutor().moveToTrash(entry)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            diskTrashLog = [result] + diskTrashLog
-            appendHistory(OperationHistoryEntry.analyzeTrash(result))
-            if result.status == .succeeded {
-                diskEntries.removeAll { $0.id == result.entry.id }
-                refreshDoctorReport()
-            }
-            switch result.status {
-            case .succeeded:
-                analyzeState = analyzeState.finished(message: "Moved to Trash", at: result.executedAt)
-            case .skipped:
-                analyzeState = analyzeState.finished(message: "Protected path skipped", at: result.executedAt)
-            case .failed:
-                analyzeState = analyzeState.failed(message: result.message, at: result.executedAt)
-            }
-        }
-    }
-
-    private func analyzeCurrentDiskURL(message: String) {
-        let url = diskAnalysisPath.currentURL
-        analyzeTask?.cancel()
-        let requestID = UUID()
-        analyzeRequestID = requestID
-        analyzeState = analyzeState.started(message: message)
-        let task = Task.detached(priority: .utility) {
-            DiskAnalyzer().analyze(url, shouldCancel: { Task.isCancelled })
-        }
-        analyzeTask = task
-        Task { [weak self] in
-            let entries = await task.value
-            await MainActor.run {
-                guard let self, self.analyzeRequestID == requestID, !task.isCancelled else { return }
-                self.diskEntries = entries
-                self.analyzeTask = nil
-                self.analyzeState = self.analyzeState.finished(
-                    message: "\(entries.count) entries",
-                    at: Date()
-                )
-            }
-        }
     }
 
     func loadSoftware() {
