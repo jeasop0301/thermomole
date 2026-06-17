@@ -21,8 +21,28 @@ final class BatteryTemperaturePolicyTests: XCTestCase {
             ioregTemperatureC: 31.41
         )
 
-        XCTAssertEqual(thermal.batteryDisplayC, 31.41)
+        XCTAssertEqual(thermal.batteryDisplayC, 31.41)               // 표시값은 BMS(ioreg)
         XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
+        XCTAssertEqual(thermal.batteryWarningLevel, .caution)        // 보수화: 셀최대 35.8 ≥ 35 → caution
+    }
+
+    func testWarningLevelUsesHottestCellNotDisplay() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [41.0],
+            ioregTemperatureC: 30.0
+        )
+
+        XCTAssertEqual(thermal.batteryDisplayC, 30.0)                // 표시값은 BMS(낮음)
+        XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
+        XCTAssertEqual(thermal.batteryWarningLevel, .hot)            // 경고는 셀최대 41 ≥ 40 → hot
+    }
+
+    func testWarningLevelNormalWhenBothLow() {
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [31.0],
+            ioregTemperatureC: 30.0
+        )
+
         XCTAssertEqual(thermal.batteryWarningLevel, .normal)
     }
 
