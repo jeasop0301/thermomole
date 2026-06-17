@@ -16,11 +16,7 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(MenuBarMetricStorage.encode(menuBarMetrics), forKey: "menuBarMetrics")
         }
     }
-    @Published var installedApps = [InstalledApp]()
-    @Published var startupItems = [StartupItem]()
-    @Published var appUninstallLog = [AppUninstallResult]()
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var softwareState = OperationState.idle
     @Published var optimizeState = OperationState.idle
     @Published var optimizeLog = [OptimizeExecutionResult]()
     @Published var optimizeSafetyContext = OptimizeSafetyContext()
@@ -71,6 +67,13 @@ final class AppModel: ObservableObject {
     private(set) lazy var analyze = AnalyzeModel(
         analyze: { DiskAnalyzer().analyze($0, shouldCancel: $1) },
         trash: { DiskEntryTrashExecutor().moveToTrash($0) },
+        logOperation: { [weak self] entry in self?.appendHistory(entry) },
+        onChanged: { [weak self] in self?.refreshDoctorReport() }
+    )
+
+    private(set) lazy var software = SoftwareModel(
+        loadInventory: { let inventory = SoftwareInventory(); return (inventory.installedApps(), inventory.startupItems()) },
+        uninstall: { AppUninstallExecutor().moveToTrash($0) },
         logOperation: { [weak self] entry in self?.appendHistory(entry) },
         onChanged: { [weak self] in self?.refreshDoctorReport() }
     )
@@ -232,41 +235,6 @@ final class AppModel: ObservableObject {
         await exposureCoordinator.flushNow(at: Date())
         await chargeCoordinator.flushNow(at: Date())
         await cpuExposureCoordinator.flushNow(at: Date())
-    }
-
-    func loadSoftware() {
-        guard !softwareState.isRunning else { return }
-        softwareState = softwareState.started(message: "Loading applications")
-        Task.detached(priority: .utility) {
-            let inventory = SoftwareInventory()
-            return (inventory.installedApps(), inventory.startupItems())
-        }.receive(on: MainActor.self) { [weak self] apps, startupItems in
-            self?.installedApps = apps
-            self?.startupItems = startupItems
-            self?.softwareState = self?.softwareState.finished(
-                message: "\(apps.count) apps · \(startupItems.count) startup items",
-                at: Date()
-            ) ?? .idle
-        }
-    }
-
-    func uninstallApp(_ app: InstalledApp) {
-        guard !softwareState.isRunning else { return }
-        softwareState = softwareState.started(message: "Moving \(app.name) to Trash")
-        Task.detached(priority: .utility) {
-            AppUninstallExecutor().moveToTrash(app)
-        }.receive(on: MainActor.self) { [weak self] result in
-            guard let self else { return }
-            appUninstallLog = [result] + appUninstallLog
-            appendHistory(OperationHistoryEntry.uninstall(result))
-            refreshDoctorReport()
-            if result.status == .succeeded {
-                installedApps.removeAll { $0.id == result.app.id }
-                softwareState = softwareState.finished(message: "\(result.app.name) moved to Trash", at: Date())
-            } else {
-                softwareState = softwareState.failed(message: "\(result.app.name) uninstall failed", at: Date())
-            }
-        }
     }
 
     func runOptimizeTask(_ task: OptimizeTask) {

@@ -88,7 +88,7 @@ struct MainWindowView: View {
         case .clean:
             CleanTab(clean: model.clean)
         case .software:
-            SoftwareTab(model: model)
+            SoftwareTab(software: model.software)
         case .optimize:
             OptimizeTab(model: model)
         case .analyze:

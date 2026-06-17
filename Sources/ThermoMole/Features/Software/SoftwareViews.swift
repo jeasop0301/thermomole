@@ -1,41 +1,42 @@
 import SwiftUI
 import ThermoMoleCore
+import ThermoMoleAppCore
 
 struct SoftwareTab: View {
-    @ObservedObject var model: AppModel
+    let software: SoftwareModel
     @State private var selectedView = SoftwareViewMode.apps
     @State private var pendingUninstallApp: InstalledApp?
     @State private var searchQuery = ""
 
     private var filteredApps: [InstalledApp] {
-        SoftwareInventoryFilter(query: searchQuery).filter(model.installedApps)
+        SoftwareInventoryFilter(query: searchQuery).filter(software.installedApps)
     }
 
     private var filteredStartupItems: [StartupItem] {
-        SoftwareInventoryFilter(query: searchQuery).filter(model.startupItems)
+        SoftwareInventoryFilter(query: searchQuery).filter(software.startupItems)
     }
 
     private var summary: SoftwareSummary {
-        SoftwareSummary(apps: model.installedApps, startupItems: model.startupItems)
+        SoftwareSummary(apps: software.installedApps, startupItems: software.startupItems)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             TabHeader(subtitle: "Apps, versions, and launch items gathered in one quiet list.") {
-                OperationStatePill(state: model.softwareState)
+                OperationStatePill(state: software.softwareState)
                 Button {
-                    model.loadSoftware()
+                    software.loadSoftware()
                 } label: {
-                    if model.softwareState.isRunning {
+                    if software.softwareState.isRunning {
                         Label("Loading", systemImage: "hourglass")
-                    } else if model.installedApps.isEmpty && model.startupItems.isEmpty {
+                    } else if software.installedApps.isEmpty && software.startupItems.isEmpty {
                         Label("Gather Apps", systemImage: "arrow.down.circle")
                     } else {
                         Label("Reload", systemImage: "arrow.clockwise")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(model.softwareState.isRunning)
+                .disabled(software.softwareState.isRunning)
             }
 
             HStack(spacing: 12) {
@@ -56,12 +57,12 @@ struct SoftwareTab: View {
                 placeholder: "Search apps, bundle IDs, versions, startup labels, or paths"
             )
 
-            if model.softwareState.isRunning {
-                ProgressPanel(title: "Loading Apps", message: model.softwareState.message)
-            } else if selectedView == .apps && model.installedApps.isEmpty {
+            if software.softwareState.isRunning {
+                ProgressPanel(title: "Loading Apps", message: software.softwareState.message)
+            } else if selectedView == .apps && software.installedApps.isEmpty {
                 ContentUnavailableView("No App Inventory", systemImage: "shippingbox", description: Text("Load Apps to scan application bundles."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if selectedView == .startup && model.startupItems.isEmpty {
+            } else if selectedView == .startup && software.startupItems.isEmpty {
                 ContentUnavailableView("No Startup Items", systemImage: "powerplug", description: Text("Load Apps to scan LaunchAgent and LaunchDaemon plists."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if selectedView == .apps && filteredApps.isEmpty {
@@ -79,15 +80,15 @@ struct SoftwareTab: View {
                 )
             }
 
-            if !model.appUninstallLog.isEmpty {
-                AppUninstallLogView(results: Array(model.appUninstallLog.prefix(6)))
+            if !software.appUninstallLog.isEmpty {
+                AppUninstallLogView(results: Array(software.appUninstallLog.prefix(6)))
             }
         }
         .padding(22)
         .background(Color.appBackground)
         .task {
-            if model.installedApps.isEmpty && model.startupItems.isEmpty && !model.softwareState.isRunning {
-                model.loadSoftware()
+            if software.installedApps.isEmpty && software.startupItems.isEmpty && !software.softwareState.isRunning {
+                software.loadSoftware()
             }
         }
         .alert(item: $pendingUninstallApp) { app in
@@ -96,7 +97,7 @@ struct SoftwareTab: View {
                 title: Text(summary.title),
                 message: Text(summary.confirmationMessage),
                 primaryButton: .destructive(Text("Move to Trash")) {
-                    model.uninstallApp(app)
+                    software.uninstallApp(app)
                 },
                 secondaryButton: .cancel()
             )
