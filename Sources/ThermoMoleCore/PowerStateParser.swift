@@ -37,7 +37,8 @@ public enum PowerStateParser {
         let isNotCharging = lower.contains("not charging")
         let isCharging = mentionsCharging && !isDischarging && !isNotCharging
 
-        let percent = firstInt(#"(\d+)%"#, in: raw) ?? fallbackPercent
+        let rawPercent = firstInt(#"(\d+)%"#, in: raw) ?? fallbackPercent
+        let percent = min(100, max(0, rawPercent))   // clamp to a sane charge range
         let time = firstMatch(#"\d+:\d+"#, in: raw) ?? "--:--"
 
         return PowerState(
