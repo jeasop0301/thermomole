@@ -76,4 +76,57 @@ final class NotificationPolicyTests: XCTestCase {
         XCTAssertFalse(qh.contains(hour: 7))
         XCTAssertFalse(qh.contains(hour: 12))
     }
+
+    // MARK: - activeNotifications
+
+    func testActiveSustainedHotCPUAtThreshold() {
+        var cpu = CPUExposureSummary.empty
+        cpu.today.secondsAbove95 = 30 * 60
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder, todayChargeExposure: .empty, todayCPUExposure: cpu, batteryLongevity: nil
+        )
+        XCTAssertTrue(active.contains(.sustainedHotCPU))
+    }
+
+    func testActiveSustainedHotCPUBelowThreshold() {
+        var cpu = CPUExposureSummary.empty
+        cpu.today.secondsAbove95 = 30 * 60 - 1
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder, todayChargeExposure: .empty, todayCPUExposure: cpu, batteryLongevity: nil
+        )
+        XCTAssertFalse(active.contains(.sustainedHotCPU))
+    }
+
+    func testActiveHighCycleRateFromLongevityAlert() {
+        let report = BatteryLongevityReport(
+            score: 80, healthPercent: 90, cycleCount: 100,
+            healthDropPerWeek: nil, cyclesPerWeek: 16, projectedMonthsTo80: nil,
+            alerts: [.highCycleRate]
+        )
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder, todayChargeExposure: .empty, todayCPUExposure: .empty, batteryLongevity: report
+        )
+        XCTAssertTrue(active.contains(.highCycleRate))
+    }
+
+    func testActiveNoHighCycleRateWithoutAlert() {
+        let report = BatteryLongevityReport(
+            score: 95, healthPercent: 98, cycleCount: 20,
+            healthDropPerWeek: nil, cyclesPerWeek: 3, projectedMonthsTo80: nil,
+            alerts: []
+        )
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder, todayChargeExposure: .empty, todayCPUExposure: .empty, batteryLongevity: report
+        )
+        XCTAssertFalse(active.contains(.highCycleRate))
+    }
+
+    func testActiveLowStorageWhenNearlyFull() {
+        var snap = SystemSnapshot.placeholder
+        snap.disk.usedPercent = 95
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: snap, todayChargeExposure: .empty, todayCPUExposure: .empty, batteryLongevity: nil
+        )
+        XCTAssertTrue(active.contains(.lowStorage))
+    }
 }
