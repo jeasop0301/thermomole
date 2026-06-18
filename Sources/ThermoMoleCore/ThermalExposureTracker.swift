@@ -2,19 +2,19 @@ import Foundation
 
 public struct DailyThermalExposure: Codable, Equatable, Sendable {
     public var day: String              // "yyyy-MM-dd" in the recording calendar's timezone
-    public var secondsAbove35: TimeInterval
     public var secondsAbove40: TimeInterval
+    public var secondsAbove45: TimeInterval
     public var peakC: Double?
 
     public init(
         day: String,
-        secondsAbove35: TimeInterval = 0,
         secondsAbove40: TimeInterval = 0,
+        secondsAbove45: TimeInterval = 0,
         peakC: Double? = nil
     ) {
         self.day = day
-        self.secondsAbove35 = secondsAbove35
         self.secondsAbove40 = secondsAbove40
+        self.secondsAbove45 = secondsAbove45
         self.peakC = peakC
     }
 
@@ -96,8 +96,8 @@ public struct ThermalExposureTracker: Equatable, Sendable {
 
     private static func band(for temp: Double?) -> Band {
         guard let temp else { return .none }
-        if temp >= ThermalThresholds.batteryHotC { return .hot }
-        if temp >= ThermalThresholds.batteryCautionC { return .caution }
+        if temp >= ThermalThresholds.batteryExposureHotC { return .hot }
+        if temp >= ThermalThresholds.batteryExposureWarmC { return .caution }
         return .none
     }
 
@@ -122,8 +122,8 @@ public struct ThermalExposureTracker: Equatable, Sendable {
 
     private mutating func credit(_ seconds: TimeInterval, toDay key: String, band: Band) {
         var day = days[key] ?? .empty(day: key)
-        day.secondsAbove35 += seconds
-        if band == .hot { day.secondsAbove40 += seconds }
+        day.secondsAbove40 += seconds
+        if band == .hot { day.secondsAbove45 += seconds }
         days[key] = day
     }
 

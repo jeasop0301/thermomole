@@ -16,7 +16,22 @@ final class HealthScoreTests: XCTestCase {
         XCTAssertTrue(score.issues.isEmpty)
     }
 
-    func testWarnsAtThirtyFiveDegrees() {
+    // batteryCautionC is now 42; 36° is below → no battery penalty
+    func testBelowNewCautionThresholdNoWarning() {
+        let score = HealthScorer.score(
+            cpuUsagePercent: 15,
+            memoryUsedPercent: 40,
+            diskUsedPercent: 50,
+            batteryTemperatureC: 36,
+            uptimeSeconds: 1_800
+        )
+
+        XCTAssertFalse(score.issues.contains(.batteryWarm))
+        XCTAssertFalse(score.issues.contains(.batteryHot))
+    }
+
+    // 43° ≥ batteryCautionC (42) → batteryWarm
+    func testWarnsAtFortyThreeDegrees() {
         let score = HealthScorer.score(
             cpuUsagePercent: 15,
             memoryUsedPercent: 40,
@@ -29,7 +44,8 @@ final class HealthScoreTests: XCTestCase {
         XCTAssertTrue(score.issues.contains(.batteryWarm))
     }
 
-    func testHotAtFortyDegrees() {
+    // 49° ≥ batteryHotC (48) → batteryHot
+    func testHotAtFortyNineDegrees() {
         let score = HealthScorer.score(
             cpuUsagePercent: 15,
             memoryUsedPercent: 40,

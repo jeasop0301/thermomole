@@ -9,11 +9,12 @@ final class HeatHealthCorrelationTests: XCTestCase {
         return c
     }()
 
+    // warm: peakC 41 ≥ batteryExposureWarmC(40) → classified warm
     private func warm(_ day: String) -> DailyThermalExposure {
-        DailyThermalExposure(day: day, secondsAbove35: 600, secondsAbove40: 0, peakC: 38)
+        DailyThermalExposure(day: day, secondsAbove40: 600, secondsAbove45: 0, peakC: 41)
     }
     private func cool(_ day: String) -> DailyThermalExposure {
-        DailyThermalExposure(day: day, secondsAbove35: 0, secondsAbove40: 0, peakC: 30)
+        DailyThermalExposure(day: day, secondsAbove40: 0, secondsAbove45: 0, peakC: 30)
     }
     private func health(_ day: String, _ pct: Int) -> DailyBatteryHealth {
         DailyBatteryHealth(day: day, healthPercent: pct, cycleCount: 100, maxCapacityMAh: 5000, designCapacityMAh: 6000)

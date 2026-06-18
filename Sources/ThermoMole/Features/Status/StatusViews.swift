@@ -131,8 +131,8 @@ struct ThermalExposureCard: View {
                 Text("Today's battery heat exposure").font(.headline)
             }
             HStack(spacing: 16) {
-                exposureStat("Above 35°", minutes(summary.today.secondsAbove35))
                 exposureStat("Above 40°", minutes(summary.today.secondsAbove40))
+                exposureStat("Above 45°", minutes(summary.today.secondsAbove45))
                 if let peak = summary.today.peakC {
                     VStack(alignment: .leading) {
                         Text("Peak").font(.caption).foregroundStyle(.secondary)
@@ -163,28 +163,28 @@ struct ThermalExposureWeekStrip: View {
 
     var body: some View {
         let chronological = Array(days.reversed())
-        let maxMinutes = max(1, chronological.map { minutes($0.secondsAbove35) }.max() ?? 1)
-        let hasAnyExposure = chronological.contains { minutes($0.secondsAbove35) > 0 }
+        let maxMinutes = max(1, chronological.map { minutes($0.secondsAbove40) }.max() ?? 1)
+        let hasAnyExposure = chronological.contains { minutes($0.secondsAbove40) > 0 }
         VStack(alignment: .leading, spacing: 4) {
-            Text("Last 7 days (min ≥35°)").font(.caption2).foregroundStyle(.secondary)
+            Text("Last 7 days (min ≥40°)").font(.caption2).foregroundStyle(.secondary)
             if hasAnyExposure {
                 HStack(alignment: .bottom, spacing: 4) {
                     ForEach(chronological, id: \.day) { day in
-                        let m = minutes(day.secondsAbove35)
-                        let tint: Color = day.secondsAbove40 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
+                        let m = minutes(day.secondsAbove40)
+                        let tint: Color = day.secondsAbove45 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
                         RoundedRectangle(cornerRadius: 2)
                             .fill(tint)
                             .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
-                            .accessibilityLabel("\(day.day): \(m) minutes above 35 degrees")
+                            .accessibilityLabel("\(day.day): \(m) minutes above 40 degrees")
                     }
                 }
                 .frame(height: 28, alignment: .bottom)
             } else {
-                Text("No heat above 35° in the last 7 days")
+                Text("No heat above 40° in the last 7 days")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(height: 28, alignment: .center)
-                    .accessibilityLabel("No battery heat above 35 degrees in the last 7 days")
+                    .accessibilityLabel("No battery heat above 40 degrees in the last 7 days")
             }
         }
     }

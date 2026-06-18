@@ -21,6 +21,8 @@ public actor ThermalExposureCoordinator {
 
     public func bootstrap() {
         guard let record = try? store.load() else { return }
+        // Old 35/40 data is incompatible with new 40/45 bands — start fresh.
+        guard record.schemaVersion >= 2 else { return }
         var seeded: [String: DailyThermalExposure] = [:]
         for day in record.days { seeded[day.day] = day }
         tracker = ThermalExposureTracker(days: seeded)

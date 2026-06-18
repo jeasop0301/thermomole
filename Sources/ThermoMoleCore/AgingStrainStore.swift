@@ -1,44 +1,44 @@
 import Foundation
 
-public struct ThermalExposureRecord: Codable, Equatable, Sendable {
+public struct AgingStrainRecord: Codable, Equatable, Sendable {
     public var schemaVersion: Int
-    public var days: [DailyThermalExposure]
+    public var days: [DailyAgingStrain]
 
-    public init(schemaVersion: Int = 2, days: [DailyThermalExposure] = []) {
+    public init(schemaVersion: Int = 1, days: [DailyAgingStrain] = []) {
         self.schemaVersion = schemaVersion
         self.days = days
     }
 
     /// Keeps the newest `limit` day-entries (sorted by "yyyy-MM-dd" string, which sorts chronologically).
-    public func pruned(toDays limit: Int = 30) -> ThermalExposureRecord {
+    public func pruned(toDays limit: Int = 30) -> AgingStrainRecord {
         let sorted = days.sorted { $0.day < $1.day }
-        return ThermalExposureRecord(schemaVersion: schemaVersion, days: Array(sorted.suffix(max(0, limit))))
+        return AgingStrainRecord(schemaVersion: schemaVersion, days: Array(sorted.suffix(max(0, limit))))
     }
 }
 
-public protocol ThermalExposurePersisting: Sendable {
-    func load() throws -> ThermalExposureRecord?
-    func save(_ record: ThermalExposureRecord) throws
+public protocol AgingStrainPersisting: Sendable {
+    func load() throws -> AgingStrainRecord?
+    func save(_ record: AgingStrainRecord) throws
 }
 
-/// Atomic JSON codec for the exposure record. Mirrors StatusSnapshotStore exactly:
-/// missing file -> nil; corrupt-but-readable -> nil (try?); unreadable IO -> throws.
-public struct ThermalExposureStore: ThermalExposurePersisting, Sendable {
+/// Atomic JSON codec for the aging-strain record.
+/// Missing file -> nil; corrupt -> nil (try?); unreadable IO -> throws.
+public struct AgingStrainStore: AgingStrainPersisting, Sendable {
     public let fileURL: URL
 
-    public init(fileURL: URL = ThermalExposureStore.defaultExposureURL) {
+    public init(fileURL: URL = AgingStrainStore.defaultStrainURL) {
         self.fileURL = fileURL
     }
 
-    public static var defaultExposureURL: URL {
+    public static var defaultStrainURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library", isDirectory: true)
             .appendingPathComponent("Application Support", isDirectory: true)
             .appendingPathComponent("ThermoMole", isDirectory: true)
-            .appendingPathComponent("thermal-exposure.json")
+            .appendingPathComponent("aging-strain.json")
     }
 
-    public func save(_ record: ThermalExposureRecord) throws {
+    public func save(_ record: AgingStrainRecord) throws {
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -50,11 +50,11 @@ public struct ThermalExposureStore: ThermalExposurePersisting, Sendable {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    public func load() throws -> ThermalExposureRecord? {
+    public func load() throws -> AgingStrainRecord? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
         let data = try Data(contentsOf: fileURL)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(ThermalExposureRecord.self, from: data)
+        return try? decoder.decode(AgingStrainRecord.self, from: data)
     }
 }
