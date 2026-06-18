@@ -33,6 +33,7 @@ struct LongevityTab: View {
                 }
 
                 LongevityActionsCard(actions: assessment.actions)
+                LongevityInsightsSection(model: model)
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -369,6 +370,20 @@ struct HealthProjectionChart: View {
         .frame(height: 80)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Projected battery health over the next months")
+    }
+}
+
+struct LongevityInsightsSection: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Insights").font(.headline)
+            HeatPatternCard(insight: model.heatPattern)
+            HeatHealthCorrelationCard(insight: model.heatHealthInsight)
+            HealthProjectionCard(result: model.healthProjection)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
