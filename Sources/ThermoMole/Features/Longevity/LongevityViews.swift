@@ -317,3 +317,91 @@ struct HeatHealthCorrelationCard: View {
         }
     }
 }
+
+// MARK: - Health projection
+
+struct HealthProjectionChart: View {
+    let points: [HealthProjectionResult.Point]   // monthOffset ascending
+
+    private func px(_ m: Int, width: CGFloat, maxMonth: Int) -> CGFloat {
+        CGFloat(Double(m) / Double(maxMonth)) * width
+    }
+
+    private func py(_ v: Double, height: CGFloat, yMin: Double, yMax: Double) -> CGFloat {
+        height - CGFloat((v - yMin) / (yMax - yMin)) * height
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let maxMonth = max(1, points.last?.monthOffset ?? 1)
+            let lo = (points.map { $0.low }.min() ?? 80)
+            let yMin = min(80, lo) - 2
+            let yMax = 100.0
+
+            ZStack {
+                // band (low..high)
+                Path { p in
+                    guard let f = points.first else { return }
+                    p.move(to: CGPoint(x: px(f.monthOffset, width: w, maxMonth: maxMonth), y: py(f.high, height: h, yMin: yMin, yMax: yMax)))
+                    for pt in points { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.high, height: h, yMin: yMin, yMax: yMax))) }
+                    for pt in points.reversed() { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.low, height: h, yMin: yMin, yMax: yMax))) }
+                    p.closeSubpath()
+                }
+                .fill(Color.oceanAccent.opacity(0.18))
+
+                // central dashed
+                Path { p in
+                    guard let f = points.first else { return }
+                    p.move(to: CGPoint(x: px(f.monthOffset, width: w, maxMonth: maxMonth), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
+                    for pt in points { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
+                }
+                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+
+                // 80% reference
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: py(80, height: h, yMin: yMin, yMax: yMax)))
+                    p.addLine(to: CGPoint(x: w, y: py(80, height: h, yMin: yMin, yMax: yMax)))
+                }
+                .stroke(Color.red.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+            }
+        }
+        .frame(height: 80)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Projected battery health over the next months")
+    }
+}
+
+struct HealthProjectionCard: View {
+    let result: HealthProjectionResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "chart.line.downtrend.xyaxis")
+                    .foregroundStyle(Color.oceanAccent)
+                Text("Health outlook").font(.callout.weight(.semibold))
+                Spacer()
+                if let r = result.monthsTo80Range {
+                    Text("80% in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) mo")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            switch result.status {
+            case .insufficient:
+                Text("Collecting data… a trend appears after ~2 weeks of readings.")
+                    .font(.caption).foregroundStyle(.secondary)
+            case .flat:
+                Text("No meaningful decline at the current trend — battery health is holding steady.")
+                    .font(.caption).foregroundStyle(.secondary)
+            case .projecting:
+                HealthProjectionChart(points: result.points)
+                Text("Range spans your recent vs long-term fade rate.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+    }
+}
