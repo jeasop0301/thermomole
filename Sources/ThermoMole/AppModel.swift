@@ -27,6 +27,9 @@ final class AppModel: ObservableObject {
     @Published var batteryLongevity: BatteryLongevityReport?
     @Published var todayCPUExposure = CPUExposureSummary.empty
     @Published var longevityAssessment = LongevityAssessment(score: 100, factors: [], actions: [])
+    @Published var heatPattern = HeatPatternInsight.empty
+    @Published var heatHealthInsight = HeatHealthInsight.empty
+    @Published var healthProjection = HealthProjectionResult.empty
     @Published var notificationsEnabled = false
 
     private let provider = NativeSensorProvider()
@@ -35,6 +38,7 @@ final class AppModel: ObservableObject {
     private let exposureCoordinator = ThermalExposureCoordinator()
     private let chargeCoordinator = ChargeExposureCoordinator()
     private let cpuExposureCoordinator = CPUExposureCoordinator()
+    private let hourlyHeatCoordinator = HourlyHeatCoordinator()
     private let notifier = NotificationCenterClient()
     private var lastNotified: [LongevityNotification: Date] = [:]
     private let quietHours = QuietHours(startHour: 22, endHour: 7)
@@ -123,9 +127,18 @@ final class AppModel: ObservableObject {
             await exposureCoordinator.bootstrap()
             await chargeCoordinator.bootstrap()
             await cpuExposureCoordinator.bootstrap()
+            await hourlyHeatCoordinator.bootstrap()
+            heatPattern = HeatPatternInsight.build(
+                await hourlyHeatCoordinator.grid(endingAt: Date(), calendar: .current)
+            )
             todayExposure = await exposureCoordinator.summary(at: Date(), calendar: .current)
             todayChargeExposure = await chargeCoordinator.summary(at: Date(), calendar: .current)
             todayCPUExposure = await cpuExposureCoordinator.summary(at: Date(), calendar: .current)
+            healthProjection = HealthProjection.evaluate(batteryHealthLog.all())
+            heatHealthInsight = HeatHealthCorrelation.evaluate(
+                thermal: await exposureCoordinator.allDays(),
+                health: batteryHealthLog.all()
+            )
             recomputeLongevity()
         }
         notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
@@ -180,7 +193,19 @@ final class AppModel: ObservableObject {
                 calendar: .current
             )
             todayCPUExposure = await cpuExposureCoordinator.summary(at: next.sampledAt, calendar: .current)
+            await hourlyHeatCoordinator.record(
+                temperatureC: next.thermal.batteryDisplayC,
+                at: next.sampledAt,
+                calendar: .current
+            )
+            heatPattern = HeatPatternInsight.build(
+                await hourlyHeatCoordinator.grid(endingAt: next.sampledAt, calendar: .current)
+            )
             recordBatteryHealth(from: next)
+            heatHealthInsight = HeatHealthCorrelation.evaluate(
+                thermal: await exposureCoordinator.allDays(),
+                health: batteryHealthLog.all()
+            )
             recomputeLongevity()
             evaluateNotifications(for: next)
             refreshDoctorReport()
@@ -240,10 +265,12 @@ final class AppModel: ObservableObject {
             at: snapshot.sampledAt,
             calendar: .current
         )
+        let history = batteryHealthLog.all()
         batteryHealthSeries = batteryHealthLog.healthSeries()
         latestBatteryHealth = batteryHealthLog.latest
-        batteryLongevity = BatteryLongevity.evaluate(history: batteryHealthLog.all())
-        let record = BatteryHealthRecord(days: batteryHealthLog.all()).pruned()
+        batteryLongevity = BatteryLongevity.evaluate(history: history)
+        healthProjection = HealthProjection.evaluate(history)
+        let record = BatteryHealthRecord(days: history).pruned()
         if record != lastSavedHealthRecord {
             lastSavedHealthRecord = record
             Task.detached { [batteryHealthStore] in try? batteryHealthStore.save(record) }
@@ -254,6 +281,7 @@ final class AppModel: ObservableObject {
         await exposureCoordinator.flushNow(at: Date())
         await chargeCoordinator.flushNow(at: Date())
         await cpuExposureCoordinator.flushNow(at: Date())
+        await hourlyHeatCoordinator.flushNow(at: Date())
     }
 
     func setMenuBarMetric(_ metric: MenuBarMetric, enabled: Bool) {
