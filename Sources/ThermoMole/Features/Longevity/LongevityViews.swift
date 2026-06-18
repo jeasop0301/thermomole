@@ -236,6 +236,36 @@ struct HourHeatmapGrid: View {
     }
 }
 
+/// 24 vertical bars (one per hour) whose height encodes the hour's mean battery temp,
+/// colored on the same scale as the heatmap. Complements the day×hour grid with the
+/// aggregate hour-of-day shape. nil hours render as a minimal stub.
+struct HourProfileBars: View {
+    let profile: [Double?]   // 24 hourly weighted-mean temps (nil = no data)
+
+    var body: some View {
+        let vals = profile.compactMap { $0 }
+        let lo = vals.min() ?? 0
+        let hi = vals.max() ?? 1
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(0..<24, id: \.self) { h in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(heatCellColor(h < profile.count ? profile[h] : nil))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: barHeight(h < profile.count ? profile[h] : nil, lo: lo, hi: hi))
+            }
+        }
+        .frame(height: 26)
+        .accessibilityHidden(true)
+    }
+
+    private func barHeight(_ v: Double?, lo: Double, hi: Double) -> CGFloat {
+        guard let v else { return 2 }            // no data: minimal stub
+        guard hi > lo else { return 14 }          // all equal: mid height
+        let f = (v - lo) / (hi - lo)
+        return 3 + CGFloat(max(0, min(1, f))) * 23
+    }
+}
+
 struct HeatPatternCard: View {
     let insight: HeatPatternInsight
 
@@ -254,6 +284,7 @@ struct HeatPatternCard: View {
                         .foregroundStyle(.secondary)
                 }
                 HourHeatmapGrid(cells: insight.cells)
+                HourProfileBars(profile: insight.hourlyProfile)
             } else {
                 Text("Collecting data… patterns appear after a few days of use.")
                     .font(.caption)
