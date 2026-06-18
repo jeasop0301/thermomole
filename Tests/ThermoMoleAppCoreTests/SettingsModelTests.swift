@@ -6,36 +6,19 @@ import ThermoMoleCore
 final class SettingsModelTests: XCTestCase {
     private enum TestError: Error { case boom }
 
-    private func sampleReport() -> DiagnosticReport {
-        DiagnosticReport(
-            appVersion: "test",
-            snapshot: .placeholder,
-            doctorReport: DoctorReport.make(inputs: .placeholder),
-            recentOperations: []
-        )
-    }
-
     private func makeModel(
         status: LaunchAgentStatus = .notRegistered,
         registerLaunch: @escaping () throws -> Void = {},
         unregisterLaunch: @escaping () throws -> Void = {},
         applyDockVisibility: @escaping (Bool) -> Void = { _ in },
-        writeReport: @escaping SettingsModel.WriteReport = { _, _ in },
-        readReport: SettingsModel.ReadReport? = nil,
         reportError: @escaping (String?) -> Void = { _ in }
     ) -> SettingsModel {
-        let report = sampleReport()
-        return SettingsModel(
-            currentSnapshot: { .placeholder },
-            currentDoctorReport: { DoctorReport.make(inputs: .placeholder) },
-            currentHistory: { [] },
+        SettingsModel(
             reportError: reportError,
             launchStatus: { status },
             registerLaunch: registerLaunch,
             unregisterLaunch: unregisterLaunch,
-            applyDockVisibility: applyDockVisibility,
-            writeReport: writeReport,
-            readReport: readReport ?? { _ in report }
+            applyDockVisibility: applyDockVisibility
         )
     }
 
@@ -80,38 +63,6 @@ final class SettingsModelTests: XCTestCase {
             XCTAssertEqual(model.launchAtLoginEnabled, enabled, "status \(status)")
             XCTAssertEqual(model.launchAtLoginStatusText, text, "status \(status)")
         }
-    }
-
-    func testExportSucceeds() {
-        var wrote = 0
-        var lastError: String?? = "sentinel"
-        let model = makeModel(writeReport: { _, _ in wrote += 1 }, reportError: { lastError = $0 })
-        model.exportDiagnosticReport(to: URL(fileURLWithPath: "/tmp/diag.json"))
-        XCTAssertEqual(wrote, 1)
-        XCTAssertEqual(model.diagnosticExportState.phase, .finished)
-        XCTAssertEqual(lastError, .some(nil))
-    }
-
-    func testExportFailureReportsError() {
-        var errors = [String?]()
-        let model = makeModel(writeReport: { _, _ in throw TestError.boom }, reportError: { errors.append($0) })
-        model.exportDiagnosticReport(to: URL(fileURLWithPath: "/tmp/diag.json"))
-        XCTAssertEqual(model.diagnosticExportState.phase, .failed)
-        XCTAssertTrue(errors.contains { ($0 ?? "").hasPrefix("Diagnostic report:") })
-    }
-
-    func testImportSucceedsSetsSummary() {
-        let model = makeModel(readReport: { _ in self.sampleReport() })
-        model.importDiagnosticReport(from: URL(fileURLWithPath: "/tmp/diag.json"))
-        XCTAssertNotNil(model.importedDiagnosticSummary)
-        XCTAssertEqual(model.diagnosticImportState.phase, .finished)
-    }
-
-    func testImportFailureClearsSummary() {
-        let model = makeModel(readReport: { _ in throw TestError.boom })
-        model.importDiagnosticReport(from: URL(fileURLWithPath: "/tmp/diag.json"))
-        XCTAssertNil(model.importedDiagnosticSummary)
-        XCTAssertEqual(model.diagnosticImportState.phase, .failed)
     }
 
     func testSetDockIconVisibleAppliesAndPersists() {

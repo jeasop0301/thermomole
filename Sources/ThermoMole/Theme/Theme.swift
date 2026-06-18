@@ -120,9 +120,6 @@ func formatLoad(_ loadAverage: [Double]) -> String {
     return String(format: "%.2f", first)
 }
 
-func revealInFinder(_ url: URL) {
-    NSWorkspace.shared.activateFileViewerSelecting([url])
-}
 
 func formatUptime(_ seconds: UInt64) -> String {
     let days = seconds / 86_400
@@ -207,15 +204,3 @@ func freshnessSymbol(_ level: StatusFreshnessLevel) -> String {
     }
 }
 
-func doctorActionLabel(_ action: DoctorAction) -> String {
-    switch action {
-    case .none: ""
-    case .openFullDiskAccess: "Open Settings"
-    case .reduceMemoryLoad: "Review processes"
-    case .reviewStorage: "Use Clean or Analyze"
-    case .reviewBatteryHealth: "Check service"
-    case .repairOperationLog: "Check Logs folder"
-    case .reviewRecentFailures: "Review logs"
-    case .refreshStatusSnapshot: "Refresh status"
-    }
-}

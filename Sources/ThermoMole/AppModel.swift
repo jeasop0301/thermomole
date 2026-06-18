@@ -16,10 +16,7 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var statusHistory = BoundedStatusHistory(limit: 30)
-    @Published var operationHistoryEntries = [OperationHistoryEntry]()
-    @Published var operationHistoryError: String?
     @Published var lastError: String?
-    @Published var doctorReport = DoctorReport.make(inputs: .placeholder)
     @Published var todayExposure = ThermalExposureSummary.empty
     @Published var todayChargeExposure = ChargeExposureSummary.empty
     @Published var batteryHealthSeries: [Double] = []
@@ -33,7 +30,6 @@ final class AppModel: ObservableObject {
     @Published var notificationsEnabled = false
 
     private let provider = NativeSensorProvider()
-    private let historyStore = OperationHistoryStore.live
     private let statusSnapshotStore = StatusSnapshotStore.live
     private let exposureCoordinator = ThermalExposureCoordinator()
     private let chargeCoordinator = ChargeExposureCoordinator()
@@ -46,13 +42,9 @@ final class AppModel: ObservableObject {
     private var batteryHealthLog = BatteryHealthLog()
     private var lastSavedHealthRecord: BatteryHealthRecord?
     private var timer: Timer?
-    private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
 
     private(set) lazy var settings = SettingsModel(
-        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
-        currentDoctorReport: { [weak self] in self?.doctorReport ?? DoctorReport.make(inputs: .placeholder) },
-        currentHistory: { [weak self] in self?.operationHistoryEntries ?? [] },
         reportError: { [weak self] message in self?.lastError = message },
         launchStatus: { LaunchAgentStatus(SMAppService.mainApp.status) },
         registerLaunch: { try SMAppService.mainApp.register() },
@@ -60,9 +52,7 @@ final class AppModel: ObservableObject {
         applyDockVisibility: { visible in
             NSApp.setActivationPolicy(visible ? .regular : .accessory)
             if visible { NSApp.activate(ignoringOtherApps: true) }
-        },
-        writeReport: { try DiagnosticReportStore().write($0, to: $1) },
-        readReport: { try DiagnosticReportStore().read(from: $0) }
+        }
     )
 
     init() {
@@ -105,27 +95,15 @@ final class AppModel: ObservableObject {
         }
         notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         if notificationsEnabled { notifier.requestAuthorization() }
-        loadOperationHistory()
-        refreshDoctorReport()
     }
 
     func start() {
         refresh()
-        startDoctorFreshnessTimer()
         let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-    }
-
-    private func startDoctorFreshnessTimer() {
-        doctorFreshnessTimer?.invalidate()
-        let timer = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshDoctorReport() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        doctorFreshnessTimer = timer
     }
 
     func refresh() {
@@ -170,7 +148,6 @@ final class AppModel: ObservableObject {
             )
             recomputeLongevity()
             evaluateNotifications(for: next)
-            refreshDoctorReport()
             samplingGate.finish(startedAt: sampleStartedAt)
         }
     }
@@ -259,79 +236,4 @@ final class AppModel: ObservableObject {
     func moveMenuBarMetric(_ metric: MenuBarMetric, direction: MenuBarMetricMoveDirection) {
         menuBarMetrics = MenuBarMetric.move(metric, in: menuBarMetrics, direction: direction)
     }
-
-    func refreshDoctorReport(now: Date = Date()) {
-        doctorReport = DoctorReport.make(inputs: DoctorInputs.make(
-            snapshot: snapshot,
-            hasFullDiskAccess: hasLikelyFullDiskAccess(),
-            operationLogWritable: isOperationLogWritable(),
-            recentOperationFailures: recentOperationFailureCount(),
-            now: now
-        ))
-    }
-
-    func loadOperationHistory() {
-        do {
-            operationHistoryEntries = try historyStore.readRecent(limit: 20)
-            operationHistoryError = nil
-        } catch {
-            operationHistoryEntries = []
-            operationHistoryError = error.localizedDescription
-        }
-    }
-
-    func openFullDiskAccessSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    func revealOperationHistoryLog() {
-        let url = historyStore.logURL
-        if FileManager.default.fileExists(atPath: url.path) {
-            revealInFinder(url)
-        } else {
-            revealInFinder(url.deletingLastPathComponent())
-        }
-    }
-
-    private func recentOperationFailureCount() -> Int {
-        operationHistoryEntries.filter { $0.status == .failed }.count
-    }
-
-    private func appendHistory(_ entry: OperationHistoryEntry) {
-        do {
-            try historyStore.append(entry)
-            operationHistoryError = nil
-        } catch {
-            operationHistoryError = error.localizedDescription
-        }
-        loadOperationHistory()
-    }
-
-    private func isOperationLogWritable() -> Bool {
-        let logsURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library")
-            .appendingPathComponent("Logs")
-        return FileManager.default.isWritableFile(atPath: logsURL.path)
-    }
-
-    private func hasLikelyFullDiskAccess() -> Bool {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let protectedPaths = [
-            home.appendingPathComponent("Library/Messages/chat.db"),
-            home.appendingPathComponent("Library/Safari/History.db"),
-            home.appendingPathComponent("Library/Mail"),
-            URL(fileURLWithPath: "/Library/Application Support/com.apple.TCC/TCC.db")
-        ]
-
-        return protectedPaths.contains { url in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return false }
-            if isDirectory.boolValue {
-                return (try? FileManager.default.contentsOfDirectory(atPath: url.path)) != nil
-            }
-            return FileHandle(forReadingAtPath: url.path) != nil
-        }
-    }
-
 }
