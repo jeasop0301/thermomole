@@ -1,49 +1,6 @@
 import SwiftUI
 import ThermoMoleCore
 
-struct OperationStatePill: View {
-    var state: OperationState
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ZStack {
-                if state.phase == .running {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Circle()
-                        .fill(tint)
-                        .frame(width: 7, height: 7)
-                }
-            }
-            .frame(width: 14, height: 14)
-            Text(state.message)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(tint.opacity(0.10))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(tint.opacity(0.16)))
-        .foregroundStyle(tint)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .help(state.message)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Operation status"))
-        .accessibilityValue(Text(state.message))
-    }
-
-    private var tint: Color {
-        switch state.phase {
-        case .idle: .secondary
-        case .running: Color.oceanAccent
-        case .finished: Color.leafAccent
-        case .failed: .red
-        }
-    }
-}
-
 struct SearchField: View {
     @Binding var text: String
     var placeholder: String

@@ -1,18 +1,8 @@
 import SwiftUI
 import ThermoMoleCore
-import ThermoMoleAppCore
 
 struct StatusTab: View {
     @ObservedObject var model: AppModel
-    let memory: MemoryModel
-    @State private var isShowingMemoryPurgeConfirmation = false
-
-    private var memoryReport: MemoryDoctorReport {
-        MemoryDoctorReport(
-            memory: model.snapshot.memory,
-            topProcesses: model.snapshot.topProcesses
-        )
-    }
 
     private var statusBrief: StatusBrief {
         StatusBrief(snapshot: model.snapshot)
@@ -61,13 +51,6 @@ struct StatusTab: View {
                         series: model.statusHistory.cpuTemperatureSeries,
                         tint: .orange
                     )
-                    TrendTile(
-                        title: "Memory",
-                        value: "\(model.snapshot.memory.usedPercent)%",
-                        detail: model.snapshot.memory.pressure.rawValue.capitalized,
-                        series: model.statusHistory.memoryPercentSeries,
-                        tint: Color.oceanAccent
-                    )
                 }
 
                 HStack(alignment: .top, spacing: 12) {
@@ -101,31 +84,15 @@ struct StatusTab: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
-                    MetricTile(title: "Disk", value: String(format: "%.0f%%", model.snapshot.disk.usedPercent), detail: "\(formatBytes(model.snapshot.disk.freeBytes)) free", tint: .teal)
-                    MetricTile(title: "Network Down", value: "\(formatBytes(model.snapshot.network.receivedBytesPerSecond))/s", detail: "Up \(formatBytes(model.snapshot.network.sentBytesPerSecond))/s", tint: Color.leafAccent)
                     MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: "\(model.snapshot.battery.healthPercent)% health · \(model.snapshot.battery.cycleCount) cycles", tint: .mint)
                     MetricTile(title: "SSD Temp", value: formatTemperature(model.snapshot.thermal.ssdTemperatureC), detail: "Internal drive", tint: Color.plumAccent)
                     MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : "Read-only", detail: "No fan control", tint: .gray)
                 }
 
                 BatterySensorDetailCard(summary: BatterySensorSummary(thermal: model.snapshot.thermal))
-
-                MemoryDoctorPanel(
-                    report: memoryReport,
-                    state: memory.memoryPurgeState,
-                    runPurge: { isShowingMemoryPurgeConfirmation = true }
-                )
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .alert("Run advanced memory purge?", isPresented: $isShowingMemoryPurgeConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Run", role: .destructive) {
-                memory.runMemoryPurge()
-            }
-        } message: {
-            Text(MemoryPurgePlan(report: memoryReport).confirmationMessage)
         }
     }
 }
@@ -469,90 +436,6 @@ struct StatusBriefSignalPill: View {
         .accessibilityValue(Text("\(signal.value), \(signal.detail)"))
     }
 }
-
-struct MemoryDoctorPanel: View {
-    var report: MemoryDoctorReport
-    var state: OperationState
-    var runPurge: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 34, height: 34)
-                    .background(tint.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Memory Doctor")
-                        .font(.headline)
-                    Text(report.summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(report.level.title)
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(tint)
-                    Text("\(report.memory.usedPercent)% used")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                if report.allowsPurge {
-                    Button {
-                        runPurge()
-                    } label: {
-                        if state.isRunning {
-                            Label("Running", systemImage: "hourglass")
-                        } else {
-                            Label("Advanced Purge", systemImage: "exclamationmark.triangle")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.isRunning)
-                }
-            }
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 10)], spacing: 10) {
-                SensorValueRow(title: "Pressure", value: report.memory.pressure.rawValue.capitalized)
-                SensorValueRow(title: "Compressed", value: formatBytes(report.memory.compressedBytes))
-                SensorValueRow(title: "Free + Cache", value: formatBytes(report.memory.freeBytes))
-                SensorValueRow(title: "Top Process", value: report.topMemoryProcess?.name ?? "None")
-            }
-
-            Label(report.allowsPurge ? "Advanced purge is available only after critical pressure confirmation." : "No RAM cleanup action is exposed while pressure is below critical.", systemImage: report.allowsPurge ? "exclamationmark.triangle" : "checkmark.circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if state.phase != .idle {
-                OperationStatePill(state: state)
-            }
-        }
-        .padding(14)
-        .softPanel()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Memory Doctor"))
-    }
-
-    private var tint: Color {
-        switch report.level {
-        case .calm: Color.leafAccent
-        case .watch: Color.amberAccent
-        case .critical: .red
-        }
-    }
-
-    private var symbol: String {
-        switch report.level {
-        case .calm: "memorychip"
-        case .watch: "memorychip.fill"
-        case .critical: "exclamationmark.triangle.fill"
-        }
-    }
-}
-
 
 struct CPUCoreGridView: View {
     let cpu: CPUStatus

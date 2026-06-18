@@ -5,8 +5,6 @@ public enum MenuBarMetric: String, CaseIterable, Codable, Identifiable, Sendable
     case batteryTemperature
     case memoryPercent
     case cpuUsage
-    case diskActivity
-    case networkActivity
 
     public var id: String { rawValue }
 
@@ -16,8 +14,6 @@ public enum MenuBarMetric: String, CaseIterable, Codable, Identifiable, Sendable
         case .batteryTemperature: "Battery Temp"
         case .memoryPercent: "RAM"
         case .cpuUsage: "CPU"
-        case .diskActivity: "Disk"
-        case .networkActivity: "Network"
         }
     }
 
@@ -117,8 +113,6 @@ public enum MenuBarTitleFormatter {
         case .batteryTemperature: return "BAT \(formatTemperature(snapshot.thermal.batteryDisplayC))"
         case .memoryPercent: return "RAM \(snapshot.memory.usedPercent)%"
         case .cpuUsage: return "CPU \(Int(snapshot.cpu.usagePercent.rounded()))%"
-        case .diskActivity: return "DSK \(Int(snapshot.disk.usedPercent.rounded()))%"
-        case .networkActivity: return "NET \(formatBytes(snapshot.network.receivedBytesPerSecond))/s"
         }
     }
 

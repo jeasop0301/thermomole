@@ -18,14 +18,14 @@ final class MenuBarMetricTests: XCTestCase {
                 .batteryTemperature,
                 .memoryPercent,
                 .cpuTemperature,
-                .diskActivity,
-                .networkActivity
+                .cpuUsage
             ]),
-            [.cpuTemperature, .batteryTemperature, .memoryPercent, .diskActivity, .networkActivity]
+            [.cpuTemperature, .batteryTemperature, .memoryPercent, .cpuUsage]
         )
     }
 
     func testStorageCodecNormalizesPersistedRawValues() {
+        // Stale persisted values (diskActivity, networkActivity) are unknown → filtered by compactMap(init(rawValue:))
         let raw = [
             "cpuTemperature",
             "unknownMetric",
@@ -38,11 +38,11 @@ final class MenuBarMetricTests: XCTestCase {
 
         XCTAssertEqual(
             MenuBarMetricStorage.decode(raw),
-            [.cpuTemperature, .batteryTemperature, .memoryPercent, .diskActivity, .networkActivity]
+            [.cpuTemperature, .batteryTemperature, .memoryPercent]
         )
         XCTAssertEqual(
             MenuBarMetricStorage.normalizedRawValues(from: raw),
-            ["cpuTemperature", "batteryTemperature", "memoryPercent", "diskActivity", "networkActivity"]
+            ["cpuTemperature", "batteryTemperature", "memoryPercent"]
         )
         XCTAssertEqual(
             MenuBarMetricStorage.normalizedRawValues(from: ["unknownMetric"]),
@@ -122,15 +122,14 @@ final class MenuBarMetricTests: XCTestCase {
     func testMenuBarTitleFormatterReflectsMetricConfigurationImmediately() {
         var snapshot = SystemSnapshot.placeholder
         snapshot.cpu.usagePercent = 12.4
-        snapshot.disk.usedPercent = 65.8
-        snapshot.network.receivedBytesPerSecond = 65_536
+        snapshot.memory.usedPercent = 42
 
         let title = MenuBarTitleFormatter.title(
             for: snapshot,
-            metrics: [.cpuUsage, .diskActivity, .networkActivity]
+            metrics: [.cpuUsage, .memoryPercent]
         )
 
-        XCTAssertEqual(title, "CPU 12% · DSK 66% · NET 64.0 KB/s")
+        XCTAssertEqual(title, "CPU 12% · RAM 42%")
     }
 
     func testMenuBarPresentationBuildsTooltipAndAccessibilityLabel() {

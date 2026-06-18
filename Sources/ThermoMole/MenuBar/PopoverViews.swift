@@ -122,20 +122,6 @@ struct PopoverMetricStack: View {
                 detail: batterySourceLabel(snapshot.thermal.batteryTemperatureSource),
                 tint: batteryColor(snapshot.thermal.batteryWarningLevel)
             )
-            Divider().padding(.leading, 40)
-            PopoverMetricRow(
-                title: "Memory",
-                value: "\(snapshot.memory.usedPercent)%",
-                detail: snapshot.memory.pressure.rawValue.capitalized,
-                tint: Color.oceanAccent
-            )
-            Divider().padding(.leading, 40)
-            PopoverMetricRow(
-                title: "Load",
-                value: "\(Int(snapshot.cpu.usagePercent.rounded()))%",
-                detail: formatLoad(snapshot.cpu.loadAverage),
-                tint: Color.plumAccent
-            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
