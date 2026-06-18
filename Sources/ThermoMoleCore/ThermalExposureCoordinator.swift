@@ -38,6 +38,11 @@ public actor ThermalExposureCoordinator {
         )
     }
 
+    /// Every tracked day (unordered). Used by cross-store insights (heat-vs-health correlation).
+    public func allDays() -> [DailyThermalExposure] {
+        Array(tracker.days.values)
+    }
+
     public func flushNow(at date: Date) { flush(at: date) }
 
     private func shouldFlush(at date: Date) -> Bool {
