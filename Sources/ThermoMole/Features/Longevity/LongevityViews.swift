@@ -273,3 +273,47 @@ struct HeatPatternCard: View {
         return "\(h12) \(period)"
     }
 }
+
+// MARK: - Heat vs health correlation
+
+struct HeatHealthCorrelationCard: View {
+    let insight: HeatHealthInsight
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "thermometer.variable.and.figure")
+                    .foregroundStyle(Color.oceanAccent)
+                Text("Heat vs battery health").font(.callout.weight(.semibold))
+                Spacer()
+            }
+            switch insight.verdict {
+            case .insufficientData:
+                Text("Collecting data… (warm \(insight.warmDays) · cool \(insight.coolDays) days)")
+                    .font(.caption).foregroundStyle(.secondary)
+            case .warmFadesFaster, .noClearDifference:
+                HStack(spacing: 18) {
+                    fadeStat("Warm days", insight.warmFadePerWeek)
+                    fadeStat("Cool days", insight.coolFadePerWeek)
+                }
+                Text(insight.verdict == .warmFadesFaster
+                     ? "Health fades faster on warmer days. Observed link, not proof — keeping cool helps."
+                     : "No clear difference yet between warm and cool days.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+    }
+
+    private func fadeStat(_ title: String, _ perWeek: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(perWeek.map { String(format: "−%.1f%%/wk", max(0, $0)) } ?? "--")
+                .font(.system(.callout, design: .rounded).weight(.semibold))
+                .monospacedDigit()
+        }
+    }
+}
