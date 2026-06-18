@@ -182,3 +182,94 @@ struct LongevityActionsCard: View {
         }
     }
 }
+
+// MARK: - Heat pattern
+
+/// Maps a mean battery temp to a cool→amber(35°)→red(40°) fill; nil = no data.
+private func heatCellColor(_ meanC: Double?) -> Color {
+    guard let t = meanC else { return Color.insetFill }
+    let caution = ThermalThresholds.batteryCautionC // 35
+    let hot = ThermalThresholds.batteryHotC         // 40
+    if t <= caution - 8 { return Color.oceanAccent.opacity(0.25) }
+    if t < caution {
+        let f = (t - (caution - 8)) / 8                       // 0..1 across 27..35
+        return Color.oceanAccent.opacity(0.25 + 0.35 * f)
+    }
+    if t < hot {
+        let f = (t - caution) / (hot - caution)               // 0..1 across 35..40
+        return Color.amberAccent.opacity(0.5 + 0.45 * f)
+    }
+    return Color.red.opacity(0.9)
+}
+
+struct HourHeatmapGrid: View {
+    let cells: [[Double?]]   // rows = days (old→new), cols = 24 hours
+
+    private let tickHours = [0, 6, 12, 18]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            VStack(spacing: 2) {
+                ForEach(Array(cells.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 2) {
+                        ForEach(0..<24, id: \.self) { h in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(heatCellColor(h < row.count ? row[h] : nil))
+                                .frame(height: 10)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+            HStack(spacing: 2) {
+                ForEach(0..<24, id: \.self) { h in
+                    Text(tickHours.contains(h) ? "\(h)" : "")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Battery heat by hour of day over recent days")
+    }
+}
+
+struct HeatPatternCard: View {
+    let insight: HeatPatternInsight
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .foregroundStyle(Color.amberAccent)
+                Text("When it runs hot").font(.callout.weight(.semibold))
+                Spacer()
+            }
+            if insight.hasEnoughData {
+                if let w = insight.hottestWindow {
+                    Text("Hottest hours: \(hourRange(w.startHour, w.endHour)) · avg \(Int(w.meanC.rounded()))°")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                HourHeatmapGrid(cells: insight.cells)
+            } else {
+                Text("Collecting data… patterns appear after a few days of use.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+    }
+
+    private func hourRange(_ start: Int, _ end: Int) -> String {
+        start == end ? hour12(start) : "\(hour12(start))–\(hour12(end))"
+    }
+    private func hour12(_ h: Int) -> String {
+        let period = h < 12 ? "AM" : "PM"
+        let h12 = h % 12 == 0 ? 12 : h % 12
+        return "\(h12) \(period)"
+    }
+}
