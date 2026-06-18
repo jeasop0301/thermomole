@@ -353,44 +353,59 @@ struct HeatHealthCorrelationCard: View {
 // MARK: - Health projection
 
 struct HealthProjectionChart: View {
-    let points: [HealthProjectionResult.Point]   // monthOffset ascending
-
-    private func px(_ m: Int, width: CGFloat, maxMonth: Int) -> CGFloat {
-        CGFloat(Double(m) / Double(maxMonth)) * width
-    }
+    let history: [Double]                          // recent actual health %, oldest→newest
+    let points: [HealthProjectionResult.Point]     // monthOffset ascending (projection)
 
     private func py(_ v: Double, height: CGFloat, yMin: Double, yMax: Double) -> CGFloat {
         height - CGFloat((v - yMin) / (yMax - yMin)) * height
+    }
+    private func histX(_ i: Int, count: Int, splitX: CGFloat) -> CGFloat {
+        count >= 2 ? CGFloat(Double(i) / Double(count - 1)) * splitX : 0
+    }
+    private func projX(_ m: Int, maxMonth: Int, splitX: CGFloat, width: CGFloat) -> CGFloat {
+        splitX + CGFloat(Double(m) / Double(maxMonth)) * (width - splitX)
     }
 
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             let maxMonth = max(1, points.last?.monthOffset ?? 1)
-            let lo = (points.map { $0.low }.min() ?? 80)
-            let yMin = min(80, lo) - 2
+            let projLo = points.map { $0.low }.min() ?? 80
+            let histLo = history.min() ?? 100
+            let yMin = min(80, min(projLo, histLo)) - 2
             let yMax = 100.0
+            let splitX: CGFloat = history.count >= 2 ? w * 0.38 : 0
 
             ZStack {
-                // band (low..high)
+                // projection band (low..high)
                 Path { p in
                     guard let f = points.first else { return }
-                    p.move(to: CGPoint(x: px(f.monthOffset, width: w, maxMonth: maxMonth), y: py(f.high, height: h, yMin: yMin, yMax: yMax)))
-                    for pt in points { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.high, height: h, yMin: yMin, yMax: yMax))) }
-                    for pt in points.reversed() { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.low, height: h, yMin: yMin, yMax: yMax))) }
+                    p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.high, height: h, yMin: yMin, yMax: yMax)))
+                    for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.high, height: h, yMin: yMin, yMax: yMax))) }
+                    for pt in points.reversed() { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.low, height: h, yMin: yMin, yMax: yMax))) }
                     p.closeSubpath()
                 }
                 .fill(Color.oceanAccent.opacity(0.18))
 
-                // central dashed
+                // historical actual line (solid)
+                Path { p in
+                    guard history.count >= 2 else { return }
+                    p.move(to: CGPoint(x: histX(0, count: history.count, splitX: splitX), y: py(history[0], height: h, yMin: yMin, yMax: yMax)))
+                    for i in 1..<history.count {
+                        p.addLine(to: CGPoint(x: histX(i, count: history.count, splitX: splitX), y: py(history[i], height: h, yMin: yMin, yMax: yMax)))
+                    }
+                }
+                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5))
+
+                // central dashed (projection)
                 Path { p in
                     guard let f = points.first else { return }
-                    p.move(to: CGPoint(x: px(f.monthOffset, width: w, maxMonth: maxMonth), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
-                    for pt in points { p.addLine(to: CGPoint(x: px(pt.monthOffset, width: w, maxMonth: maxMonth), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
+                    p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
+                    for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
                 }
                 .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
 
-                // 80% reference
+                // 80% reference (full width)
                 Path { p in
                     p.move(to: CGPoint(x: 0, y: py(80, height: h, yMin: yMin, yMax: yMax)))
                     p.addLine(to: CGPoint(x: w, y: py(80, height: h, yMin: yMin, yMax: yMax)))
@@ -400,7 +415,7 @@ struct HealthProjectionChart: View {
         }
         .frame(height: 80)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Projected battery health over the next months")
+        .accessibilityLabel("Battery health: recent history and projected range over coming months")
     }
 }
 
@@ -412,7 +427,7 @@ struct LongevityInsightsSection: View {
             Text("Insights").font(.headline)
             HeatPatternCard(insight: model.heatPattern)
             HeatHealthCorrelationCard(insight: model.heatHealthInsight)
-            HealthProjectionCard(result: model.healthProjection)
+            HealthProjectionCard(result: model.healthProjection, history: model.batteryHealthSeries)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -420,6 +435,7 @@ struct LongevityInsightsSection: View {
 
 struct HealthProjectionCard: View {
     let result: HealthProjectionResult
+    let history: [Double]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -441,7 +457,7 @@ struct HealthProjectionCard: View {
                 Text("No meaningful decline at the current trend — battery health is holding steady.")
                     .font(.caption).foregroundStyle(.secondary)
             case .projecting:
-                HealthProjectionChart(points: result.points)
+                HealthProjectionChart(history: history, points: result.points)
                 Text("Range spans your recent vs long-term fade rate.")
                     .font(.caption2).foregroundStyle(.secondary)
             }
