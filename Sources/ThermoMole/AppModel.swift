@@ -28,6 +28,8 @@ final class AppModel: ObservableObject {
     @Published var heatHealthInsight = HeatHealthInsight.empty
     @Published var healthProjection = HealthProjectionResult.empty
     @Published var notificationsEnabled = false
+    @Published var agingRate: BatteryAgingRate?
+    @Published var agingStrain = AgingStrainSummary.empty
 
     private let provider = NativeSensorProvider()
     private let statusSnapshotStore = StatusSnapshotStore.live
@@ -35,6 +37,7 @@ final class AppModel: ObservableObject {
     private let chargeCoordinator = ChargeExposureCoordinator()
     private let cpuExposureCoordinator = CPUExposureCoordinator()
     private let hourlyHeatCoordinator = HourlyHeatCoordinator()
+    private let agingStrainCoordinator = AgingStrainCoordinator()
     private let notifier = NotificationCenterClient()
     private var lastNotified: [LongevityNotification: Date] = [:]
     private let quietHours = QuietHours(startHour: 22, endHour: 7)
@@ -80,6 +83,8 @@ final class AppModel: ObservableObject {
             await chargeCoordinator.bootstrap()
             await cpuExposureCoordinator.bootstrap()
             await hourlyHeatCoordinator.bootstrap()
+            await agingStrainCoordinator.bootstrap()
+            agingStrain = await agingStrainCoordinator.summary(at: Date(), calendar: .current)
             heatPattern = HeatPatternInsight.build(
                 await hourlyHeatCoordinator.grid(endingAt: Date(), calendar: .current)
             )
@@ -141,6 +146,21 @@ final class AppModel: ObservableObject {
             heatPattern = HeatPatternInsight.build(
                 await hourlyHeatCoordinator.grid(endingAt: next.sampledAt, calendar: .current)
             )
+            let hottestCellC: Double? = {
+                let candidates = [next.thermal.batteryIORegC, next.thermal.batteryCellMaxC].compactMap { $0 }
+                return candidates.max() ?? next.thermal.batteryDisplayC
+            }()
+            agingRate = BatteryAgingRate.evaluate(
+                cellTempC: hottestCellC,
+                socPercent: Double(next.battery.percent),
+                isCharging: next.battery.isCharging
+            )
+            await agingStrainCoordinator.record(
+                rawMultiplier: agingRate?.rawMultiplier ?? 1.0,
+                at: next.sampledAt,
+                calendar: .current
+            )
+            agingStrain = await agingStrainCoordinator.summary(at: next.sampledAt, calendar: .current)
             recordBatteryHealth(from: next)
             heatHealthInsight = HeatHealthCorrelation.evaluate(
                 thermal: await exposureCoordinator.allDays(),
@@ -221,6 +241,7 @@ final class AppModel: ObservableObject {
         await chargeCoordinator.flushNow(at: Date())
         await cpuExposureCoordinator.flushNow(at: Date())
         await hourlyHeatCoordinator.flushNow(at: Date())
+        await agingStrainCoordinator.flushNow(at: Date())
     }
 
     func setMenuBarMetric(_ metric: MenuBarMetric, enabled: Bool) {
