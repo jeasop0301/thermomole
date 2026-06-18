@@ -71,6 +71,19 @@ struct StatusTab: View {
                 }
 
                 HStack(alignment: .top, spacing: 12) {
+                    CPUCoreGridView(cpu: model.snapshot.cpu)
+                        .frame(maxWidth: .infinity)
+                    TrendTile(
+                        title: "Battery power",
+                        value: formatBatteryPower(model.snapshot.battery.instantPowerW) ?? "--",
+                        detail: model.snapshot.battery.isCharging ? "into pack" : "from pack",
+                        series: model.statusHistory.batteryPowerSeries,
+                        tint: Color.thermoAccent
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+
+                HStack(alignment: .top, spacing: 12) {
                     ThermalExposureCard(
                         summary: model.todayExposure,
                         warningLevel: model.snapshot.thermal.batteryWarningLevel
@@ -540,6 +553,77 @@ struct MemoryDoctorPanel: View {
     }
 }
 
+
+struct CPUCoreGridView: View {
+    let cpu: CPUStatus
+
+    private var summary: String {
+        var parts = ["\(cpu.logicalCoreCount) cores"]
+        if cpu.performanceCoreCount > 0 || cpu.efficiencyCoreCount > 0 {
+            parts.append("\(cpu.performanceCoreCount)P + \(cpu.efficiencyCoreCount)E")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("CPU Cores", systemImage: "cpu")
+                    .font(.headline)
+                Spacer()
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            if cpu.perCorePercent.isEmpty {
+                Text("Sampling…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 30), spacing: 6)], spacing: 6) {
+                    ForEach(Array(cpu.perCorePercent.enumerated()), id: \.offset) { _, percent in
+                        CPUCoreBar(percent: percent)
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("CPU per-core usage"))
+        .accessibilityValue(Text(summary))
+    }
+}
+
+struct CPUCoreBar: View {
+    let percent: Double
+
+    private var tint: Color {
+        if percent >= 80 { return .red }
+        if percent >= 50 { return Color.amberAccent }
+        return Color.thermoAccent
+    }
+
+    var body: some View {
+        VStack(spacing: 3) {
+            GeometryReader { proxy in
+                let fraction = min(max(percent / 100, 0), 1)
+                let height = max(2, proxy.size.height * CGFloat(fraction))
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.15))
+                    RoundedRectangle(cornerRadius: 3).fill(tint).frame(height: height)
+                }
+            }
+            .frame(height: 34)
+            Text("\(Int(percent.rounded()))")
+                .font(.system(size: 9))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+    }
+}
 
 struct BatterySensorDetailCard: View {
     let summary: BatterySensorSummary
