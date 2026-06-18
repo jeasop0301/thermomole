@@ -2,8 +2,8 @@ import XCTest
 @testable import ThermoMoleCore
 
 final class LongevityAdvisorTests: XCTestCase {
-    private func batteryExposure(min35: Double = 0, min40: Double = 0) -> ThermalExposureSummary {
-        ThermalExposureSummary(today: DailyThermalExposure(day: "2026-06-17", secondsAbove35: min35 * 60, secondsAbove40: min40 * 60), recent: [])
+    private func batteryExposure(min40: Double = 0, min45: Double = 0) -> ThermalExposureSummary {
+        ThermalExposureSummary(today: DailyThermalExposure(day: "2026-06-17", secondsAbove40: min40 * 60, secondsAbove45: min45 * 60), recent: [])
     }
     private func cpuExposure(min85: Double = 0, min95: Double = 0) -> CPUExposureSummary {
         CPUExposureSummary(today: DailyCPUExposure(day: "2026-06-17", secondsAbove85: min85 * 60, secondsAbove95: min95 * 60), recent: [])

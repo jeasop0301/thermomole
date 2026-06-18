@@ -4,7 +4,7 @@ public struct ThermalExposureRecord: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var days: [DailyThermalExposure]
 
-    public init(schemaVersion: Int = 1, days: [DailyThermalExposure] = []) {
+    public init(schemaVersion: Int = 2, days: [DailyThermalExposure] = []) {
         self.schemaVersion = schemaVersion
         self.days = days
     }

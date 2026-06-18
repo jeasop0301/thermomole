@@ -8,7 +8,7 @@ final class ThermalExposureStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let store = ThermalExposureStore(fileURL: root.appendingPathComponent("thermal-exposure.json"))
         let record = ThermalExposureRecord(days: [
-            DailyThermalExposure(day: "2026-06-16", secondsAbove35: 120, secondsAbove40: 30, peakC: 41.2)
+            DailyThermalExposure(day: "2026-06-16", secondsAbove40: 120, secondsAbove45: 30, peakC: 41.2)
         ])
 
         try store.save(record)
@@ -34,7 +34,7 @@ final class ThermalExposureStoreTests: XCTestCase {
 
         XCTAssertNil(try store.load())
 
-        let record = ThermalExposureRecord(days: [DailyThermalExposure(day: "2026-06-16", secondsAbove35: 5)])
+        let record = ThermalExposureRecord(days: [DailyThermalExposure(day: "2026-06-16", secondsAbove40: 5)])
         try store.save(record)
         XCTAssertEqual(try store.load(), record)
     }

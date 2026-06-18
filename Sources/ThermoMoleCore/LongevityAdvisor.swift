@@ -114,26 +114,26 @@ public enum LongevityAdvisor {
         }
 
         // Heat
-        let warm35 = s.batteryExposure.today.secondsAbove35 / 60
-        let hot40 = s.batteryExposure.today.secondsAbove40 / 60
+        let warm40 = s.batteryExposure.today.secondsAbove40 / 60
+        let hot45 = s.batteryExposure.today.secondsAbove45 / 60
         let cpu85 = s.cpuExposure.today.secondsAbove85 / 60
         let cpu95 = s.cpuExposure.today.secondsAbove95 / 60
         let heatStatus: LongevityFactorStatus
-        if s.isChargingWhileHot || hot40 > 0 || cpu95 > 0 {
+        if s.isChargingWhileHot || hot45 > 0 || cpu95 > 0 {
             heatStatus = .poor
-        } else if warm35 >= 30 || cpu85 >= 30 {
+        } else if warm40 >= 30 || cpu85 >= 30 {
             heatStatus = .watch
         } else {
             heatStatus = .good
         }
-        let heatScore = clamp(100 - (warm35 * 0.5 + hot40 * 1.5 + cpu85 * 0.3 + cpu95 * 1.0 + (s.isChargingWhileHot ? 25 : 0)))
-        factors.append(LongevityFactor(id: "heat", title: "Heat", status: heatStatus, summary: heatSummary(warm35: warm35, hot40: hot40, cpu85: cpu85, charging: s.isChargingWhileHot)))
+        let heatScore = clamp(100 - (warm40 * 0.5 + hot45 * 1.5 + cpu85 * 0.3 + cpu95 * 1.0 + (s.isChargingWhileHot ? 25 : 0)))
+        factors.append(LongevityFactor(id: "heat", title: "Heat", status: heatStatus, summary: heatSummary(warm40: warm40, hot45: hot45, cpu85: cpu85, charging: s.isChargingWhileHot)))
         if s.isChargingWhileHot {
             actions.append(LongevityAction(id: "charge-hot", severity: .urgent, title: "Unplug to let the battery cool", detail: "Charging while hot accelerates battery aging the most."))
-        } else if hot40 > 0 {
-            actions.append(LongevityAction(id: "heat-40", severity: .suggest, title: "Reduce sustained heat", detail: "The battery spent time above 40° today; ease heavy load or improve airflow."))
-        } else if warm35 >= 60 {
-            actions.append(LongevityAction(id: "heat-35", severity: .suggest, title: "Watch sustained warmth", detail: "Over an hour above 35° today; cooler running extends battery life."))
+        } else if hot45 > 0 {
+            actions.append(LongevityAction(id: "heat-45", severity: .suggest, title: "Reduce sustained heat", detail: "The battery spent time above 45° today; ease heavy load or improve airflow."))
+        } else if warm40 >= 60 {
+            actions.append(LongevityAction(id: "heat-40", severity: .suggest, title: "Watch sustained warmth", detail: "Over an hour above 40° today; cooler running extends battery life."))
         }
 
         // Charging habits
@@ -185,10 +185,10 @@ public enum LongevityAdvisor {
 
     private static func clamp(_ v: Double) -> Double { max(0, min(100, v)) }
 
-    private static func heatSummary(warm35: Double, hot40: Double, cpu85: Double, charging: Bool) -> String {
+    private static func heatSummary(warm40: Double, hot45: Double, cpu85: Double, charging: Bool) -> String {
         if charging { return "Charging while warm" }
-        if hot40 > 0 { return "\(Int(hot40.rounded())) min above 40° today" }
-        if warm35 > 0 { return "\(Int(warm35.rounded())) min above 35° today" }
+        if hot45 > 0 { return "\(Int(hot45.rounded())) min above 45° today" }
+        if warm40 > 0 { return "\(Int(warm40.rounded())) min above 40° today" }
         if cpu85 > 0 { return "CPU warm \(Int(cpu85.rounded())) min today" }
         return "Cool today"
     }

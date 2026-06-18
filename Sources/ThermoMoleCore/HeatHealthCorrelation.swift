@@ -53,7 +53,7 @@ public enum HeatHealthCorrelation {
             let drop = max(0, prev.healthPercent - cur.healthPercent)   // clamp recovery/recalibration to 0
             let dropPerWeek = Double(drop) / gapDays * 7.0
             totalDrop += drop
-            let isWarm = (t.peakC ?? 0) >= ThermalThresholds.batteryCautionC || t.secondsAbove35 > 0
+            let isWarm = (t.peakC ?? 0) >= ThermalThresholds.batteryExposureWarmC || t.secondsAbove40 > 0
             if isWarm { warmFades.append(dropPerWeek) } else { coolFades.append(dropPerWeek) }
         }
 

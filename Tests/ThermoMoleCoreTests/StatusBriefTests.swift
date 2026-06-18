@@ -24,7 +24,7 @@ final class StatusBriefTests: XCTestCase {
     func testStatusBriefPrioritizesWarmBatteryWarning() {
         var snapshot = Self.snapshot(
             cpuTemperatureC: 61.2,
-            batteryTemperatureC: 36.2,
+            batteryTemperatureC: 43.0,   // ≥ batteryCautionC(42) → caution
             memoryUsedPercent: 58,
             memoryPressure: .normal
         )
@@ -37,7 +37,7 @@ final class StatusBriefTests: XCTestCase {
         XCTAssertEqual(brief.title, "Battery is warming")
         XCTAssertTrue(brief.detail.contains("\(Int(ThermalThresholds.batteryCautionC))° caution line"))
         XCTAssertEqual(brief.prioritySignal?.title, "Battery")
-        XCTAssertEqual(brief.prioritySignal?.value, "36.2°")
+        XCTAssertEqual(brief.prioritySignal?.value, "43.0°")
     }
 
     func testStatusBriefPrioritizesCriticalMemoryPressure() {

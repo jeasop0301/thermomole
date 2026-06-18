@@ -23,18 +23,30 @@ final class BatteryTemperaturePolicyTests: XCTestCase {
 
         XCTAssertEqual(thermal.batteryDisplayC, 31.41)               // 표시값은 BMS(ioreg)
         XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
-        XCTAssertEqual(thermal.batteryWarningLevel, .caution)        // 보수화: 셀최대 35.8 ≥ 35 → caution
+        XCTAssertEqual(thermal.batteryWarningLevel, .normal)          // 셀최대 35.8 < 42 → normal (임계값 42/48)
     }
 
     func testWarningLevelUsesHottestCellNotDisplay() {
+        // cellMax 49 ≥ batteryHotC(48) → hot
         let thermal = BatteryTemperaturePolicy.resolve(
-            smcCellTemperaturesC: [41.0],
+            smcCellTemperaturesC: [49.0],
             ioregTemperatureC: 30.0
         )
 
         XCTAssertEqual(thermal.batteryDisplayC, 30.0)                // 표시값은 BMS(낮음)
         XCTAssertEqual(thermal.batteryTemperatureSource, .ioregTemperature)
-        XCTAssertEqual(thermal.batteryWarningLevel, .hot)            // 경고는 셀최대 41 ≥ 40 → hot
+        XCTAssertEqual(thermal.batteryWarningLevel, .hot)            // 셀최대 49 ≥ 48 → hot
+    }
+
+    func testWarningLevelCautionAtFortyTwo() {
+        // cellMax 43 ≥ batteryCautionC(42) but < batteryHotC(48) → caution
+        let thermal = BatteryTemperaturePolicy.resolve(
+            smcCellTemperaturesC: [43.0],
+            ioregTemperatureC: 30.0
+        )
+
+        XCTAssertEqual(thermal.batteryDisplayC, 30.0)
+        XCTAssertEqual(thermal.batteryWarningLevel, .caution)
     }
 
     func testWarningLevelNormalWhenBothLow() {
@@ -47,12 +59,13 @@ final class BatteryTemperaturePolicyTests: XCTestCase {
     }
 
     func testFallsBackToSMCCellMaxWhenIORegTemperatureIsUnavailable() {
+        // cellMax 43 ≥ batteryCautionC(42) → caution
         let thermal = BatteryTemperaturePolicy.resolve(
-            smcCellTemperaturesC: [35.8],
+            smcCellTemperaturesC: [43.0],
             ioregTemperatureC: nil
         )
 
-        XCTAssertEqual(thermal.batteryDisplayC, 35.8)
+        XCTAssertEqual(thermal.batteryDisplayC, 43.0)
         XCTAssertEqual(thermal.batteryTemperatureSource, .smcCellMax)
         XCTAssertEqual(thermal.batteryWarningLevel, .caution)
     }

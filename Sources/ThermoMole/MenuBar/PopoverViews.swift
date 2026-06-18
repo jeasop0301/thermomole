@@ -24,7 +24,7 @@ struct MenuBarPopoverView: View {
 
             HStack(spacing: 6) {
                 ThermalLevelGlyph(level: model.snapshot.thermal.batteryWarningLevel)
-                Text("Today: \(Int((model.todayExposure.today.secondsAbove35 / 60).rounded())) min ≥35°")
+                Text("Today: \(Int((model.todayExposure.today.secondsAbove40 / 60).rounded())) min ≥40°")
                     .font(.thermoCaption).foregroundStyle(.secondary)
             }
 

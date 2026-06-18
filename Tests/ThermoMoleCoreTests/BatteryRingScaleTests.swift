@@ -12,8 +12,8 @@ final class BatteryRingScaleTests: XCTestCase {
 
     func testLevelMatchesThresholds() {
         XCTAssertEqual(BatteryRingScale(temperatureC: 30).level, .normal)
-        XCTAssertEqual(BatteryRingScale(temperatureC: 36).level, .caution)
-        XCTAssertEqual(BatteryRingScale(temperatureC: 41).level, .hot)
+        XCTAssertEqual(BatteryRingScale(temperatureC: 43).level, .caution)  // ≥42 → caution
+        XCTAssertEqual(BatteryRingScale(temperatureC: 49).level, .hot)      // ≥48 → hot
     }
 
     func testNilTemperatureIsZeroFractionNormal() {
