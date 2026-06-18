@@ -64,6 +64,17 @@ final class ThermalExposureCoordinatorTests: XCTestCase {
         XCTAssertEqual(summary.today.secondsAbove40, 100, accuracy: 0.0001)
     }
 
+    func testBootstrapDiscardsSchemaVersion1() async {
+        let spy = SpyStore()
+        spy.loadResult = ThermalExposureRecord(schemaVersion: 1, days: [
+            DailyThermalExposure(day: ThermalExposureTracker.dayKey(for: t0, calendar: cal), secondsAbove40: 500, secondsAbove45: 0)
+        ])
+        let coord = ThermalExposureCoordinator(store: spy, flushInterval: 60)
+        await coord.bootstrap()
+        let summary = await coord.summary(at: t0, calendar: cal)
+        XCTAssertEqual(summary.today.secondsAbove40, 0, accuracy: 0.0001)
+    }
+
     func testAllDaysReturnsEveryTrackedDay() async {
         let coord = ThermalExposureCoordinator(store: SpyStore(), flushInterval: 60)
         await coord.record(temperatureC: 42, at: t0, calendar: cal)

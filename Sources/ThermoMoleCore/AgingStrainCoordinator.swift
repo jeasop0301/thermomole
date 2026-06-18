@@ -6,24 +6,36 @@ public struct AgingStrainSummary: Equatable, Sendable {
     public var ratio7d: Double
     public var extraAgingDays7d: Double
     public var ratio30d: Double
+    /// Per-day strain ratios for the last 7 days, oldest→newest.
+    /// ratio = effectiveSeconds / calendarSeconds if calendarSeconds > 0, else 1.0.
+    /// Carries RATIOS only — not a capacity measurement.
+    public var recent7: [Double]
+    /// True if any of the last 7 days have calendarSeconds > 0.
+    public var hasData: Bool
 
     public init(
         today: DailyAgingStrain,
         ratio7d: Double,
         extraAgingDays7d: Double,
-        ratio30d: Double
+        ratio30d: Double,
+        recent7: [Double] = [],
+        hasData: Bool = false
     ) {
         self.today = today
         self.ratio7d = ratio7d
         self.extraAgingDays7d = extraAgingDays7d
         self.ratio30d = ratio30d
+        self.recent7 = recent7
+        self.hasData = hasData
     }
 
     public static let empty = AgingStrainSummary(
         today: .empty(day: ""),
         ratio7d: 1.0,
         extraAgingDays7d: 0,
-        ratio30d: 1.0
+        ratio30d: 1.0,
+        recent7: [],
+        hasData: false
     )
 }
 
@@ -59,11 +71,19 @@ public actor AgingStrainCoordinator {
     public func summary(at date: Date, calendar: Calendar) -> AgingStrainSummary {
         let window7 = tracker.recentDays(7, endingAt: date, calendar: calendar)
         let window30 = tracker.recentDays(30, endingAt: date, calendar: calendar)
+        // recentDays returns newest-first; sort by day key (yyyy-MM-dd) to get oldest→newest.
+        let sorted7 = window7.sorted { $0.day < $1.day }
+        let recent7 = sorted7.map { d -> Double in
+            d.calendarSeconds > 0 ? d.effectiveSeconds / d.calendarSeconds : 1.0
+        }
+        let hasData = window7.contains { $0.calendarSeconds > 0 }
         return AgingStrainSummary(
             today: tracker.today(at: date, calendar: calendar),
             ratio7d: strainRatio(over: window7),
             extraAgingDays7d: extraAgingDays(over: window7),
-            ratio30d: strainRatio(over: window30)
+            ratio30d: strainRatio(over: window30),
+            recent7: recent7,
+            hasData: hasData
         )
     }
 

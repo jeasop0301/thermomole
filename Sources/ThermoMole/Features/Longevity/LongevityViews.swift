@@ -267,10 +267,6 @@ struct LifespanStrainCard: View {
         return .red
     }
 
-    private var isCollecting: Bool {
-        strain.today.calendarSeconds < 60 && abs(strain.ratio7d - 1.0) < 0.01
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
@@ -279,7 +275,7 @@ struct LifespanStrainCard: View {
                 Text("Lifespan strain").font(.callout.weight(.semibold))
                 Spacer()
             }
-            if isCollecting {
+            if !strain.hasData {
                 Text("Collecting…")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -291,6 +287,9 @@ struct LifespanStrainCard: View {
                 Text("≈ +\(String(format: "%.1f", displayDays)) aging-days vs a perfect week")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if !strain.recent7.isEmpty {
+                    StrainMiniTrend(ratios: strain.recent7)
+                }
             }
             Text("Relative estimate based on temperature & charge — not a capacity measurement.")
                 .font(.caption2)
@@ -300,7 +299,38 @@ struct LifespanStrainCard: View {
         .padding(14)
         .softPanel()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isCollecting ? "Lifespan strain: collecting data" : "Lifespan strain: \(String(format: "%.1f", strain.ratio7d)) times ideal aging speed this week")
+        .accessibilityLabel(!strain.hasData ? "Lifespan strain: collecting data" : "Lifespan strain: \(String(format: "%.1f", strain.ratio7d)) times ideal aging speed this week")
+    }
+}
+
+/// 7-bar mini sparkline for recent per-day strain ratios (oldest→newest).
+/// Baseline 1.0 renders at a small floor height; bars scale up to max(ratios, 2.0).
+/// Green ≤1.2, amber ≤2.0, red >2.0.
+private struct StrainMiniTrend: View {
+    let ratios: [Double]
+
+    private func barColor(_ ratio: Double) -> Color {
+        if ratio <= 1.2 { return Color.leafAccent }
+        if ratio <= 2.0 { return Color.amberAccent }
+        return .red
+    }
+
+    var body: some View {
+        let ceiling = max(ratios.max() ?? 2.0, 2.0)
+        let totalHeight: CGFloat = 24
+        let floorFraction: CGFloat = 0.12   // baseline at ~12% height for ratio≈0
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(Array(ratios.enumerated()), id: \.offset) { _, ratio in
+                let fraction = CGFloat(ratio / ceiling)
+                let height = floorFraction * totalHeight + fraction * totalHeight * (1 - floorFraction)
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(barColor(ratio))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: height)
+            }
+        }
+        .frame(height: totalHeight)
+        .accessibilityHidden(true)
     }
 }
 

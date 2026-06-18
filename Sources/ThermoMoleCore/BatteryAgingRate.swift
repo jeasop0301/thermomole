@@ -41,7 +41,7 @@ public struct BatteryAgingRate: Equatable, Sendable {
         let raw = tempFactor(t) * socFactor(soc)
         let coldCaution = t < 20 && isCharging
         var display = t < 20 ? max(1.0, raw) : raw
-        display = min(10.0, max(0.3, display))
+        display = min(10.0, max(0.3, display)) // upper clamp guards extreme readings; 0.3 lower bound only reachable below 20°C before the cold guard.
         if display >= 0.9 && display <= 1.1 { display = 1.0 }
         let band: Band = display > 3.0 ? .high : (display >= 1.5 ? .moderate : .low)
         let tf = tempFactor(t), sf = socFactor(soc)
