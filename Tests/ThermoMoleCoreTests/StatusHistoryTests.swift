@@ -31,4 +31,12 @@ final class StatusHistoryTests: XCTestCase {
             StatusHistorySample(sampledAt: Date(timeIntervalSince1970: 99), cpuTemperatureC: 45.5, batteryTemperatureC: 31.5, memoryPercent: 63, cpuUsagePercent: 12.4)
         ])
     }
+
+    func testBatteryPowerSeriesUsesMagnitude() {
+        var history = BoundedStatusHistory(limit: 10)
+        history.append(StatusHistorySample(sampledAt: Date(timeIntervalSince1970: 1), cpuTemperatureC: 40, batteryTemperatureC: 30, memoryPercent: 50, cpuUsagePercent: 10, batteryPowerW: 18.0))
+        history.append(StatusHistorySample(sampledAt: Date(timeIntervalSince1970: 2), cpuTemperatureC: 40, batteryTemperatureC: 30, memoryPercent: 50, cpuUsagePercent: 10, batteryPowerW: -12.0))
+
+        XCTAssertEqual(history.batteryPowerSeries, [18.0, 12.0])
+    }
 }
