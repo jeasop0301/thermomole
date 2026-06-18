@@ -33,6 +33,8 @@ struct LongevityTab: View {
                 }
 
                 LongevityActionsCard(actions: assessment.actions)
+                AgingRateHeadlineCard(rate: model.agingRate)
+                LifespanStrainCard(strain: model.agingStrain)
                 LongevityInsightsSection(model: model)
             }
             .padding(22)
@@ -184,20 +186,139 @@ struct LongevityActionsCard: View {
     }
 }
 
+// MARK: - Aging headline cards
+
+struct AgingRateHeadlineCard: View {
+    let rate: BatteryAgingRate?
+
+    private var bandTint: Color {
+        guard let rate else { return .secondary }
+        switch rate.band {
+        case .low: return Color.leafAccent
+        case .moderate: return Color.amberAccent
+        case .high: return .red
+        }
+    }
+
+    private var formattedMultiplier: String {
+        guard let rate else { return "" }
+        let m = rate.multiplier
+        if m >= 10 { return "\(Int(m.rounded()))×" }
+        return String(format: "%.1f×", m)
+    }
+
+    private var driverLine: String {
+        guard let rate else { return "" }
+        switch rate.dominantDriver {
+        case .temperature: return "Driven by heat"
+        case .charge: return "Driven by high charge"
+        case .balanced: return "Heat + high charge"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(bandTint)
+                Text("Aging speed").font(.callout.weight(.semibold))
+                Spacer()
+            }
+            if rate == nil {
+                Text("Collecting…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("≈ \(formattedMultiplier)")
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .foregroundStyle(bandTint)
+                    .monospacedDigit()
+                Text("Calendar aging vs ideal (25° / 50%)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(driverLine)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                if rate?.coldChargeCaution == true {
+                    Text("Charging while cold — risk of lithium plating")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+            }
+            Text("Relative estimate from published kinetics — not a capacity measurement.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(rate != nil ? "Aging speed approximately \(formattedMultiplier) the ideal rate" : "Aging speed: collecting data")
+    }
+}
+
+struct LifespanStrainCard: View {
+    let strain: AgingStrainSummary
+
+    private var ratioTint: Color {
+        let r = strain.ratio7d
+        if r <= 1.2 { return Color.leafAccent }
+        if r <= 2.0 { return Color.amberAccent }
+        return .red
+    }
+
+    private var isCollecting: Bool {
+        strain.today.calendarSeconds < 60 && abs(strain.ratio7d - 1.0) < 0.01
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(Color.amberAccent)
+                Text("Lifespan strain").font(.callout.weight(.semibold))
+                Spacer()
+            }
+            if isCollecting {
+                Text("Collecting…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("This week: \(String(format: "%.1f", strain.ratio7d))× ideal aging speed")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(ratioTint)
+                let displayDays = max(0.0, strain.extraAgingDays7d)
+                Text("≈ +\(String(format: "%.1f", displayDays)) aging-days vs a perfect week")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text("Relative estimate based on temperature & charge — not a capacity measurement.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .softPanel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isCollecting ? "Lifespan strain: collecting data" : "Lifespan strain: \(String(format: "%.1f", strain.ratio7d)) times ideal aging speed this week")
+    }
+}
+
 // MARK: - Heat pattern
 
-/// Maps a mean battery temp to a cool→amber(35°)→red(40°) fill; nil = no data.
+/// Maps a mean battery temp to a cool→amber(42°)→red(48°) fill; nil = no data.
 private func heatCellColor(_ meanC: Double?) -> Color {
     guard let t = meanC else { return Color.insetFill }
-    let caution = ThermalThresholds.batteryCautionC // 35
-    let hot = ThermalThresholds.batteryHotC         // 40
-    if t <= caution - 8 { return Color.oceanAccent.opacity(0.25) }
+    let caution = ThermalThresholds.batteryCautionC // 42
+    let hot = ThermalThresholds.batteryHotC         // 48
+    let coolFloor = caution - 14                    // 28 — wider gradient window
+    if t <= coolFloor { return Color.oceanAccent.opacity(0.25) }
     if t < caution {
-        let f = (t - (caution - 8)) / 8                       // 0..1 across 27..35
+        let f = (t - coolFloor) / 14                          // 0..1 across 28..42
         return Color.oceanAccent.opacity(0.25 + 0.35 * f)
     }
     if t < hot {
-        let f = (t - caution) / (hot - caution)               // 0..1 across 35..40
+        let f = (t - caution) / (hot - caution)               // 0..1 across 42..48
         return Color.amberAccent.opacity(0.5 + 0.45 * f)
     }
     return Color.red.opacity(0.9)
