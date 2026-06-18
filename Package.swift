@@ -9,7 +9,6 @@ let package = Package(
     ],
     products: [
         .executable(name: "ThermoMole", targets: ["ThermoMole"]),
-        .executable(name: "ThermoMoleCLI", targets: ["ThermoMoleCLI"]),
         .executable(name: "ThermoMoleCoreCheck", targets: ["ThermoMoleCoreCheck"]),
         .library(name: "ThermoMoleCore", targets: ["ThermoMoleCore"])
     ],
@@ -44,13 +43,6 @@ let package = Package(
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("ServiceManagement")
-            ]
-        ),
-        .executableTarget(
-            name: "ThermoMoleCLI",
-            dependencies: ["ThermoMoleCore", "ThermoMoleNative"],
-            linkerSettings: [
-                .linkedFramework("IOKit")
             ]
         ),
         .executableTarget(

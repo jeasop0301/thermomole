@@ -57,13 +57,6 @@ public actor NativeSensorProvider: SensorProvider {
         )
     }
 
-    public func sampleMemoryReport() async -> MemoryDoctorReport {
-        MemoryDoctorReport(
-            memory: sampleMemory(),
-            topProcesses: sampleTopProcesses()
-        )
-    }
-
     private func sampleCPU() -> CPUStatus {
         var numCPUs: natural_t = 0
         var rawInfo: processor_info_array_t?
