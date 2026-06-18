@@ -1,6 +1,7 @@
 import Foundation
 
 public enum OperationHistoryKind: String, Codable, Equatable, Sendable {
+    // Legacy cases retained for decoding historical log entries
     case clean
     case installer
     case optimize
@@ -54,104 +55,6 @@ public struct OperationHistoryEntry: Codable, Equatable, Identifiable, Sendable 
         id = "\(executedAt.timeIntervalSince1970)-\(kind.rawValue)-\(title)"
     }
 
-    public static func cleanup(
-        kind: OperationHistoryKind,
-        title: String,
-        result: CleanupExecutionResult,
-        executedAt: Date = Date()
-    ) -> OperationHistoryEntry {
-        OperationHistoryEntry(
-            kind: kind,
-            title: title,
-            status: status(
-                succeeded: result.succeededCount,
-                skipped: result.skippedCount,
-                failed: result.failedCount
-            ),
-            itemCount: result.entries.count,
-            bytes: result.reclaimedBytes,
-            message: "\(result.succeededCount) moved · \(result.skippedCount) skipped · \(result.failedCount) failed",
-            executedAt: executedAt
-        )
-    }
-
-    public static func optimize(
-        title: String,
-        results: [OptimizeExecutionResult],
-        skippedCount: Int,
-        executedAt: Date = Date()
-    ) -> OperationHistoryEntry {
-        let failed = results.filter { $0.status == .failed }.count
-        return OperationHistoryEntry(
-            kind: .optimize,
-            title: title,
-            status: failed == 0 ? .succeeded : .failed,
-            itemCount: results.count,
-            bytes: 0,
-            message: "\(results.count) run · \(failed) failed · \(skippedCount) staged",
-            executedAt: executedAt
-        )
-    }
-
-    public static func analyzeTrash(_ result: DiskEntryTrashResult) -> OperationHistoryEntry {
-        OperationHistoryEntry(
-            kind: .analyzeTrash,
-            title: "Analyze Trash",
-            status: historyStatus(result.status),
-            itemCount: 1,
-            bytes: result.status == .succeeded ? result.entry.sizeBytes : 0,
-            message: result.message,
-            executedAt: result.executedAt
-        )
-    }
-
-    public static func uninstall(_ result: AppUninstallResult) -> OperationHistoryEntry {
-        OperationHistoryEntry(
-            kind: .uninstall,
-            title: "Uninstall \(result.app.name)",
-            status: result.status == .succeeded ? .succeeded : .failed,
-            itemCount: 1,
-            bytes: 0,
-            message: result.message,
-            executedAt: result.executedAt
-        )
-    }
-
-    public static func memoryPurge(_ result: MemoryPurgeResult) -> OperationHistoryEntry {
-        OperationHistoryEntry(
-            kind: .memoryPurge,
-            title: "Advanced Memory Purge",
-            status: historyStatus(result.status),
-            itemCount: result.command == nil ? 0 : 1,
-            bytes: 0,
-            message: result.message,
-            executedAt: result.executedAt
-        )
-    }
-
-    private static func status(succeeded: Int, skipped: Int, failed: Int) -> OperationHistoryStatus {
-        let nonZero = [succeeded, skipped, failed].filter { $0 > 0 }.count
-        if nonZero > 1 { return .mixed }
-        if failed > 0 { return .failed }
-        if skipped > 0 { return .skipped }
-        return .succeeded
-    }
-
-    private static func historyStatus(_ status: CleanupOperationStatus) -> OperationHistoryStatus {
-        switch status {
-        case .succeeded: .succeeded
-        case .skipped: .skipped
-        case .failed: .failed
-        }
-    }
-
-    private static func historyStatus(_ status: MemoryPurgeStatus) -> OperationHistoryStatus {
-        switch status {
-        case .succeeded: .succeeded
-        case .skipped: .skipped
-        case .failed: .failed
-        }
-    }
 }
 
 public struct OperationHistoryStore: Sendable {

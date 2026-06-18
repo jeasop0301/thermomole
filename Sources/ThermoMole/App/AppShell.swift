@@ -4,10 +4,6 @@ import ThermoMoleCore
 enum AppSection: String, CaseIterable, Identifiable {
     case status
     case longevity
-    case clean
-    case software
-    case optimize
-    case analyze
     case settings
 
     var id: String { rawValue }
@@ -16,10 +12,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .status: "Status"
         case .longevity: "Longevity"
-        case .clean: "Clean"
-        case .software: "Software"
-        case .optimize: "Optimize"
-        case .analyze: "Analyze"
         case .settings: "Settings"
         }
     }
@@ -28,10 +20,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .status: "Battery heat, CPU warmth"
         case .longevity: "Keep it long-lived"
-        case .clean: "Safe clutter review"
-        case .software: "Apps and quiet starters"
-        case .optimize: "Small repairs, staged"
-        case .analyze: "Follow storage inward"
         case .settings: "Local choices"
         }
     }
@@ -40,10 +28,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .status: "gauge.with.dots.needle.67percent"
         case .longevity: "heart.text.square"
-        case .clean: "sparkles"
-        case .software: "shippingbox"
-        case .optimize: "wand.and.stars"
-        case .analyze: "chart.pie"
         case .settings: "gearshape"
         }
     }
@@ -82,17 +66,9 @@ struct MainWindowView: View {
     private var detail: some View {
         switch selection {
         case .status:
-            StatusTab(model: model, memory: model.memory)
+            StatusTab(model: model)
         case .longevity:
             LongevityTab(model: model)
-        case .clean:
-            CleanTab(clean: model.clean)
-        case .software:
-            SoftwareTab(software: model.software)
-        case .optimize:
-            OptimizeTab(optimize: model.optimize)
-        case .analyze:
-            AnalyzeTab(analyze: model.analyze)
         case .settings:
             SettingsTab(model: model, settings: model.settings)
         }

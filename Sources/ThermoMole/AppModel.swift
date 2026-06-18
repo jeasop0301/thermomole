@@ -49,44 +49,6 @@ final class AppModel: ObservableObject {
     private var doctorFreshnessTimer: Timer?
     private var samplingGate = SamplingGate(timeout: 8)
 
-    private(set) lazy var clean = CleanModel(
-        scan: { CleanupScanner().scan(preselection: $0) },
-        execute: { items, selection in CleanupExecutor().execute(items: items, selection: selection, mode: .trash) },
-        logOperation: { [weak self] entry in self?.appendHistory(entry) },
-        onCleaned: { [weak self] in self?.refreshDoctorReport() }
-    )
-
-    private(set) lazy var analyze = AnalyzeModel(
-        analyze: { DiskAnalyzer().analyze($0, shouldCancel: $1) },
-        trash: { DiskEntryTrashExecutor().moveToTrash($0) },
-        logOperation: { [weak self] entry in self?.appendHistory(entry) },
-        onChanged: { [weak self] in self?.refreshDoctorReport() }
-    )
-
-    private(set) lazy var software = SoftwareModel(
-        loadInventory: { let inventory = SoftwareInventory(); return (inventory.installedApps(), inventory.startupItems()) },
-        uninstall: { AppUninstallExecutor().moveToTrash($0) },
-        logOperation: { [weak self] entry in self?.appendHistory(entry) },
-        onChanged: { [weak self] in self?.refreshDoctorReport() }
-    )
-
-    private(set) lazy var optimize = OptimizeModel(
-        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
-        hasExternalDisplay: { NSScreen.screens.count > 1 },
-        probeSafety: { OptimizeSafetyProbe.live() },
-        execute: { OptimizeExecutor().execute(plan: $0) },
-        executeBatch: { OptimizeExecutor().execute(batch: $0) },
-        logOperation: { [weak self] entry in self?.appendHistory(entry) },
-        onChanged: { [weak self] in self?.refreshDoctorReport() }
-    )
-
-    private(set) lazy var memory = MemoryModel(
-        currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
-        purge: { MemoryPurgeExecutor().execute(plan: $0) },
-        logOperation: { [weak self] entry in self?.appendHistory(entry) },
-        onChanged: { [weak self] in self?.refreshDoctorReport() }
-    )
-
     private(set) lazy var settings = SettingsModel(
         currentSnapshot: { [weak self] in self?.snapshot ?? .placeholder },
         currentDoctorReport: { [weak self] in self?.doctorReport ?? DoctorReport.make(inputs: .placeholder) },
