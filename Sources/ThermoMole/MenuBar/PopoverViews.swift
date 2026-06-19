@@ -27,7 +27,7 @@ struct MenuBarPopoverView: View {
         .padding(16)
         .frame(width: 424)
         .background(Color.appBackground)
-        .tint(Color.leafAccent)
+        .tint(Color.amberAccent)
     }
 }
 

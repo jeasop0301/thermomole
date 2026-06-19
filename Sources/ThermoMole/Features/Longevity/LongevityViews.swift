@@ -76,7 +76,7 @@ private struct PatinaHeader: View {
                     .font(.patinaDisplay(26, .semibold))
                     .foregroundStyle(Color.textPrimary)
                 Circle()
-                    .fill(Color.leafAccent)
+                    .fill(Color.amberAccent)
                     .frame(width: 7, height: 7)
                 Spacer()
             }
@@ -328,19 +328,19 @@ private struct StrainSparkline: View {
             }
 
             return AnyView(ZStack {
-                // Polyline — full-strength emerald (low opacity reads as ambiguous teal)
+                // Polyline — calm neutral; color is reserved for the latest point
                 Path { p in
                     p.move(to: CGPoint(x: x(0), y: y(ratios[0])))
                     for i in 1..<count {
                         p.addLine(to: CGPoint(x: x(i), y: y(ratios[i])))
                     }
                 }
-                .stroke(Color.leafAccent, style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+                .stroke(Color.textSecondary, style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
 
                 // Dots
                 ForEach(Array(ratios.enumerated()), id: \.offset) { idx, val in
                     let isLast = idx == count - 1
-                    let dotColor = isLast ? Color.agingWarmth(val) : Color.leafAccent.opacity(0.85)
+                    let dotColor = isLast ? Color.agingWarmth(val) : Color.textTertiary
                     Circle()
                         .fill(dotColor)
                         .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
@@ -388,7 +388,7 @@ private struct ActionChip: View {
         switch action.severity {
         case .urgent:  Color.garnetAccent
         case .suggest: Color.amberAccent
-        case .info:    Color.leafAccent
+        case .info:    Color.textSecondary
         }
     }
 
@@ -536,7 +536,7 @@ private struct DetailsContent: View {
     }
 
     private func scoreTint(_ score: Int) -> Color {
-        if score >= 85 { return Color.leafAccent }
+        if score >= 85 { return Color.textPrimary }
         if score >= 65 { return Color.amberAccent }
         return Color.garnetAccent
     }
@@ -547,7 +547,7 @@ private struct FactorRow: View {
 
     private var tint: Color {
         switch factor.status {
-        case .good:  Color.leafAccent
+        case .good:  Color.textPrimary
         case .watch: Color.amberAccent
         case .poor:  Color.garnetAccent
         }
@@ -677,7 +677,7 @@ struct HealthProjectionChart: View {
                 }
                 .fill(Color.textTertiary.opacity(0.16))
 
-                // historical actual line (solid) — full-strength emerald
+                // historical actual line (solid) — gold data series
                 Path { p in
                     guard history.count >= 2 else { return }
                     p.move(to: CGPoint(x: histX(0, count: history.count, splitX: splitX), y: py(history[0], height: h, yMin: yMin, yMax: yMax)))
@@ -685,7 +685,7 @@ struct HealthProjectionChart: View {
                         p.addLine(to: CGPoint(x: histX(i, count: history.count, splitX: splitX), y: py(history[i], height: h, yMin: yMin, yMax: yMax)))
                     }
                 }
-                .stroke(Color.leafAccent, style: StrokeStyle(lineWidth: 1.5))
+                .stroke(Color.amberAccent, style: StrokeStyle(lineWidth: 1.5))
 
                 // central dashed (projection)
                 Path { p in
@@ -693,7 +693,7 @@ struct HealthProjectionChart: View {
                     p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
                     for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
                 }
-                .stroke(Color.leafAccent.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                .stroke(Color.amberAccent.opacity(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
 
                 // 80% reference (full width)
                 Path { p in

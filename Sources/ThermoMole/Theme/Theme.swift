@@ -65,9 +65,10 @@ extension Color {
     static let thermoAccent = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
 
     // MARK: - Semantic helper
-    /// Returns garnet / amber / leaf based on battery aging multiplier magnitude.
+    /// Returns garnet / amber / calm-cream based on battery aging multiplier magnitude.
+    /// "Good" is a calm warm-neutral (no green/teal) — color is reserved for elevated states.
     static func agingWarmth(_ multiplier: Double) -> Color {
-        multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .leafAccent)
+        multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .textPrimary)
     }
 }
 
