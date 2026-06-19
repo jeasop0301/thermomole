@@ -15,7 +15,7 @@ struct PatinaAgingCard: View {
         VStack(alignment: .leading, spacing: 0) {
 
             // 1. Header
-            PatinaHeader()
+            PatinaHeader(statusColor: Color.agingWarmth(model.agingRate?.multiplier ?? 1.0))
                 .padding(.bottom, 22)
 
             // 2. Aging hero
@@ -81,6 +81,10 @@ struct PatinaAgingCard: View {
 // MARK: - 1. Header
 
 private struct PatinaHeader: View {
+    /// Live aging-state tint (cream / amber / garnet) — a small status light, not décor,
+    /// so amber stays strictly semantic and never doubles as a brand accent.
+    let statusColor: Color
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 7) {
@@ -88,7 +92,7 @@ private struct PatinaHeader: View {
                     .font(.patinaDisplay(26, .semibold))
                     .foregroundStyle(Color.textPrimary)
                 Circle()
-                    .fill(Color.amberAccent)
+                    .fill(statusColor)
                     .frame(width: 7, height: 7)
                 Spacer()
             }
@@ -722,7 +726,7 @@ struct HealthProjectionChart: View {
                         p.addLine(to: CGPoint(x: histX(i, count: history.count, splitX: splitX), y: py(history[i], height: h, yMin: yMin, yMax: yMax)))
                     }
                 }
-                .stroke(Color.amberAccent, style: StrokeStyle(lineWidth: 1.5))
+                .stroke(Color.textSecondary, style: StrokeStyle(lineWidth: 1.5))
 
                 // central dashed (projection)
                 Path { p in
@@ -730,7 +734,7 @@ struct HealthProjectionChart: View {
                     p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
                     for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
                 }
-                .stroke(Color.amberAccent.opacity(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                .stroke(Color.textSecondary.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
 
                 // 80% reference (full width)
                 Path { p in
