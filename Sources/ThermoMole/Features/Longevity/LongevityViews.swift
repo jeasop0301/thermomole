@@ -28,13 +28,22 @@ struct PatinaAgingCard: View {
                 .padding(.top, 14)
                 .padding(.bottom, 22)
 
-            // 4. Strain
+            // 4. Strain (calendar) + cycle throughput
             hairline
-            StrainSection(strain: model.agingStrain)
+            StrainSection(strain: model.agingStrain,
+                          cyclesPerWeek: model.batteryLongevity?.cyclesPerWeek)
                 .padding(.top, 14)
                 .padding(.bottom, 18)
 
-            // 5. Outlook
+            // 5. When it runs hot — promoted from Details: the one pattern no competitor shows.
+            if model.heatPattern.hasEnoughData {
+                hairline
+                HeatPatternSection(hourlyProfile: model.heatPattern.hourlyProfile)
+                    .padding(.top, 14)
+                    .padding(.bottom, 18)
+            }
+
+            // 6. Outlook
             OutlookLine(projection: model.healthProjection)
                 .padding(.bottom, 18)
 
@@ -135,14 +144,37 @@ private struct AgingHeroSection: View {
         }
     }
 
+    /// Categorical truth alongside the precise-looking numeral, so the headline
+    /// doesn't lean on one-decimal precision the noisy inputs can't support.
+    private var bandWord: String {
+        switch rate?.band {
+        case .high: return "HIGH"
+        case .moderate: return "ELEVATED"
+        case .low, .none: return "LOW"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("AGING SPEED NOW")
-                .font(.patinaBody(11, .semibold))
-                .tracking(1.4)
-                .textCase(.uppercase)
-                .foregroundStyle(Color.textTertiary)
-                .padding(.bottom, 10)
+            HStack(spacing: 8) {
+                Text("AGING SPEED NOW")
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.textTertiary)
+                if rate != nil {
+                    Text(bandWord)
+                        .font(.patinaBody(10, .semibold))
+                        .tracking(1.0)
+                        .foregroundStyle(warmth)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(warmth.opacity(0.14))
+                        .clipShape(Capsule())
+                }
+                Spacer()
+            }
+            .padding(.bottom, 10)
 
             if rate == nil {
                 Text("Collecting…")
@@ -190,6 +222,15 @@ private struct AgingHeroSection: View {
                         .foregroundStyle(Color.textSecondary)
                 }
 
+                // Anti-gaming: a low SoC genuinely lowers calendar aging, but chasing a
+                // lower number by running the pack down trades it for extra cycle wear.
+                if snapshot.battery.percent < 25 {
+                    Text("Low charge isn’t “better” — mid charge (~50%) is healthiest.")
+                        .font(.patinaBody(12))
+                        .foregroundStyle(Color.textTertiary)
+                        .padding(.top, 4)
+                }
+
                 if rate?.coldChargeCaution == true {
                     HStack(spacing: 7) {
                         Circle()
@@ -203,9 +244,11 @@ private struct AgingHeroSection: View {
                 }
             }
 
+            // Disclaimer raised to secondary contrast so the visual hierarchy matches the
+            // model's actual (modest) precision rather than letting the big numeral oversell it.
             Text("Relative estimate from published kinetics — not a capacity measurement.")
                 .font(.patinaBody(11))
-                .foregroundStyle(Color.textTertiary)
+                .foregroundStyle(Color.textSecondary)
                 .padding(.top, 10)
         }
         .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
@@ -308,6 +351,11 @@ private struct DriverCell: View {
 
 private struct StrainSection: View {
     let strain: AgingStrainSummary
+    /// Cycle throughput is a SEPARATE wear mechanism the calendar multiplier doesn't capture;
+    /// surfacing it stops heavy-cyclers (cool + mid-SoC) from being silently under-warned.
+    let cyclesPerWeek: Double?
+
+    private var heavyCycling: Bool { (cyclesPerWeek ?? 0) >= 15 }   // matches BatteryLongevity.highCycleRate
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -338,7 +386,26 @@ private struct StrainSection: View {
                 }
             }
 
-            Text("Relative estimate — not a capacity measurement.")
+            // Cycle throughput — the dominant wear mode for heavy users, invisible to the
+            // calendar multiplier above.
+            if let cw = cyclesPerWeek, cw >= 0.5 {
+                HStack(spacing: 4) {
+                    Text("Cycling ·")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                    Text(String(format: "~%.0f full cycles/week", cw))
+                        .font(.patinaBody(13, heavyCycling ? .semibold : .regular))
+                        .foregroundStyle(heavyCycling ? Color.amberAccent : Color.textSecondary)
+                    if heavyCycling {
+                        Text("· heavy")
+                            .font(.patinaBody(13, .semibold))
+                            .foregroundStyle(Color.amberAccent)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Relative estimate — calendar aging only; cycle wear is tracked separately.")
                 .font(.patinaBody(11))
                 .foregroundStyle(Color.textTertiary)
         }
@@ -420,6 +487,29 @@ private struct OutlookLine: View {
     }
 }
 
+// MARK: - When It Runs Hot (promoted unique surface)
+
+/// The hour-of-day heat strip — a fixable, non-obvious pattern no competitor surfaces.
+/// Shown on the main card (caller gates on hasEnoughData) rather than buried in Details.
+private struct HeatPatternSection: View {
+    let hourlyProfile: [Double?]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("WHEN IT RUNS HOT")
+                .font(.patinaBody(11, .semibold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.textTertiary)
+            Text("Cell temperature by hour of day")
+                .font(.patinaBody(12))
+                .foregroundStyle(Color.textTertiary)
+            HeatStrip(profile: hourlyProfile)
+                .frame(height: 34)
+        }
+    }
+}
+
 // MARK: - 6. Action Chip
 
 private struct ActionChip: View {
@@ -433,7 +523,34 @@ private struct ActionChip: View {
         }
     }
 
+    /// Close the action loop: route charge/battery advice to the automated lever
+    /// (macOS Optimized Charging in Battery settings) instead of nagging a manual chore.
+    private var deepLink: URL? {
+        let id = action.id
+        if id.contains("soc") || id.contains("charge") || id.contains("battery") {
+            return URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")
+        }
+        if id.contains("storage") {
+            return URL(string: "x-apple.systempreferences:com.apple.settings.Storage")
+        }
+        return nil
+    }
+
     var body: some View {
+        if let url = deepLink {
+            Button {
+                NSWorkspace.shared.open(url)
+            } label: {
+                chip(showChevron: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Opens System Settings"))
+        } else {
+            chip(showChevron: false)
+        }
+    }
+
+    private func chip(showChevron: Bool) -> some View {
         HStack(spacing: 7) {
             Circle()
                 .fill(chipColor)
@@ -441,6 +558,11 @@ private struct ActionChip: View {
             Text(action.title)
                 .font(.patinaBody(13))
                 .foregroundStyle(chipColor)
+            if showChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(chipColor.opacity(0.7))
+            }
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 8)
@@ -479,26 +601,7 @@ private struct DetailsContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
 
-            // Heat strip section
-            VStack(alignment: .leading, spacing: 6) {
-                Text("WHEN IT RUNS HOT")
-                    .font(.patinaBody(11, .semibold))
-                    .tracking(1.1)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color.textTertiary)
-                Text("Cell temperature by hour of day")
-                    .font(.patinaBody(12))
-                    .foregroundStyle(Color.textTertiary)
-
-                if model.heatPattern.hasEnoughData {
-                    HeatStrip(profile: model.heatPattern.hourlyProfile)
-                        .frame(height: 34)
-                } else {
-                    Text("Collecting…")
-                        .font(.patinaBody(13))
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
+            // (The hour-of-day heat strip is promoted to the main card; see HeatPatternSection.)
 
             // Heat vs health
             VStack(alignment: .leading, spacing: 4) {
