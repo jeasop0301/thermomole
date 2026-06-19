@@ -50,8 +50,13 @@ struct LongevityTab: View {
                     DetailsContent(model: model)
                 }
             }
-            .padding(26)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 392, alignment: .leading)
+            .background(Color.cardFill)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
         }
         .background(Color.appBackground)
     }
