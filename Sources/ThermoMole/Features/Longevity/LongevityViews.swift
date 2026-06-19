@@ -1,340 +1,601 @@
 import SwiftUI
 import ThermoMoleCore
 
+// MARK: - LongevityTab
+
 struct LongevityTab: View {
     @ObservedObject var model: AppModel
-
-    private var assessment: LongevityAssessment { model.longevityAssessment }
+    @State private var showDetails = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                TabHeader(subtitle: "What's helping and what's hurting your Mac's lifespan.") {}
+            VStack(alignment: .leading, spacing: 0) {
 
-                HStack(alignment: .center, spacing: 18) {
-                    LongevityScoreRing(score: assessment.score, tint: scoreTint)
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(verdictTitle)
-                            .font(.system(.title2, design: .rounded).weight(.semibold))
-                        Text(verdictDetail)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
+                // 1. Header
+                PatinaHeader()
+                    .padding(.bottom, 20)
+
+                // 2. Aging hero
+                AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
+                    .padding(.bottom, 20)
+
+                // 3. Drivers
+                hairline
+                DriversRow(snapshot: model.snapshot)
+                    .padding(.top, 14)
+                    .padding(.bottom, 20)
+
+                // 4. Strain
+                hairline
+                StrainSection(strain: model.agingStrain)
+                    .padding(.top, 14)
+                    .padding(.bottom, 14)
+
+                // 5. Outlook
+                OutlookLine(projection: model.healthProjection)
+                    .padding(.bottom, 16)
+
+                // 6. Action chip
+                if let action = model.longevityAssessment.actions.first {
+                    ActionChip(action: action)
+                        .padding(.bottom, 16)
                 }
-                .padding(18)
-                .softPanel()
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 12)], spacing: 12) {
-                    ForEach(assessment.factors) { factor in
-                        LongevityFactorCard(factor: factor)
-                    }
+                // 7. Details expander
+                DetailsToggleRow(showDetails: $showDetails)
+                    .padding(.bottom, showDetails ? 14 : 0)
+
+                if showDetails {
+                    DetailsContent(model: model)
                 }
-
-                LongevityActionsCard(actions: assessment.actions)
-                AgingRateHeadlineCard(rate: model.agingRate)
-                LifespanStrainCard(strain: model.agingStrain)
-                LongevityInsightsSection(model: model)
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var scoreTint: Color {
-        if assessment.score >= 85 { return Color.leafAccent }
-        if assessment.score >= 65 { return Color.amberAccent }
-        return .red
-    }
-
-    private var verdictTitle: String {
-        if assessment.score >= 85 { return "In great shape" }
-        if assessment.score >= 65 { return "Doing okay" }
-        return "Needs attention"
-    }
-
-    private var verdictDetail: String {
-        if assessment.score >= 85 { return "Keep doing what you're doing — heat, charge, and storage all look healthy." }
-        if assessment.score >= 65 { return "A few habits below could extend your Mac's life." }
-        return "Address the flagged items to slow aging."
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.subtleStroke)
+            .frame(height: 1)
     }
 }
 
-struct LongevityScoreRing: View {
-    let score: Int
-    let tint: Color
+// MARK: - 1. Header
 
+private struct PatinaHeader: View {
     var body: some View {
-        ZStack {
-            Circle().stroke(Color.insetFill, lineWidth: 11)
-            Circle()
-                .trim(from: 0, to: max(0.02, CGFloat(score) / 100))
-                .stroke(tint, style: StrokeStyle(lineWidth: 11, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            VStack(spacing: 1) {
-                Text("\(score)")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.primary)
-                    .monospacedDigit()
-                Text("/ 100").font(.thermoCaption).foregroundStyle(.secondary)
-            }
-        }
-        .frame(width: 118, height: 118)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Longevity score \(score) of 100")
-    }
-}
-
-struct LongevityFactorCard: View {
-    let factor: LongevityFactor
-
-    private var tint: Color {
-        switch factor.status {
-        case .good: Color.leafAccent
-        case .watch: Color.amberAccent
-        case .poor: .red
-        }
-    }
-
-    private var statusWord: String {
-        switch factor.status {
-        case .good: "Good"
-        case .watch: "Watch"
-        case .poor: "Attention"
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Circle().fill(tint).frame(width: 8, height: 8)
-                Text(factor.title)
-                    .font(.callout.weight(.semibold))
+                Text("Patina")
+                    .font(.patinaDisplay(22))
+                    .foregroundStyle(Color.textPrimary)
+                Circle()
+                    .fill(Color.leafAccent)
+                    .frame(width: 7, height: 7)
                 Spacer()
-                Text(statusWord)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(tint)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(tint.opacity(0.14))
-                    .clipShape(Capsule())
+                Circle()
+                    .fill(Color.leafAccent)
+                    .frame(width: 7, height: 7)
             }
-            Text(factor.summary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(factor.title): \(statusWord)"))
-        .accessibilityValue(Text(factor.summary))
-    }
-}
-
-struct LongevityActionsCard: View {
-    let actions: [LongevityAction]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recommended actions").font(.headline)
-            if actions.isEmpty {
-                Label("You're all set — nothing to do right now.", systemImage: "checkmark.seal.fill")
-                    .font(.callout)
-                    .foregroundStyle(Color.leafAccent)
-            } else {
-                ForEach(actions) { action in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: symbol(action.severity))
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(tint(action.severity))
-                            .frame(width: 22)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(action.title).font(.callout.weight(.medium))
-                            Text(action.detail)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .softPanel()
-    }
-
-    private func symbol(_ s: LongevityActionSeverity) -> String {
-        switch s {
-        case .urgent: "exclamationmark.triangle.fill"
-        case .suggest: "lightbulb.fill"
-        case .info: "info.circle.fill"
-        }
-    }
-
-    private func tint(_ s: LongevityActionSeverity) -> Color {
-        switch s {
-        case .urgent: .red
-        case .suggest: Color.amberAccent
-        case .info: Color.thermoAccent
+            Text("See your battery age, honestly.")
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
         }
     }
 }
 
-// MARK: - Aging headline cards
+// MARK: - 2. Aging Hero
 
-struct AgingRateHeadlineCard: View {
+private struct AgingHeroSection: View {
     let rate: BatteryAgingRate?
+    let snapshot: SystemSnapshot
 
-    private var bandTint: Color {
-        guard let rate else { return .secondary }
-        switch rate.band {
-        case .low: return Color.leafAccent
-        case .moderate: return Color.amberAccent
-        case .high: return .red
-        }
-    }
+    private var multiplier: Double { rate?.multiplier ?? 1.0 }
+    private var warmth: Color { Color.agingWarmth(multiplier) }
 
     private var formattedMultiplier: String {
         guard let rate else { return "" }
         let m = rate.multiplier
-        if m >= 10 { return "\(Int(m.rounded()))×" }
-        return String(format: "%.1f×", m)
+        return m >= 10 ? "\(Int(m.rounded()))×" : String(format: "%.1f×", m)
     }
 
     private var driverLine: String {
         guard let rate else { return "" }
         switch rate.dominantDriver {
-        case .temperature: return "Driven by heat"
-        case .charge: return "Driven by high charge"
-        case .balanced: return "Heat + high charge"
+        case .temperature: return "Heat is the main driver right now"
+        case .charge: return "High charge is the main driver right now"
+        case .balanced: return "High charge + heat"
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "waveform.path.ecg")
-                    .foregroundStyle(bandTint)
-                Text("Aging speed").font(.callout.weight(.semibold))
-                Spacer()
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("AGING SPEED NOW")
+                .font(.thermoCaption)
+                .kerning(0.8)
+                .foregroundStyle(Color.textTertiary)
+
             if rate == nil {
                 Text("Collecting…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.patinaBody(15))
+                    .foregroundStyle(Color.textSecondary)
             } else {
-                Text("≈ \(formattedMultiplier)")
-                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                    .foregroundStyle(bandTint)
-                    .monospacedDigit()
-                Text("Calendar aging vs ideal (25° / 50%)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(driverLine)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 14) {
+                    // Hero number + companion arc
+                    ZStack {
+                        // Decorative companion arc (not a gauge)
+                        CompanionArc(color: warmth)
+
+                        Text("≈ \(formattedMultiplier)")
+                            .font(.patinaDisplay(56, .medium))
+                            .foregroundStyle(warmth)
+                            .shadow(color: warmth.opacity(0.5), radius: 8)
+                            .monospacedDigit()
+                            .padding(.leading, 10)
+                    }
+                    .frame(height: 72)
+                }
+
+                Text("aging vs an ideal idle (25° / 50%)")
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textTertiary)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(warmth)
+                        .frame(width: 7, height: 7)
+                    Text(driverLine)
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                }
+
                 if rate?.coldChargeCaution == true {
-                    Text("Charging while cold — risk of lithium plating")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.red)
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.garnetAccent)
+                            .frame(width: 7, height: 7)
+                        Text("Charging while cold — risk of lithium plating")
+                            .font(.patinaBody(13))
+                            .foregroundStyle(Color.garnetAccent)
+                    }
                 }
             }
+
             Text("Relative estimate from published kinetics — not a capacity measurement.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(.thermoCaption)
+                .foregroundStyle(Color.textTertiary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(rate != nil ? "Aging speed approximately \(formattedMultiplier) the ideal rate" : "Aging speed: collecting data")
     }
 }
 
-struct LifespanStrainCard: View {
-    let strain: AgingStrainSummary
-
-    private var ratioTint: Color {
-        let r = strain.ratio7d
-        if r <= 1.2 { return Color.leafAccent }
-        if r <= 2.0 { return Color.amberAccent }
-        return .red
-    }
+/// Decorative arc beside the hero number — purely visual, not a progress gauge.
+private struct CompanionArc: View {
+    let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(Color.amberAccent)
-                Text("Lifespan strain").font(.callout.weight(.semibold))
-                Spacer()
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let r: CGFloat = min(w, h) * 0.45
+            let cx = w * 0.12, cy = h * 0.5
+            Path { p in
+                p.addArc(
+                    center: CGPoint(x: cx, y: cy),
+                    radius: r,
+                    startAngle: .degrees(240),
+                    endAngle: .degrees(120),
+                    clockwise: false
+                )
             }
-            if !strain.hasData {
-                Text("Collecting…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("This week: \(String(format: "%.1f", strain.ratio7d))× ideal aging speed")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(ratioTint)
-                let displayDays = max(0.0, strain.extraAgingDays7d)
-                Text("≈ +\(String(format: "%.1f", displayDays)) aging-days vs a perfect week")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if !strain.recent7.isEmpty {
-                    StrainMiniTrend(ratios: strain.recent7)
-                }
-            }
-            Text("Relative estimate based on temperature & charge — not a capacity measurement.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            .stroke(color.opacity(0.30), style: StrokeStyle(lineWidth: 3, lineCap: .round))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(!strain.hasData ? "Lifespan strain: collecting data" : "Lifespan strain: \(String(format: "%.1f", strain.ratio7d)) times ideal aging speed this week")
-    }
-}
-
-/// 7-bar mini sparkline for recent per-day strain ratios (oldest→newest).
-/// Baseline 1.0 renders at a small floor height; bars scale up to max(ratios, 2.0).
-/// Green ≤1.2, amber ≤2.0, red >2.0.
-private struct StrainMiniTrend: View {
-    let ratios: [Double]
-
-    private func barColor(_ ratio: Double) -> Color {
-        if ratio <= 1.2 { return Color.leafAccent }
-        if ratio <= 2.0 { return Color.amberAccent }
-        return .red
-    }
-
-    var body: some View {
-        let ceiling = max(ratios.max() ?? 2.0, 2.0)
-        let totalHeight: CGFloat = 24
-        let floorFraction: CGFloat = 0.12   // baseline at ~12% height for ratio≈0
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(Array(ratios.enumerated()), id: \.offset) { _, ratio in
-                let fraction = CGFloat(ratio / ceiling)
-                let height = floorFraction * totalHeight + fraction * totalHeight * (1 - floorFraction)
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(barColor(ratio))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: height)
-            }
-        }
-        .frame(height: totalHeight)
         .accessibilityHidden(true)
     }
 }
 
-// MARK: - Heat pattern
+// MARK: - 3. Drivers Row
+
+private struct DriversRow: View {
+    let snapshot: SystemSnapshot
+
+    private var hottestC: Double? {
+        let candidates: [Double?] = [
+            snapshot.thermal.batteryIORegC,
+            snapshot.thermal.batteryCellMaxC,
+        ]
+        if let best = candidates.compactMap({ $0 }).max() { return best }
+        return snapshot.thermal.batteryDisplayC
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            DriverCell(value: hottestC.map { "\(Int($0.rounded()))°" } ?? "—",
+                       label: "CELL TEMP")
+            Divider().frame(height: 30).padding(.horizontal, 4)
+            DriverCell(value: "\(snapshot.battery.percent)%",
+                       label: "CHARGE")
+            Divider().frame(height: 30).padding(.horizontal, 4)
+            DriverCell(value: snapshot.battery.isCharging ? "Charging" : "On battery",
+                       label: "POWER")
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct DriverCell: View {
+    let value: String
+    let label: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value)
+                .font(.patinaDisplay(18, .medium))
+                .foregroundStyle(Color.textPrimary)
+                .monospacedDigit()
+            Text(label)
+                .font(.thermoCaption)
+                .kerning(0.6)
+                .foregroundStyle(Color.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 4. Strain
+
+private struct StrainSection: View {
+    let strain: AgingStrainSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !strain.hasData {
+                Text("This week · Collecting…")
+                    .font(.patinaBody(14))
+                    .foregroundStyle(Color.textSecondary)
+            } else {
+                let ratioTint = Color.agingWarmth(strain.ratio7d)
+                let displayDays = max(0.0, strain.extraAgingDays7d)
+
+                HStack(spacing: 4) {
+                    Text("This week ran")
+                        .font(.patinaBody(14))
+                        .foregroundStyle(Color.textSecondary)
+                    Text(String(format: "%.1f×", strain.ratio7d))
+                        .font(.patinaBody(14, .semibold))
+                        .foregroundStyle(ratioTint)
+                    Text("ideal · +\(String(format: "%.1f", displayDays)) aging-days")
+                        .font(.patinaBody(14))
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                if !strain.recent7.isEmpty {
+                    StrainSparkline(ratios: strain.recent7)
+                        .frame(height: 36)
+                }
+            }
+
+            Text("Relative estimate — not a capacity measurement.")
+                .font(.thermoCaption)
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+}
+
+/// 7-point polyline sparkline with dots; last point emphasized; emerald/warmth color.
+private struct StrainSparkline: View {
+    let ratios: [Double]
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let count = ratios.count
+            guard count >= 2 else { return AnyView(EmptyView()) }
+            let yMax = max(ratios.max() ?? 2.0, 2.0)
+            let yMin = 0.0
+
+            func x(_ i: Int) -> CGFloat {
+                CGFloat(i) / CGFloat(count - 1) * w
+            }
+            func y(_ v: Double) -> CGFloat {
+                h - CGFloat((v - yMin) / (yMax - yMin)) * h * 0.85 - h * 0.075
+            }
+
+            return AnyView(ZStack {
+                // Polyline
+                Path { p in
+                    p.move(to: CGPoint(x: x(0), y: y(ratios[0])))
+                    for i in 1..<count {
+                        p.addLine(to: CGPoint(x: x(i), y: y(ratios[i])))
+                    }
+                }
+                .stroke(Color.leafAccent.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+
+                // Dots
+                ForEach(Array(ratios.enumerated()), id: \.offset) { idx, val in
+                    let isLast = idx == count - 1
+                    let dotColor = isLast ? Color.agingWarmth(val) : Color.leafAccent.opacity(0.5)
+                    Circle()
+                        .fill(dotColor)
+                        .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
+                        .position(x: x(idx), y: y(val))
+                        .shadow(color: isLast ? dotColor.opacity(0.6) : .clear, radius: 4)
+                }
+            })
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - 5. Outlook
+
+private struct OutlookLine: View {
+    let projection: HealthProjectionResult
+
+    private var outlookText: String {
+        switch projection.status {
+        case .projecting:
+            if let r = projection.monthsTo80Range {
+                return "Outlook · ~80% health in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) months"
+            }
+            return "Outlook · projecting…"
+        case .flat:
+            return "Outlook · holding steady at the current trend"
+        case .insufficient:
+            return "Outlook · collecting data…"
+        }
+    }
+
+    var body: some View {
+        Text(outlookText)
+            .font(.patinaBody(13))
+            .foregroundStyle(Color.textSecondary)
+    }
+}
+
+// MARK: - 6. Action Chip
+
+private struct ActionChip: View {
+    let action: LongevityAction
+
+    private var chipColor: Color {
+        switch action.severity {
+        case .urgent:  Color.garnetAccent
+        case .suggest: Color.amberAccent
+        case .info:    Color.leafAccent
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(chipColor)
+                .frame(width: 7, height: 7)
+            Text(action.title)
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(chipColor.opacity(0.14))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - 7. Details Expander
+
+private struct DetailsToggleRow: View {
+    @Binding var showDetails: Bool
+
+    var body: some View {
+        HStack {
+            Text("Details · Patterns")
+                .font(.patinaBody(13, .medium))
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+            Button(showDetails ? "Hide" : "Show") {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showDetails.toggle()
+                }
+            }
+            .font(.patinaBody(12))
+            .foregroundStyle(Color.leafAccent)
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct DetailsContent: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+
+            // Heat strip section
+            VStack(alignment: .leading, spacing: 6) {
+                Text("WHEN IT RUNS HOT")
+                    .font(.thermoCaption)
+                    .kerning(0.8)
+                    .foregroundStyle(Color.textTertiary)
+                Text("Cell temperature by hour of day")
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textTertiary)
+
+                if model.heatPattern.hasEnoughData {
+                    HeatStrip(profile: model.heatPattern.hourlyProfile)
+                        .frame(height: 28)
+                } else {
+                    Text("Collecting…")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+
+            // Heat vs health
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Heat vs health.")
+                    .font(.patinaBody(13, .medium))
+                    .foregroundStyle(Color.textSecondary)
+                Text(verdictCopy)
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Health outlook
+            VStack(alignment: .leading, spacing: 8) {
+                Text("HEALTH OUTLOOK")
+                    .font(.thermoCaption)
+                    .kerning(0.8)
+                    .foregroundStyle(Color.textTertiary)
+
+                switch model.healthProjection.status {
+                case .projecting:
+                    HealthProjectionChart(
+                        history: model.batteryHealthSeries,
+                        points: model.healthProjection.points
+                    )
+                    Text("Projection band · relative estimate, not a capacity measurement.")
+                        .font(.thermoCaption)
+                        .foregroundStyle(Color.textTertiary)
+                case .flat:
+                    Text("Battery health is holding steady at the current trend.")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                case .insufficient:
+                    Text("Collecting data… a trend appears after ~2 weeks of readings.")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+
+            // Longevity factors
+            VStack(alignment: .leading, spacing: 10) {
+                Text("LONGEVITY FACTORS")
+                    .font(.thermoCaption)
+                    .kerning(0.8)
+                    .foregroundStyle(Color.textTertiary)
+
+                ForEach(model.longevityAssessment.factors) { factor in
+                    FactorRow(factor: factor)
+                }
+            }
+
+            // Score
+            let score = model.longevityAssessment.score
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(score)")
+                    .font(.patinaDisplay(28, .medium))
+                    .foregroundStyle(scoreTint(score))
+                    .shadow(color: scoreTint(score).opacity(0.45), radius: 6)
+                    .monospacedDigit()
+                Text("/ 100 longevity score")
+                    .font(.patinaBody(13))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private var verdictCopy: String {
+        switch model.heatHealthInsight.verdict {
+        case .warmFadesFaster:    "Warmer hours track with faster aging in your readings."
+        case .noClearDifference:  "No clear link between heat and aging yet."
+        case .insufficientData:   "Collecting data…"
+        }
+    }
+
+    private func scoreTint(_ score: Int) -> Color {
+        if score >= 85 { return Color.leafAccent }
+        if score >= 65 { return Color.amberAccent }
+        return Color.garnetAccent
+    }
+}
+
+private struct FactorRow: View {
+    let factor: LongevityFactor
+
+    private var tint: Color {
+        switch factor.status {
+        case .good:  Color.leafAccent
+        case .watch: Color.amberAccent
+        case .poor:  Color.garnetAccent
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(factor.title)
+                    .font(.patinaBody(13, .medium))
+                    .foregroundStyle(Color.textPrimary)
+                Spacer()
+            }
+            // Horizontal bar tinted by status
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.insetFill)
+                        .frame(height: 5)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(tint)
+                        .frame(width: barWidth(geo.size.width), height: 5)
+                }
+            }
+            .frame(height: 5)
+            Text(factor.summary)
+                .font(.patinaBody(11))
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+
+    private func barWidth(_ totalWidth: CGFloat) -> CGFloat {
+        switch factor.status {
+        case .good:  totalWidth
+        case .watch: totalWidth * 0.55
+        case .poor:  totalWidth * 0.25
+        }
+    }
+}
+
+// MARK: - HeatStrip
+
+/// Horizontal row of 24 cells colored by hour-of-day mean temperature.
+struct HeatStrip: View {
+    let profile: [Double?]   // 24 hourly weighted-mean temps (nil = no data)
+
+    private let tickHours = [0, 6, 12, 18, 24]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 2) {
+                ForEach(0..<24, id: \.self) { h in
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(heatCellColor(h < profile.count ? profile[h] : nil))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 18)
+                }
+            }
+            HStack(spacing: 0) {
+                ForEach(0..<25, id: \.self) { h in
+                    if tickHours.contains(h) {
+                        Text("\(h)")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Color.textTertiary)
+                    } else {
+                        Color.clear
+                    }
+                    if h < 24 { Spacer(minLength: 0) }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Battery temperature by hour of day")
+    }
+}
+
+// MARK: - Shared helpers (kept for HeatStrip and HealthProjectionChart)
 
 /// Maps a mean battery temp to a cool→amber(42°)→red(48°) fill; nil = no data.
 private func heatCellColor(_ meanC: Double?) -> Color {
@@ -344,164 +605,17 @@ private func heatCellColor(_ meanC: Double?) -> Color {
     let coolFloor = caution - 14                    // 28 — wider gradient window
     if t <= coolFloor { return Color.oceanAccent.opacity(0.25) }
     if t < caution {
-        let f = (t - coolFloor) / 14                          // 0..1 across 28..42
+        let f = (t - coolFloor) / 14
         return Color.oceanAccent.opacity(0.25 + 0.35 * f)
     }
     if t < hot {
-        let f = (t - caution) / (hot - caution)               // 0..1 across 42..48
+        let f = (t - caution) / (hot - caution)
         return Color.amberAccent.opacity(0.5 + 0.45 * f)
     }
     return Color.red.opacity(0.9)
 }
 
-struct HourHeatmapGrid: View {
-    let cells: [[Double?]]   // rows = days (old→new), cols = 24 hours
-
-    private let tickHours = [0, 6, 12, 18]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            VStack(spacing: 2) {
-                ForEach(Array(cells.enumerated()), id: \.offset) { _, row in
-                    HStack(spacing: 2) {
-                        ForEach(0..<24, id: \.self) { h in
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(heatCellColor(h < row.count ? row[h] : nil))
-                                .frame(height: 10)
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-            }
-            HStack(spacing: 2) {
-                ForEach(0..<24, id: \.self) { h in
-                    Text(tickHours.contains(h) ? "\(h)" : "")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Battery heat by hour of day over recent days")
-    }
-}
-
-/// 24 vertical bars (one per hour) whose height encodes the hour's mean battery temp,
-/// colored on the same scale as the heatmap. Complements the day×hour grid with the
-/// aggregate hour-of-day shape. nil hours render as a minimal stub.
-struct HourProfileBars: View {
-    let profile: [Double?]   // 24 hourly weighted-mean temps (nil = no data)
-
-    var body: some View {
-        let vals = profile.compactMap { $0 }
-        let lo = vals.min() ?? 0
-        let hi = vals.max() ?? 1
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(0..<24, id: \.self) { h in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(heatCellColor(h < profile.count ? profile[h] : nil))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: barHeight(h < profile.count ? profile[h] : nil, lo: lo, hi: hi))
-            }
-        }
-        .frame(height: 26)
-        .accessibilityHidden(true)
-    }
-
-    private func barHeight(_ v: Double?, lo: Double, hi: Double) -> CGFloat {
-        guard let v else { return 2 }            // no data: minimal stub
-        guard hi > lo else { return 14 }          // all equal: mid height
-        let f = (v - lo) / (hi - lo)
-        return 3 + CGFloat(max(0, min(1, f))) * 23
-    }
-}
-
-struct HeatPatternCard: View {
-    let insight: HeatPatternInsight
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "clock.badge.exclamationmark")
-                    .foregroundStyle(Color.amberAccent)
-                Text("When it runs hot").font(.callout.weight(.semibold))
-                Spacer()
-            }
-            if insight.hasEnoughData {
-                if let w = insight.hottestWindow {
-                    Text("Hottest hours: \(hourRange(w.startHour, w.endHour)) · avg \(Int(w.meanC.rounded()))°")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                HourHeatmapGrid(cells: insight.cells)
-                HourProfileBars(profile: insight.hourlyProfile)
-            } else {
-                Text("Collecting data… patterns appear after a few days of use.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
-    }
-
-    private func hourRange(_ start: Int, _ end: Int) -> String {
-        start == end ? hour12(start) : "\(hour12(start))–\(hour12(end))"
-    }
-    private func hour12(_ h: Int) -> String {
-        let period = h < 12 ? "AM" : "PM"
-        let h12 = h % 12 == 0 ? 12 : h % 12
-        return "\(h12) \(period)"
-    }
-}
-
-// MARK: - Heat vs health correlation
-
-struct HeatHealthCorrelationCard: View {
-    let insight: HeatHealthInsight
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "thermometer.variable.and.figure")
-                    .foregroundStyle(Color.oceanAccent)
-                Text("Heat vs battery health").font(.callout.weight(.semibold))
-                Spacer()
-            }
-            switch insight.verdict {
-            case .insufficientData:
-                Text("Collecting data… (warm \(insight.warmDays) · cool \(insight.coolDays) days)")
-                    .font(.caption).foregroundStyle(.secondary)
-            case .warmFadesFaster, .noClearDifference:
-                HStack(spacing: 18) {
-                    fadeStat("Warm days", insight.warmFadePerWeek)
-                    fadeStat("Cool days", insight.coolFadePerWeek)
-                }
-                Text(insight.verdict == .warmFadesFaster
-                     ? "Health fades faster on warmer days. Observed link, not proof — keeping cool helps."
-                     : "No clear difference yet between warm and cool days.")
-                    .font(.caption2).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
-    }
-
-    private func fadeStat(_ title: String, _ perWeek: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption2).foregroundStyle(.secondary)
-            Text(perWeek.map { String(format: "−%.1f%%/wk", max(0, $0)) } ?? "--")
-                .font(.system(.callout, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-        }
-    }
-}
-
-// MARK: - Health projection
+// MARK: - HealthProjectionChart (unchanged — reused)
 
 struct HealthProjectionChart: View {
     let history: [Double]                          // recent actual health %, oldest→newest
@@ -567,54 +681,5 @@ struct HealthProjectionChart: View {
         .frame(height: 80)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Battery health: recent history and projected range over coming months")
-    }
-}
-
-struct LongevityInsightsSection: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Insights").font(.headline)
-            HeatPatternCard(insight: model.heatPattern)
-            HeatHealthCorrelationCard(insight: model.heatHealthInsight)
-            HealthProjectionCard(result: model.healthProjection, history: model.batteryHealthSeries)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-struct HealthProjectionCard: View {
-    let result: HealthProjectionResult
-    let history: [Double]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "chart.line.downtrend.xyaxis")
-                    .foregroundStyle(Color.oceanAccent)
-                Text("Health outlook").font(.callout.weight(.semibold))
-                Spacer()
-                if let r = result.monthsTo80Range {
-                    Text("80% in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) mo")
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            switch result.status {
-            case .insufficient:
-                Text("Collecting data… a trend appears after ~2 weeks of readings.")
-                    .font(.caption).foregroundStyle(.secondary)
-            case .flat:
-                Text("No meaningful decline at the current trend — battery health is holding steady.")
-                    .font(.caption).foregroundStyle(.secondary)
-            case .projecting:
-                HealthProjectionChart(history: history, points: result.points)
-                Text("Range spans your recent vs long-term fade rate.")
-                    .font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .softPanel()
     }
 }

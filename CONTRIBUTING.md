@@ -1,6 +1,6 @@
-# Contributing to ThermoMole
+# Contributing to Patina
 
-Thanks for your interest in ThermoMole.
+Thanks for your interest in Patina.
 
 ## Requirements
 

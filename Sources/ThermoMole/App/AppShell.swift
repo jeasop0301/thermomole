@@ -87,7 +87,7 @@ struct AppToolbar: View {
                 .background(Color.iconBadgeFill)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)
-            Text("ThermoMole")
+            Text("Patina")
                 .font(.system(.headline, design: .rounded).weight(.semibold))
 
             BatteryPackChip(

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="$ROOT/dist/ThermoMole.app"
+APP_DIR="$ROOT/dist/Patina.app"
 STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/thermomole-app.XXXXXX")"
-STAGED_APP="$STAGE_ROOT/ThermoMole.app"
+STAGED_APP="$STAGE_ROOT/Patina.app"
 CONTENTS="$STAGED_APP/Contents"
 MACOS="$CONTENTS/MacOS"
 
@@ -18,6 +18,13 @@ swift build -c release
 
 mkdir -p "$MACOS"
 cp "$ROOT/.build/arm64-apple-macosx/release/ThermoMole" "$MACOS/ThermoMole"
+
+# Stage bundled fonts (SIL OFL) — macOS registers them at launch via ATSApplicationFontsPath
+FONTS_SRC="$ROOT/Sources/ThermoMole/Resources/Fonts"
+FONTS_DST="$CONTENTS/Resources/Fonts"
+mkdir -p "$FONTS_DST"
+cp "$FONTS_SRC/"*.ttf "$FONTS_DST/"
+cp "$FONTS_SRC/"*.txt "$FONTS_DST/"
 
 # WINDOWED=1 builds a regular (dock-visible) app so screen-control tools can
 # enumerate and grant it. Default is a menu-bar-only agent (LSUIElement=true).
@@ -37,9 +44,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>local.thermomole.app</string>
   <key>CFBundleName</key>
-  <string>ThermoMole</string>
+  <string>Patina</string>
   <key>CFBundleDisplayName</key>
-  <string>ThermoMole</string>
+  <string>Patina</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -52,6 +59,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <${LSUI_VALUE}/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>ATSApplicationFontsPath</key>
+  <string>Fonts</string>
 </dict>
 </plist>
 PLIST
