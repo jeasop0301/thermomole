@@ -3,21 +3,22 @@ import AppKit
 import ThermoMoleCore
 
 extension Color {
+    // MARK: - Surfaces
     static let appBackground = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedRed: 0.957, green: 0.957, blue: 0.965, alpha: 1),
-        dark: NSColor(calibratedRed: 0.102, green: 0.102, blue: 0.110, alpha: 1)
+        dark: NSColor(calibratedRed: 0.086, green: 0.090, blue: 0.098, alpha: 1)  // #161719
     ))
     static let appSidebar = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedRed: 0.925, green: 0.925, blue: 0.937, alpha: 1),
-        dark: NSColor(calibratedRed: 0.125, green: 0.125, blue: 0.133, alpha: 1)
+        dark: NSColor(calibratedRed: 0.102, green: 0.110, blue: 0.122, alpha: 1)  // #1A1C1F
     ))
     static let cardFill = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
-        dark: NSColor(calibratedRed: 0.165, green: 0.165, blue: 0.180, alpha: 1)
+        dark: NSColor(calibratedRed: 0.118, green: 0.125, blue: 0.137, alpha: 1)  // #1E2023
     ))
     static let insetFill = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedRed: 0.937, green: 0.937, blue: 0.949, alpha: 1),
-        dark: NSColor(calibratedRed: 0.139, green: 0.139, blue: 0.153, alpha: 1)
+        dark: NSColor(calibratedRed: 0.137, green: 0.149, blue: 0.169, alpha: 1)  // #23262B
     ))
     static let selectionFill = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedRed: 0.894, green: 0.941, blue: 1.0, alpha: 1),
@@ -29,25 +30,66 @@ extension Color {
     ))
     static let subtleStroke = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedWhite: 0, alpha: 0.10),
-        dark: NSColor(calibratedWhite: 1, alpha: 0.12)
+        dark: NSColor(calibratedWhite: 1, alpha: 0.10)   // α0.10 (flat design)
     ))
+    /// Flat design: no shadow in dark mode
     static let panelShadow = Color(nsColor: .thermoAdaptive(
         light: NSColor(calibratedWhite: 0, alpha: 0.06),
-        dark: NSColor(calibratedWhite: 0, alpha: 0.30)
+        dark: NSColor(calibratedWhite: 0, alpha: 0.0)    // clear
     ))
-    static let thermoAccent = Color(red: 0.039, green: 0.518, blue: 1.0)
-    static let oceanAccent = Color(red: 0.353, green: 0.784, blue: 0.980)
-    static let leafAccent = Color(red: 0.204, green: 0.780, blue: 0.349)
-    static let amberAccent = Color(red: 1.0, green: 0.624, blue: 0.039)
-    static let plumAccent = Color(red: 0.369, green: 0.361, blue: 0.902)
+
+    // MARK: - Text (adaptive)
+    static let textPrimary = Color(nsColor: .thermoAdaptive(
+        light: NSColor(calibratedRed: 0.098, green: 0.098, blue: 0.106, alpha: 1),
+        dark: NSColor(calibratedRed: 0.945, green: 0.937, blue: 0.918, alpha: 1)  // #F1EFEA
+    ))
+    static let textSecondary = Color(nsColor: .thermoAdaptive(
+        light: NSColor(calibratedRed: 0.380, green: 0.380, blue: 0.400, alpha: 1),
+        dark: NSColor(calibratedRed: 0.612, green: 0.596, blue: 0.561, alpha: 1)  // #9C988F
+    ))
+    static let textTertiary = Color(nsColor: .thermoAdaptive(
+        light: NSColor(calibratedRed: 0.500, green: 0.500, blue: 0.518, alpha: 1),
+        dark: NSColor(calibratedRed: 0.545, green: 0.529, blue: 0.494, alpha: 1)  // #8B877E
+    ))
+
+    // MARK: - Jewel Accents
+    /// Emerald — primary brand accent
+    static let leafAccent   = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
+    static let amberAccent  = Color(red: 0.878, green: 0.647, blue: 0.227)  // #E0A53A
+    /// NEW: garnet accent for high-severity states
+    static let garnetAccent = Color(red: 0.886, green: 0.376, blue: 0.290)  // #E2604A
+    static let plumAccent   = Color(red: 0.369, green: 0.361, blue: 0.902)
+    /// Unified to emerald (same as leafAccent)
+    static let oceanAccent  = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
+    /// Unified to emerald (same as leafAccent)
+    static let thermoAccent = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
+
+    // MARK: - Semantic helper
+    /// Returns garnet / amber / leaf based on battery aging multiplier magnitude.
+    static func agingWarmth(_ multiplier: Double) -> Color {
+        multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .leafAccent)
+    }
 }
 
 extension Font {
-    static let thermoTitle = Font.system(size: 20, weight: .semibold)
+    // MARK: - Patina custom fonts (graceful fallback)
+    static func patinaDisplay(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
+        NSFont(name: "Fraunces", size: size) != nil
+            ? Font.custom("Fraunces", size: size).weight(weight)
+            : .system(size: size, weight: weight, design: .serif)
+    }
+    static func patinaBody(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        NSFont(name: "Figtree", size: size) != nil
+            ? Font.custom("Figtree", size: size).weight(weight)
+            : .system(size: size, weight: weight)
+    }
+
+    // MARK: - Existing tokens (values updated to use Patina fonts)
+    static let thermoTitle    = patinaDisplay(20, .semibold)
     static let thermoHeadline = Font.system(size: 16, weight: .semibold)
-    static let thermoMetric = Font.system(size: 22, weight: .medium, design: .rounded)
-    static let thermoBody = Font.system(size: 13)
-    static let thermoCaption = Font.system(size: 11, weight: .medium)
+    static let thermoMetric   = patinaDisplay(22, .medium)
+    static let thermoBody     = Font.system(size: 13)
+    static let thermoCaption  = Font.system(size: 11, weight: .medium)
 }
 
 extension NSColor {
@@ -59,19 +101,33 @@ extension NSColor {
     }
 }
 
+// MARK: - Panel Modifiers
+
 struct SoftPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Color.cardFill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.subtleStroke, lineWidth: 1))
-            .shadow(color: Color.panelShadow, radius: 3, x: 0, y: 1)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.subtleStroke, lineWidth: 1))
+            // flat: no shadow
+    }
+}
+
+struct HeroPanelModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(Color.insetFill)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            // flat: no shadow
     }
 }
 
 extension View {
     func softPanel() -> some View {
         modifier(SoftPanelModifier())
+    }
+    func heroPanel() -> some View {
+        modifier(HeroPanelModifier())
     }
 }
 
@@ -203,4 +259,3 @@ func freshnessSymbol(_ level: StatusFreshnessLevel) -> String {
     case .stale: "exclamationmark.triangle.fill"
     }
 }
-
