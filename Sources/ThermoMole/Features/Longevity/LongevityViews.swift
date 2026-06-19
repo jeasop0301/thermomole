@@ -1,64 +1,62 @@
 import SwiftUI
 import ThermoMoleCore
 
-// MARK: - LongevityTab
+// MARK: - PatinaAgingCard
+//
+// The Dark Jewel aging card. Lives in the menu-bar popover (see PopoverViews).
+// Fixed 392pt content width — matches the Claude Design spec and the popover box.
 
-struct LongevityTab: View {
+struct PatinaAgingCard: View {
     @ObservedObject var model: AppModel
     @State private var showDetails = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
 
-                // 1. Header
-                PatinaHeader()
-                    .padding(.bottom, 22)
+            // 1. Header
+            PatinaHeader()
+                .padding(.bottom, 22)
 
-                // 2. Aging hero
-                AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
-                    .padding(.bottom, 22)
+            // 2. Aging hero
+            AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
+                .padding(.bottom, 22)
 
-                // 3. Drivers
-                hairline
-                DriversRow(snapshot: model.snapshot)
-                    .padding(.top, 14)
-                    .padding(.bottom, 22)
+            // 3. Drivers
+            hairline
+            DriversRow(snapshot: model.snapshot)
+                .padding(.top, 14)
+                .padding(.bottom, 22)
 
-                // 4. Strain
-                hairline
-                StrainSection(strain: model.agingStrain)
-                    .padding(.top, 14)
+            // 4. Strain
+            hairline
+            StrainSection(strain: model.agingStrain)
+                .padding(.top, 14)
+                .padding(.bottom, 18)
+
+            // 5. Outlook
+            OutlookLine(projection: model.healthProjection)
+                .padding(.bottom, 18)
+
+            // 6. Action chip
+            if let action = model.longevityAssessment.actions.first {
+                ActionChip(action: action)
                     .padding(.bottom, 18)
-
-                // 5. Outlook
-                OutlookLine(projection: model.healthProjection)
-                    .padding(.bottom, 18)
-
-                // 6. Action chip
-                if let action = model.longevityAssessment.actions.first {
-                    ActionChip(action: action)
-                        .padding(.bottom, 18)
-                }
-
-                // 7. Details expander
-                hairline
-                DetailsToggleRow(showDetails: $showDetails)
-                    .padding(.bottom, showDetails ? 14 : 0)
-
-                if showDetails {
-                    DetailsContent(model: model)
-                }
             }
-            .padding(24)
-            .frame(maxWidth: 392, alignment: .leading)
-            .background(Color.cardFill)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+
+            // 7. Details expander
+            hairline
+            DetailsToggleRow(showDetails: $showDetails)
+                .padding(.bottom, showDetails ? 14 : 0)
+
+            if showDetails {
+                DetailsContent(model: model)
+            }
         }
-        .background(Color.appBackground)
+        .padding(24)
+        .frame(width: 392, alignment: .leading)
+        .background(Color.cardFill)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
     }
 
     private var hairline: some View {

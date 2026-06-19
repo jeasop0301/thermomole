@@ -76,8 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.showMainWindow()
             }
         )
-        // Size the popover to the SwiftUI content (the view is 370 wide with intrinsic
-        // height) instead of a fixed 360×520 box that clipped it and misaligned the arrow.
+        // Size the popover to the SwiftUI content (the Patina card is 424 wide with
+        // intrinsic height) so the box hugs the card and the arrow stays aligned.
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
     }

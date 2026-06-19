@@ -3,7 +3,6 @@ import ThermoMoleCore
 
 enum AppSection: String, CaseIterable, Identifiable {
     case status
-    case longevity
     case settings
 
     var id: String { rawValue }
@@ -11,7 +10,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .status: "Status"
-        case .longevity: "Longevity"
         case .settings: "Settings"
         }
     }
@@ -19,7 +17,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .status: "Battery heat, CPU warmth"
-        case .longevity: "Keep it long-lived"
         case .settings: "Local choices"
         }
     }
@@ -27,7 +24,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .status: "gauge.with.dots.needle.67percent"
-        case .longevity: "heart.text.square"
         case .settings: "gearshape"
         }
     }
@@ -67,8 +63,6 @@ struct MainWindowView: View {
         switch selection {
         case .status:
             StatusTab(model: model)
-        case .longevity:
-            LongevityTab(model: model)
         case .settings:
             SettingsTab(model: model, settings: model.settings)
         }
