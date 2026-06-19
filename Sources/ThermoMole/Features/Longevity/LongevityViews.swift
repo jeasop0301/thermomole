@@ -328,19 +328,19 @@ private struct StrainSparkline: View {
             }
 
             return AnyView(ZStack {
-                // Polyline
+                // Polyline — full-strength emerald (low opacity reads as ambiguous teal)
                 Path { p in
                     p.move(to: CGPoint(x: x(0), y: y(ratios[0])))
                     for i in 1..<count {
                         p.addLine(to: CGPoint(x: x(i), y: y(ratios[i])))
                     }
                 }
-                .stroke(Color.leafAccent.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+                .stroke(Color.leafAccent, style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
 
                 // Dots
                 ForEach(Array(ratios.enumerated()), id: \.offset) { idx, val in
                     let isLast = idx == count - 1
-                    let dotColor = isLast ? Color.agingWarmth(val) : Color.leafAccent.opacity(0.5)
+                    let dotColor = isLast ? Color.agingWarmth(val) : Color.leafAccent.opacity(0.85)
                     Circle()
                         .fill(dotColor)
                         .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
@@ -621,22 +621,23 @@ struct HeatStrip: View {
 
 // MARK: - Shared helpers (kept for HeatStrip and HealthProjectionChart)
 
-/// Maps a mean battery temp to a cool→amber(42°)→red(48°) fill; nil = no data.
+/// Maps a mean battery temp to a quiet-neutral → amber(42°) → garnet(48°) fill; nil = no data.
+/// Cool hours stay a calm warm-neutral (on the Dark Jewel palette) — no teal/blue.
 private func heatCellColor(_ meanC: Double?) -> Color {
     guard let t = meanC else { return Color.insetFill }
     let caution = ThermalThresholds.batteryCautionC // 42
     let hot = ThermalThresholds.batteryHotC         // 48
     let coolFloor = caution - 14                    // 28 — wider gradient window
-    if t <= coolFloor { return Color.oceanAccent.opacity(0.25) }
+    if t <= coolFloor { return Color.textTertiary.opacity(0.18) }
     if t < caution {
         let f = (t - coolFloor) / 14
-        return Color.oceanAccent.opacity(0.25 + 0.35 * f)
+        return Color.amberAccent.opacity(0.12 + 0.33 * f)
     }
     if t < hot {
         let f = (t - caution) / (hot - caution)
-        return Color.amberAccent.opacity(0.5 + 0.45 * f)
+        return Color.amberAccent.opacity(0.55 + 0.40 * f)
     }
-    return Color.red.opacity(0.9)
+    return Color.garnetAccent.opacity(0.92)
 }
 
 // MARK: - HealthProjectionChart (unchanged — reused)
@@ -674,9 +675,9 @@ struct HealthProjectionChart: View {
                     for pt in points.reversed() { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.low, height: h, yMin: yMin, yMax: yMax))) }
                     p.closeSubpath()
                 }
-                .fill(Color.oceanAccent.opacity(0.18))
+                .fill(Color.textTertiary.opacity(0.16))
 
-                // historical actual line (solid)
+                // historical actual line (solid) — full-strength emerald
                 Path { p in
                     guard history.count >= 2 else { return }
                     p.move(to: CGPoint(x: histX(0, count: history.count, splitX: splitX), y: py(history[0], height: h, yMin: yMin, yMax: yMax)))
@@ -684,7 +685,7 @@ struct HealthProjectionChart: View {
                         p.addLine(to: CGPoint(x: histX(i, count: history.count, splitX: splitX), y: py(history[i], height: h, yMin: yMin, yMax: yMax)))
                     }
                 }
-                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5))
+                .stroke(Color.leafAccent, style: StrokeStyle(lineWidth: 1.5))
 
                 // central dashed (projection)
                 Path { p in
@@ -692,14 +693,14 @@ struct HealthProjectionChart: View {
                     p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
                     for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
                 }
-                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                .stroke(Color.leafAccent.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
 
                 // 80% reference (full width)
                 Path { p in
                     p.move(to: CGPoint(x: 0, y: py(80, height: h, yMin: yMin, yMax: yMax)))
                     p.addLine(to: CGPoint(x: w, y: py(80, height: h, yMin: yMin, yMax: yMax)))
                 }
-                .stroke(Color.red.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                .stroke(Color.garnetAccent.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
             }
         }
         .frame(height: 80)
