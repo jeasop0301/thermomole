@@ -28,8 +28,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindow: NSWindow?
     private var freshnessTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
+    /// True only in THERMOMOLE_SNAPSHOT render mode — keeps the dev hook side-effect-free
+    /// (don't flush accumulated exposure/strain back over the user's real history on exit).
+    private var isSnapshotMode = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Dev hook: render the menu-bar card to a PNG and quit (for sharing screenshots).
+        if let snapPath = ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT"] {
+            runSnapshotMode(path: snapPath)
+            return
+        }
+
         setupStatusItem()
         setupPopover()
 
@@ -50,12 +59,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         freshnessTimer?.invalidate()
+        // Snapshot mode is a throwaway render run — never write its samples to disk.
+        guard !isSnapshotMode else { return }
         let semaphore = DispatchSemaphore(value: 0)
         Task.detached { [model] in
             await model.flushExposureForTermination()
             semaphore.signal()
         }
         _ = semaphore.wait(timeout: .now() + 2)
+    }
+
+    /// Renders the popover card to a PNG (dark appearance, @2x) then terminates.
+    /// Invoked via THERMOMOLE_SNAPSHOT=<path>. Waits briefly so the model loads
+    /// persisted history and takes a first live sample before rendering.
+    private func runSnapshotMode(path: String) {
+        isSnapshotMode = true
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+        model.start()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.captureSnapshot(to: path)
+            NSApp.terminate(nil)
+        }
+    }
+
+    @MainActor
+    private func captureSnapshot(to path: String) {
+        let content = MenuBarPopoverView(model: model) {}
+            .environment(\.colorScheme, .dark)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 2
+
+        var image: NSImage?
+        let dark = NSAppearance(named: .darkAqua)!
+        dark.performAsCurrentDrawingAppearance {
+            image = renderer.nsImage
+        }
+        guard let image,
+              let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else {
+            return
+        }
+        try? png.write(to: URL(fileURLWithPath: path))
     }
 
     private func setupStatusItem() {
@@ -76,9 +122,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.showMainWindow()
             }
         )
-        // Size the popover to the SwiftUI content (the view is 370 wide with intrinsic
-        // height) instead of a fixed 360×520 box that clipped it and misaligned the arrow.
+        // Size the popover to the SwiftUI content (the Patina card is 424 wide with
+        // intrinsic height) so the box hugs the card and the arrow stays aligned.
         hosting.sizingOptions = [.preferredContentSize]
+        // The card is Dark Jewel only — pin the host appearance so thermoAdaptive resolves
+        // dark even when the system is in Light mode (mirrors the snapshot path).
+        hosting.view.appearance = NSAppearance(named: .darkAqua)
         popover.contentViewController = hosting
     }
 
@@ -175,7 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        if level == .hot, snapshot.battery.isCharging {
+        if level == .hot, snapshot.battery.isOnACPower {
             let attachment = NSTextAttachment()
             attachment.image = NSImage(systemSymbolName: "flame.fill", accessibilityDescription: "charging while hot")?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed]))
@@ -186,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         button.attributedTitle = attributed
         button.toolTip = presentation.toolTip
-        if level == .hot, snapshot.battery.isCharging {
+        if level == .hot, snapshot.battery.isOnACPower {
             button.setAccessibilityLabel("Charging while hot. " + presentation.accessibilityLabel)
         } else {
             button.setAccessibilityLabel(presentation.accessibilityLabel)

@@ -4,22 +4,20 @@ Patina is a battery-longevity and aging-insight menu-bar app for Apple Silicon M
 
 It runs entirely on-device — no network telemetry, no account required — and complements charge-limiter tools like AlDente by showing you *why* your battery ages: thermal exposure, high-SoC dwell, and charging habits surfaced as a single 0–100 longevity score with plain-language actions.
 
-- Menu bar HUD with configurable metrics. CPU temperature, battery temperature, and RAM percent are always available.
-- Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`-`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
-- Battery warning policy: 35°C caution, 40°C hot. No notification by default.
-- Thermal exposure tracking: per-day cumulative minutes at/above 35°C and 40°C plus the day's peak battery temperature, persisted locally to `~/Library/Application Support/ThermoMole/thermal-exposure.json`. Surfaced as a "Today's battery heat exposure" card in Status and a compact line in the menu bar popover.
-- Charging-while-hot warning: an in-app banner and a menu-bar visual (battery token tint, plus a flame at 40°C+ while charging) when the battery is warm/hot while on AC power. No system notification by default.
-- Status dashboard with a human-readable system brief, CPU, battery, RAM, disk, network, health score, top processes, and 60-second trend sparklines.
-- Clean includes a Smart Clean flow that scans, preselects recommended safe cache/log/installer items, shows category/path examples in the Trash confirmation, then moves selected items to Trash. Manual Review Scan remains available with category totals, search, category filtering, sorting, visible-item selection controls, path detail, Finder reveal, TCC-sensitive media cache skips, and operation logs. Scan categories include app caches, logs, developer artifacts, AI tool caches, browser caches, communication/design/cloud caches, temporary files, installer files, and Trash.
-- Software includes auto-loaded app version inventory, startup item inventory, search/filter, Finder reveal/open actions, and confirmation-gated app uninstall-to-Trash.
-- Analyze includes home-folder or chosen-folder scanning, cancelable scans, breadcrumb navigation, folder drill-down, Finder reveal, protected-path-aware Trash actions, and a disk treemap.
-- Optimize includes a one-click Default Optimize flow that batches runnable maintenance tasks behind one confirmation, with a top safety summary showing current context, runnable task count, command count, and staged tasks. Individual task cards remain available with visible effect summaries for Quick Look, Launch Services, periodic maintenance, and Dock refresh. Saved application state cleanup remains staged, and safety policy stages riskier tasks on battery power, active VPN, external display, external audio, or connected Bluetooth input/audio contexts.
-- Memory Doctor diagnoses pressure, compressed memory, free/cache memory, and top memory processes in Status and CLI. Advanced `purge` is gated behind critical memory pressure and explicit confirmation.
-- CLI `status` shows freshness, CPU/battery sensor sources, physical battery temperature, and SMC/ioreg battery sensor mismatch evidence. JSON output includes the same trust fields.
-- Local operation history records GUI and CLI execute actions to `~/Library/Logs/ThermoMole/operations.jsonl`.
+- Menu bar HUD with configurable metrics — CPU temperature, battery temperature, and RAM percent are always available; the title tints by system condition.
+- Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`–`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
+- Battery warning policy: 42°C caution, 48°C hot (cell-referenced). No notification by default.
+- Thermal exposure tracking: per-day cumulative minutes at/above 40°C and 45°C plus the day's peak battery temperature, persisted locally to `~/Library/Application Support/ThermoMole/`. Surfaced in the Status dashboard and the menu-bar card.
+- High state-of-charge dwell tracking: time held at ≥80% / ≥95% while on AC power (a primary calendar-aging factor), persisted locally.
+- Accelerated-aging engine: a live "aging speed" multiplier versus an ideal idle baseline (25°C / 50%), derived from published Li-ion kinetics — Arrhenius temperature acceleration (Ea = 0.55 eV) × a state-of-charge factor — plus a cumulative weekly "strain" (effective aging-days) and a cold-charge lithium-plating caution. Labeled throughout as a relative estimate, not a capacity measurement.
+- Patina aging card (menu-bar popover): the live multiplier and its dominant driver (heat vs charge); cell temperature / charge / power state (On battery · Charging · Full · AC · Held · AC); the weekly strain with a 7-day sparkline; a health outlook; and a Details expander with an hour-of-day heat strip, a battery-health projection band, longevity factors, and a 0–100 longevity score with plain-language actions.
+- Charging-while-hot warning: an in-app banner and a menu-bar flame when the battery is hot while on AC power. No system notification by default.
+- Status dashboard with a human-readable system brief, CPU (with a per-core grid), battery, RAM, disk, network, health score, top processes, instant battery power, internal SSD temperature, and 60-second trend sparklines.
+- Battery health trend log (daily health %, cycle count, capacity) → longevity score, fade/cycle-rate inference, and projected months to 80%.
+- Optional local notifications (off by default) for charging-while-hot, sustained heat, prolonged high charge, and low storage — throttled, with quiet hours.
 - Status restores the last sampled snapshot from `~/Library/Application Support/ThermoMole/last-status.json` for instant launch before the first live sample completes.
-- Settings include a local Doctor panel, diagnostic JSON export/import with summary preview, protected item policy viewer, operation history viewer, Full Disk Access status/open action, menu bar metric selection/reordering, Dock icon visibility, and launch-at-login registration.
-- SwiftUI controls include first-pass accessibility labels for the menu bar popover, Status cards, cleanup selection, disk treemap, breadcrumb navigation, search clear controls, and icon-only actions.
+- Settings: menu bar metric selection/reordering, Dock icon visibility, launch-at-login registration, and a system-notifications toggle.
+- SwiftUI controls include accessibility labels for the menu bar popover and Status cards.
 
 ## Run
 
@@ -28,33 +26,6 @@ It runs entirely on-device — no network telemetry, no account required — and
 ```
 
 The script builds with SwiftPM, re-signs the debug executable ad-hoc, and launches the menu bar app.
-
-## CLI
-
-The CLI uses the same core plans as the GUI. Default commands show the one-click
-plan; `--execute` runs the recommended action without item-by-item selection.
-Add `--json` to any command for machine-readable output.
-Analyze and Software default to summary-first output and reserve detailed rows
-for supporting context.
-
-```bash
-swift run ThermoMoleCLI status
-swift run ThermoMoleCLI clean
-swift run ThermoMoleCLI clean --execute
-swift run ThermoMoleCLI installer
-swift run ThermoMoleCLI installer --execute
-swift run ThermoMoleCLI uninstall "App Name"
-swift run ThermoMoleCLI uninstall "App Name" --execute
-swift run ThermoMoleCLI optimize
-swift run ThermoMoleCLI optimize --execute
-swift run ThermoMoleCLI analyze
-swift run ThermoMoleCLI software
-swift run ThermoMoleCLI memory
-swift run ThermoMoleCLI memory --purge
-swift run ThermoMoleCLI memory --purge --execute
-swift run ThermoMoleCLI history
-swift run ThermoMoleCLI status --json
-```
 
 ## Build App Bundle
 
@@ -89,19 +60,14 @@ codesign --force --sign - .build/arm64-apple-macosx/debug/ThermoMoleCoreCheck
 ## Notes
 
 - Target: Apple Silicon only, macOS 14+.
+- Insight only — no charge control. Patina reads sensors and never writes to the SMC; pair it with a charge limiter (AlDente) or macOS Optimized Battery Charging to act on what it shows.
 - Fan control is intentionally excluded. Fan RPM is read-only when available.
-- Quick tools are intentionally excluded from the current build.
-- Full Disk Access is not requested automatically; it improves scan coverage if granted manually.
-- Clean and Analyze skip privacy-sensitive default media/file roots before sizing to avoid surprise Apple Music, Photos, Desktop, Documents, and Downloads permission prompts. Choose a folder directly when you want to inspect one of those roots.
-- Settings shows the protected roots, allowed Trash prefixes, and default scan skips used by cleanup and analyze flows.
-- Smart Clean auto-selects recommended safe cleanup items, then requires confirmation before moving anything to Trash. Manual Review Scan remains unselected-by-default. Permanent deletion is intentionally excluded.
-- Memory Doctor is pressure-first diagnosis, not a classic "free RAM" button. Advanced purge is only executable at critical pressure with explicit confirmation and operation history logging.
-- Optimize safety checks are conservative: Quick Look remains runnable, periodic maintenance is kept out of the one-click default because it needs administrator privileges (still runnable individually), Launch Services uses a safe incremental re-register (no `-kill` database wipe, no `system` domain), and Dock refresh is staged when external display, default external audio output, connected Bluetooth input, or connected Bluetooth audio is detected. External audio and Bluetooth checks use short-timeout `system_profiler` probes; failed probes are treated as absent context.
-- Diagnostic reports are local JSON files containing status, Doctor checks, and recent operation history for troubleshooting. Settings can export a new report or import an existing report and show a local summary preview.
+- Runs entirely on-device: no network telemetry, no account. All history is persisted locally under `~/Library/Application Support/ThermoMole/`.
+- The aging multiplier and longevity score are relative estimates from published kinetics, not capacity measurements; treat them as directional guidance, not a battery-health readout.
 
 ## Longevity
 
-A dedicated Longevity tab turns the raw signals into a single 0–100 score, per-factor status (battery, heat, charging habits, storage, memory), and a prioritized list of plain-language actions to keep the Mac healthy longer. Backing it:
+The menu-bar popover surfaces a Patina aging card — a live accelerated-aging multiplier, weekly strain, and a Details expander with the full breakdown: a single 0–100 longevity score, per-factor status (battery, heat, charging habits, storage, memory), and a prioritized list of plain-language actions to keep the Mac healthy longer. Backing it:
 
 - Battery thermal-exposure and CPU/system thermal-exposure tracking (per-day minutes above thresholds, 7-day strips), persisted locally.
 - High state-of-charge dwell tracking — time held at ≥80% / ≥95% while on AC power (a primary aging factor), persisted locally.

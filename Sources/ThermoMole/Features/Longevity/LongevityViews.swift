@@ -1,57 +1,75 @@
 import SwiftUI
+import AppKit
 import ThermoMoleCore
 
-// MARK: - LongevityTab
+// MARK: - PatinaAgingCard
+//
+// The Dark Jewel aging card. Lives in the menu-bar popover (see PopoverViews).
+// Fixed 392pt content width — matches the Claude Design spec and the popover box.
 
-struct LongevityTab: View {
+struct PatinaAgingCard: View {
     @ObservedObject var model: AppModel
     @State private var showDetails = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
 
-                // 1. Header
-                PatinaHeader()
-                    .padding(.bottom, 20)
+            // 1. Header
+            PatinaHeader(statusColor: Color.agingWarmth(model.agingRate?.multiplier ?? 1.0))
+                .padding(.bottom, 22)
 
-                // 2. Aging hero
-                AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
-                    .padding(.bottom, 20)
+            // 2. Aging hero
+            AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
+                .padding(.bottom, 22)
 
-                // 3. Drivers
+            // 3. Drivers
+            hairline
+            DriversRow(snapshot: model.snapshot)
+                .padding(.top, 14)
+                .padding(.bottom, 22)
+
+            // 4. Strain (calendar) + cycle throughput
+            hairline
+            StrainSection(strain: model.agingStrain,
+                          cyclesPerWeek: model.batteryLongevity?.cyclesPerWeek)
+                .padding(.top, 14)
+                .padding(.bottom, 18)
+
+            // 5. When it runs hot — promoted from Details: the one pattern no competitor shows.
+            if model.heatPattern.hasEnoughData {
                 hairline
-                DriversRow(snapshot: model.snapshot)
+                HeatPatternSection(hourlyProfile: model.heatPattern.hourlyProfile)
                     .padding(.top, 14)
-                    .padding(.bottom, 20)
-
-                // 4. Strain
-                hairline
-                StrainSection(strain: model.agingStrain)
-                    .padding(.top, 14)
-                    .padding(.bottom, 14)
-
-                // 5. Outlook
-                OutlookLine(projection: model.healthProjection)
-                    .padding(.bottom, 16)
-
-                // 6. Action chip
-                if let action = model.longevityAssessment.actions.first {
-                    ActionChip(action: action)
-                        .padding(.bottom, 16)
-                }
-
-                // 7. Details expander
-                DetailsToggleRow(showDetails: $showDetails)
-                    .padding(.bottom, showDetails ? 14 : 0)
-
-                if showDetails {
-                    DetailsContent(model: model)
-                }
+                    .padding(.bottom, 18)
             }
-            .padding(22)
-            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // 6. Outlook
+            OutlookLine(projection: model.healthProjection)
+                .padding(.bottom, 18)
+
+            // 6. Action chip
+            if let action = model.longevityAssessment.actions.first {
+                ActionChip(action: action)
+                    .padding(.bottom, 18)
+            }
+
+            // 7. Details expander
+            hairline
+            DetailsToggleRow(showDetails: $showDetails)
+                .padding(.bottom, showDetails ? 14 : 0)
+
+            if showDetails {
+                // Bound the (long) details so the auto-sized popover can't grow past the
+                // screen and clip the score/factors off the bottom — scroll within instead.
+                ScrollView { DetailsContent(model: model) }
+                    .frame(height: detailsViewportHeight)
+            }
         }
+        .padding(24)
+        .frame(width: 392, alignment: .leading)
+        .background(Color.cardFill)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
     }
 
     private var hairline: some View {
@@ -59,24 +77,33 @@ struct LongevityTab: View {
             .fill(Color.subtleStroke)
             .frame(height: 1)
     }
+
+    /// Cap the expanded details to what fits under the menu bar on the current screen,
+    /// leaving room for the collapsed card + footer. DetailsContent is longer than this,
+    /// so it always scrolls — no wasted space.
+    private var detailsViewportHeight: CGFloat {
+        let screenH = NSScreen.main?.visibleFrame.height ?? 900
+        return max(220, min(380, screenH - 760))
+    }
 }
 
 // MARK: - 1. Header
 
 private struct PatinaHeader: View {
+    /// Live aging-state tint (cream / amber / garnet) — a small status light, not décor,
+    /// so amber stays strictly semantic and never doubles as a brand accent.
+    let statusColor: Color
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Text("Patina")
-                    .font(.patinaDisplay(22))
+                    .font(.patinaDisplay(26, .semibold))
                     .foregroundStyle(Color.textPrimary)
                 Circle()
-                    .fill(Color.leafAccent)
+                    .fill(statusColor)
                     .frame(width: 7, height: 7)
                 Spacer()
-                Circle()
-                    .fill(Color.leafAccent)
-                    .frame(width: 7, height: 7)
             }
             Text("See your battery age, honestly.")
                 .font(.patinaBody(13))
@@ -92,16 +119,24 @@ private struct AgingHeroSection: View {
     let snapshot: SystemSnapshot
 
     private var multiplier: Double { rate?.multiplier ?? 1.0 }
-    private var warmth: Color { Color.agingWarmth(multiplier) }
+    /// Cold-charge plating risk dominates the calendar rate, which floors to ~1.0×.
+    /// Tint the hero garnet so the number agrees with the plating caution below
+    /// instead of reading as a calm "ideal".
+    private var warmth: Color {
+        rate?.coldChargeCaution == true ? Color.garnetAccent : Color.agingWarmth(multiplier)
+    }
 
-    private var formattedMultiplier: String {
+    private var formattedNumber: String {
         guard let rate else { return "" }
         let m = rate.multiplier
-        return m >= 10 ? "\(Int(m.rounded()))×" : String(format: "%.1f×", m)
+        return m >= 10 ? "\(Int(m.rounded()))" : String(format: "%.1f", m)
     }
 
     private var driverLine: String {
         guard let rate else { return "" }
+        // Driver attribution only makes sense once aging is actually elevated;
+        // at the low band the multiplier is ~1.0× so naming a "main driver" misleads.
+        if rate.band == .low { return "Aging at the ideal idle rate" }
         switch rate.dominantDriver {
         case .temperature: return "Heat is the main driver right now"
         case .charge: return "High charge is the main driver right now"
@@ -109,39 +144,76 @@ private struct AgingHeroSection: View {
         }
     }
 
+    /// Categorical truth alongside the precise-looking numeral, so the headline
+    /// doesn't lean on one-decimal precision the noisy inputs can't support.
+    private var bandWord: String {
+        switch rate?.band {
+        case .high: return "HIGH"
+        case .moderate: return "ELEVATED"
+        case .low, .none: return "LOW"
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("AGING SPEED NOW")
-                .font(.thermoCaption)
-                .kerning(0.8)
-                .foregroundStyle(Color.textTertiary)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text("AGING SPEED NOW")
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.textTertiary)
+                if rate != nil {
+                    Text(bandWord)
+                        .font(.patinaBody(10, .semibold))
+                        .tracking(1.0)
+                        .foregroundStyle(warmth)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(warmth.opacity(0.14))
+                        .clipShape(Capsule())
+                }
+                Spacer()
+            }
+            .padding(.bottom, 10)
 
             if rate == nil {
                 Text("Collecting…")
                     .font(.patinaBody(15))
                     .foregroundStyle(Color.textSecondary)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 14) {
-                    // Hero number + companion arc
-                    ZStack {
-                        // Decorative companion arc (not a gauge)
-                        CompanionArc(color: warmth)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    // "≈ " prefix
+                    Text("≈ ")
+                        .font(.patinaDisplay(40, .medium))
+                        .foregroundStyle(warmth)
 
-                        Text("≈ \(formattedMultiplier)")
-                            .font(.patinaDisplay(56, .medium))
-                            .foregroundStyle(warmth)
-                            .shadow(color: warmth.opacity(0.5), radius: 8)
-                            .monospacedDigit()
-                            .padding(.leading, 10)
-                    }
-                    .frame(height: 72)
+                    // Hero numeral
+                    Text(formattedNumber)
+                        .font(.patinaDisplay(86, .medium))
+                        .foregroundStyle(warmth)
+                        .shadow(color: warmth.opacity(0.5), radius: 10)
+                        .monospacedDigit()
+
+                    // "×" suffix
+                    Text("×")
+                        .font(.patinaDisplay(40, .medium))
+                        .foregroundStyle(warmth)
+
+                    // Companion arc
+                    CompanionArc(color: warmth)
+                        .frame(width: 48, height: 80)
+                        .padding(.leading, 14)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle"))
 
                 Text("aging vs an ideal idle (25° / 50%)")
                     .font(.patinaBody(12))
                     .foregroundStyle(Color.textTertiary)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
                     Circle()
                         .fill(warmth)
                         .frame(width: 7, height: 7)
@@ -150,8 +222,17 @@ private struct AgingHeroSection: View {
                         .foregroundStyle(Color.textSecondary)
                 }
 
+                // Anti-gaming: a low SoC genuinely lowers calendar aging, but chasing a
+                // lower number by running the pack down trades it for extra cycle wear.
+                if snapshot.battery.percent < 25 {
+                    Text("Low charge isn’t “better” — mid charge (~50%) is healthiest.")
+                        .font(.patinaBody(12))
+                        .foregroundStyle(Color.textTertiary)
+                        .padding(.top, 4)
+                }
+
                 if rate?.coldChargeCaution == true {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 7) {
                         Circle()
                             .fill(Color.garnetAccent)
                             .frame(width: 7, height: 7)
@@ -159,13 +240,19 @@ private struct AgingHeroSection: View {
                             .font(.patinaBody(13))
                             .foregroundStyle(Color.garnetAccent)
                     }
+                    .padding(.top, 4)
                 }
             }
 
+            // Disclaimer raised to secondary contrast so the visual hierarchy matches the
+            // model's actual (modest) precision rather than letting the big numeral oversell it.
             Text("Relative estimate from published kinetics — not a capacity measurement.")
-                .font(.thermoCaption)
-                .foregroundStyle(Color.textTertiary)
+                .font(.patinaBody(11))
+                .foregroundStyle(Color.textSecondary)
+                .padding(.top, 10)
         }
+        .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
+        .heroPanel()
     }
 }
 
@@ -207,18 +294,34 @@ private struct DriversRow: View {
         return snapshot.thermal.batteryDisplayC
     }
 
+    /// 3-state power label. "On battery" only when genuinely off AC — an AC-connected
+    /// pack that isn't charging (held by a limiter, or full) must NOT read as on-battery.
+    private var powerLabel: String {
+        let b = snapshot.battery
+        if !b.isOnACPower { return "On battery" }
+        if b.isCharging { return "Charging" }
+        return b.isCharged ? "Full · AC" : "Held · AC"
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             DriverCell(value: hottestC.map { "\(Int($0.rounded()))°" } ?? "—",
                        label: "CELL TEMP")
-            Divider().frame(height: 30).padding(.horizontal, 4)
+            driverDivider
             DriverCell(value: "\(snapshot.battery.percent)%",
                        label: "CHARGE")
-            Divider().frame(height: 30).padding(.horizontal, 4)
-            DriverCell(value: snapshot.battery.isCharging ? "Charging" : "On battery",
+            driverDivider
+            DriverCell(value: powerLabel,
                        label: "POWER")
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var driverDivider: some View {
+        Rectangle()
+            .fill(Color.subtleStroke)
+            .frame(width: 1, height: 28)
+            .padding(.horizontal, 4)
     }
 }
 
@@ -227,17 +330,20 @@ private struct DriverCell: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(value)
-                .font(.patinaDisplay(18, .medium))
+                .font(.patinaBody(21, .medium))
                 .foregroundStyle(Color.textPrimary)
                 .monospacedDigit()
             Text(label)
-                .font(.thermoCaption)
-                .kerning(0.6)
+                .font(.patinaBody(10, .semibold))
+                .tracking(0.8)
+                .textCase(.uppercase)
                 .foregroundStyle(Color.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(label): \(value)"))
     }
 }
 
@@ -245,12 +351,17 @@ private struct DriverCell: View {
 
 private struct StrainSection: View {
     let strain: AgingStrainSummary
+    /// Cycle throughput is a SEPARATE wear mechanism the calendar multiplier doesn't capture;
+    /// surfacing it stops heavy-cyclers (cool + mid-SoC) from being silently under-warned.
+    let cyclesPerWeek: Double?
+
+    private var heavyCycling: Bool { (cyclesPerWeek ?? 0) >= 15 }   // matches BatteryLongevity.highCycleRate
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !strain.hasData {
                 Text("This week · Collecting…")
-                    .font(.patinaBody(14))
+                    .font(.patinaBody(13.5))
                     .foregroundStyle(Color.textSecondary)
             } else {
                 let ratioTint = Color.agingWarmth(strain.ratio7d)
@@ -258,31 +369,50 @@ private struct StrainSection: View {
 
                 HStack(spacing: 4) {
                     Text("This week ran")
-                        .font(.patinaBody(14))
+                        .font(.patinaBody(13.5))
                         .foregroundStyle(Color.textSecondary)
                     Text(String(format: "%.1f×", strain.ratio7d))
-                        .font(.patinaBody(14, .semibold))
+                        .font(.patinaBody(13.5, .semibold))
                         .foregroundStyle(ratioTint)
                     Text("ideal · +\(String(format: "%.1f", displayDays)) aging-days")
-                        .font(.patinaBody(14))
+                        .font(.patinaBody(13.5))
                         .foregroundStyle(Color.textSecondary)
                 }
                 .fixedSize(horizontal: false, vertical: true)
 
                 if !strain.recent7.isEmpty {
                     StrainSparkline(ratios: strain.recent7)
-                        .frame(height: 36)
+                        .frame(height: 28)
                 }
             }
 
-            Text("Relative estimate — not a capacity measurement.")
-                .font(.thermoCaption)
+            // Cycle throughput — the dominant wear mode for heavy users, invisible to the
+            // calendar multiplier above.
+            if let cw = cyclesPerWeek, cw >= 0.5 {
+                HStack(spacing: 4) {
+                    Text("Cycling ·")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(Color.textSecondary)
+                    Text(String(format: "~%.0f full cycles/week", cw))
+                        .font(.patinaBody(13, heavyCycling ? .semibold : .regular))
+                        .foregroundStyle(heavyCycling ? Color.amberAccent : Color.textSecondary)
+                    if heavyCycling {
+                        Text("· heavy")
+                            .font(.patinaBody(13, .semibold))
+                            .foregroundStyle(Color.amberAccent)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Relative estimate — calendar aging only; cycle wear is tracked separately.")
+                .font(.patinaBody(11))
                 .foregroundStyle(Color.textTertiary)
         }
     }
 }
 
-/// 7-point polyline sparkline with dots; last point emphasized; emerald/warmth color.
+/// 7-point polyline; neutral taupe line, last dot tinted by agingWarmth (cream/amber/garnet).
 private struct StrainSparkline: View {
     let ratios: [Double]
 
@@ -302,19 +432,19 @@ private struct StrainSparkline: View {
             }
 
             return AnyView(ZStack {
-                // Polyline
+                // Polyline — calm neutral; color is reserved for the latest point
                 Path { p in
                     p.move(to: CGPoint(x: x(0), y: y(ratios[0])))
                     for i in 1..<count {
                         p.addLine(to: CGPoint(x: x(i), y: y(ratios[i])))
                     }
                 }
-                .stroke(Color.leafAccent.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+                .stroke(Color.textSecondary, style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
 
                 // Dots
                 ForEach(Array(ratios.enumerated()), id: \.offset) { idx, val in
                     let isLast = idx == count - 1
-                    let dotColor = isLast ? Color.agingWarmth(val) : Color.leafAccent.opacity(0.5)
+                    let dotColor = isLast ? Color.agingWarmth(val) : Color.textTertiary
                     Circle()
                         .fill(dotColor)
                         .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
@@ -338,6 +468,10 @@ private struct OutlookLine: View {
             if let r = projection.monthsTo80Range {
                 return "Outlook · ~80% health in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) months"
             }
+            // Already at/below 80%: months-to-80 is undefined, so don't sit on "projecting…".
+            if projection.currentHealthPercent <= 80 {
+                return "Outlook · already below 80% — tracking further fade"
+            }
             return "Outlook · projecting…"
         case .flat:
             return "Outlook · holding steady at the current trend"
@@ -353,6 +487,29 @@ private struct OutlookLine: View {
     }
 }
 
+// MARK: - When It Runs Hot (promoted unique surface)
+
+/// The hour-of-day heat strip — a fixable, non-obvious pattern no competitor surfaces.
+/// Shown on the main card (caller gates on hasEnoughData) rather than buried in Details.
+private struct HeatPatternSection: View {
+    let hourlyProfile: [Double?]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("WHEN IT RUNS HOT")
+                .font(.patinaBody(11, .semibold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.textTertiary)
+            Text("Cell temperature by hour of day")
+                .font(.patinaBody(12))
+                .foregroundStyle(Color.textTertiary)
+            HeatStrip(profile: hourlyProfile)
+                .frame(height: 34)
+        }
+    }
+}
+
 // MARK: - 6. Action Chip
 
 private struct ActionChip: View {
@@ -362,23 +519,55 @@ private struct ActionChip: View {
         switch action.severity {
         case .urgent:  Color.garnetAccent
         case .suggest: Color.amberAccent
-        case .info:    Color.leafAccent
+        case .info:    Color.textSecondary
         }
     }
 
+    /// Close the action loop: route charge/battery advice to the automated lever
+    /// (macOS Optimized Charging in Battery settings) instead of nagging a manual chore.
+    private var deepLink: URL? {
+        let id = action.id
+        if id.contains("soc") || id.contains("charge") || id.contains("battery") {
+            return URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")
+        }
+        if id.contains("storage") {
+            return URL(string: "x-apple.systempreferences:com.apple.settings.Storage")
+        }
+        return nil
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
+        if let url = deepLink {
+            Button {
+                NSWorkspace.shared.open(url)
+            } label: {
+                chip(showChevron: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Opens System Settings"))
+        } else {
+            chip(showChevron: false)
+        }
+    }
+
+    private func chip(showChevron: Bool) -> some View {
+        HStack(spacing: 7) {
             Circle()
                 .fill(chipColor)
                 .frame(width: 7, height: 7)
             Text(action.title)
                 .font(.patinaBody(13))
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(chipColor)
+            if showChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(chipColor.opacity(0.7))
+            }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 8)
         .background(chipColor.opacity(0.14))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 9))
     }
 }
 
@@ -390,7 +579,7 @@ private struct DetailsToggleRow: View {
     var body: some View {
         HStack {
             Text("Details · Patterns")
-                .font(.patinaBody(13, .medium))
+                .font(.patinaBody(12.5))
                 .foregroundStyle(Color.textSecondary)
             Spacer()
             Button(showDetails ? "Hide" : "Show") {
@@ -398,8 +587,8 @@ private struct DetailsToggleRow: View {
                     showDetails.toggle()
                 }
             }
-            .font(.patinaBody(12))
-            .foregroundStyle(Color.leafAccent)
+            .font(.patinaBody(12.5))
+            .foregroundStyle(Color.textSecondary)
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
@@ -412,30 +601,12 @@ private struct DetailsContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
 
-            // Heat strip section
-            VStack(alignment: .leading, spacing: 6) {
-                Text("WHEN IT RUNS HOT")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
-                    .foregroundStyle(Color.textTertiary)
-                Text("Cell temperature by hour of day")
-                    .font(.patinaBody(12))
-                    .foregroundStyle(Color.textTertiary)
-
-                if model.heatPattern.hasEnoughData {
-                    HeatStrip(profile: model.heatPattern.hourlyProfile)
-                        .frame(height: 28)
-                } else {
-                    Text("Collecting…")
-                        .font(.patinaBody(13))
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
+            // (The hour-of-day heat strip is promoted to the main card; see HeatPatternSection.)
 
             // Heat vs health
             VStack(alignment: .leading, spacing: 4) {
                 Text("Heat vs health.")
-                    .font(.patinaBody(13, .medium))
+                    .font(.patinaBody(13))
                     .foregroundStyle(Color.textSecondary)
                 Text(verdictCopy)
                     .font(.patinaBody(12))
@@ -446,8 +617,9 @@ private struct DetailsContent: View {
             // Health outlook
             VStack(alignment: .leading, spacing: 8) {
                 Text("HEALTH OUTLOOK")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.1)
+                    .textCase(.uppercase)
                     .foregroundStyle(Color.textTertiary)
 
                 switch model.healthProjection.status {
@@ -457,7 +629,7 @@ private struct DetailsContent: View {
                         points: model.healthProjection.points
                     )
                     Text("Projection band · relative estimate, not a capacity measurement.")
-                        .font(.thermoCaption)
+                        .font(.patinaBody(11))
                         .foregroundStyle(Color.textTertiary)
                 case .flat:
                     Text("Battery health is holding steady at the current trend.")
@@ -473,8 +645,9 @@ private struct DetailsContent: View {
             // Longevity factors
             VStack(alignment: .leading, spacing: 10) {
                 Text("LONGEVITY FACTORS")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.1)
+                    .textCase(.uppercase)
                     .foregroundStyle(Color.textTertiary)
 
                 ForEach(model.longevityAssessment.factors) { factor in
@@ -486,13 +659,13 @@ private struct DetailsContent: View {
             let score = model.longevityAssessment.score
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(score)")
-                    .font(.patinaDisplay(28, .medium))
+                    .font(.patinaDisplay(38, .medium))
                     .foregroundStyle(scoreTint(score))
                     .shadow(color: scoreTint(score).opacity(0.45), radius: 6)
                     .monospacedDigit()
                 Text("/ 100 longevity score")
                     .font(.patinaBody(13))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.textTertiary)
             }
             .padding(.top, 4)
         }
@@ -507,7 +680,7 @@ private struct DetailsContent: View {
     }
 
     private func scoreTint(_ score: Int) -> Color {
-        if score >= 85 { return Color.leafAccent }
+        if score >= 85 { return Color.textPrimary }
         if score >= 65 { return Color.amberAccent }
         return Color.garnetAccent
     }
@@ -518,35 +691,30 @@ private struct FactorRow: View {
 
     private var tint: Color {
         switch factor.status {
-        case .good:  Color.leafAccent
+        case .good:  Color.textPrimary
         case .watch: Color.amberAccent
         case .poor:  Color.garnetAccent
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(factor.title)
-                    .font(.patinaBody(13, .medium))
-                    .foregroundStyle(Color.textPrimary)
-                Spacer()
-            }
-            // Horizontal bar tinted by status
+        HStack(spacing: 12) {
+            Text(factor.title)
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+            // Pill bar on the right
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.insetFill)
-                        .frame(height: 5)
+                        .frame(height: 6)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(tint)
-                        .frame(width: barWidth(geo.size.width), height: 5)
+                        .frame(width: barWidth(geo.size.width), height: 6)
                 }
             }
-            .frame(height: 5)
-            Text(factor.summary)
-                .font(.patinaBody(11))
-                .foregroundStyle(Color.textTertiary)
+            .frame(width: 80, height: 6)
         }
     }
 
@@ -574,14 +742,14 @@ struct HeatStrip: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(heatCellColor(h < profile.count ? profile[h] : nil))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 18)
+                        .frame(height: 34)
                 }
             }
             HStack(spacing: 0) {
                 ForEach(0..<25, id: \.self) { h in
                     if tickHours.contains(h) {
                         Text("\(h)")
-                            .font(.system(size: 8))
+                            .font(.patinaBody(10))
                             .foregroundStyle(Color.textTertiary)
                     } else {
                         Color.clear
@@ -597,22 +765,23 @@ struct HeatStrip: View {
 
 // MARK: - Shared helpers (kept for HeatStrip and HealthProjectionChart)
 
-/// Maps a mean battery temp to a cool→amber(42°)→red(48°) fill; nil = no data.
+/// Maps a mean battery temp to a quiet-neutral → amber(42°) → garnet(48°) fill; nil = no data.
+/// Cool hours stay a calm warm-neutral (on the Dark Jewel palette) — no teal/blue.
 private func heatCellColor(_ meanC: Double?) -> Color {
     guard let t = meanC else { return Color.insetFill }
     let caution = ThermalThresholds.batteryCautionC // 42
     let hot = ThermalThresholds.batteryHotC         // 48
     let coolFloor = caution - 14                    // 28 — wider gradient window
-    if t <= coolFloor { return Color.oceanAccent.opacity(0.25) }
+    if t <= coolFloor { return Color.textTertiary.opacity(0.18) }
     if t < caution {
         let f = (t - coolFloor) / 14
-        return Color.oceanAccent.opacity(0.25 + 0.35 * f)
+        return Color.amberAccent.opacity(0.12 + 0.33 * f)
     }
     if t < hot {
         let f = (t - caution) / (hot - caution)
-        return Color.amberAccent.opacity(0.5 + 0.45 * f)
+        return Color.amberAccent.opacity(0.55 + 0.40 * f)
     }
-    return Color.red.opacity(0.9)
+    return Color.garnetAccent.opacity(0.92)
 }
 
 // MARK: - HealthProjectionChart (unchanged — reused)
@@ -650,9 +819,9 @@ struct HealthProjectionChart: View {
                     for pt in points.reversed() { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.low, height: h, yMin: yMin, yMax: yMax))) }
                     p.closeSubpath()
                 }
-                .fill(Color.oceanAccent.opacity(0.18))
+                .fill(Color.textTertiary.opacity(0.16))
 
-                // historical actual line (solid)
+                // historical actual line (solid) — gold data series
                 Path { p in
                     guard history.count >= 2 else { return }
                     p.move(to: CGPoint(x: histX(0, count: history.count, splitX: splitX), y: py(history[0], height: h, yMin: yMin, yMax: yMax)))
@@ -660,7 +829,7 @@ struct HealthProjectionChart: View {
                         p.addLine(to: CGPoint(x: histX(i, count: history.count, splitX: splitX), y: py(history[i], height: h, yMin: yMin, yMax: yMax)))
                     }
                 }
-                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5))
+                .stroke(Color.textSecondary, style: StrokeStyle(lineWidth: 1.5))
 
                 // central dashed (projection)
                 Path { p in
@@ -668,14 +837,14 @@ struct HealthProjectionChart: View {
                     p.move(to: CGPoint(x: projX(f.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(f.central, height: h, yMin: yMin, yMax: yMax)))
                     for pt in points { p.addLine(to: CGPoint(x: projX(pt.monthOffset, maxMonth: maxMonth, splitX: splitX, width: w), y: py(pt.central, height: h, yMin: yMin, yMax: yMax))) }
                 }
-                .stroke(Color.oceanAccent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                .stroke(Color.textSecondary.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
 
                 // 80% reference (full width)
                 Path { p in
                     p.move(to: CGPoint(x: 0, y: py(80, height: h, yMin: yMin, yMax: yMax)))
                     p.addLine(to: CGPoint(x: w, y: py(80, height: h, yMin: yMin, yMax: yMax)))
                 }
-                .stroke(Color.red.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                .stroke(Color.garnetAccent.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
             }
         }
         .frame(height: 80)

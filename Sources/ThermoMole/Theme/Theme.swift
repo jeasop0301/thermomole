@@ -65,9 +65,10 @@ extension Color {
     static let thermoAccent = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
 
     // MARK: - Semantic helper
-    /// Returns garnet / amber / leaf based on battery aging multiplier magnitude.
+    /// Returns garnet / amber / calm-cream based on battery aging multiplier magnitude.
+    /// "Good" is a calm warm-neutral (no green/teal) — color is reserved for elevated states.
     static func agingWarmth(_ multiplier: Double) -> Color {
-        multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .leafAccent)
+        multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .textPrimary)
     }
 }
 
@@ -153,6 +154,14 @@ func formatBatteryPower(_ watts: Double) -> String? {
     guard abs(watts) >= 0.5 else { return nil }
     let sign = watts > 0 ? "+" : "−"
     return String(format: "%@%.0f W", sign, abs(watts))
+}
+
+/// Power-flow direction from the boolean flags (amperage sign is unreliable across Macs).
+/// "from pack" only when genuinely off AC — AC-connected-but-not-charging is "holding"/"full".
+func batteryPowerDirection(_ b: BatteryStatus) -> String {
+    if b.isCharging { return "into pack" }
+    if !b.isOnACPower { return "from pack" }
+    return b.isCharged ? "full" : "holding"
 }
 
 func batterySourceLabel(_ source: BatteryTemperatureSource) -> String {
