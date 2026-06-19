@@ -13,35 +13,36 @@ struct LongevityTab: View {
 
                 // 1. Header
                 PatinaHeader()
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 22)
 
                 // 2. Aging hero
                 AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 22)
 
                 // 3. Drivers
                 hairline
                 DriversRow(snapshot: model.snapshot)
                     .padding(.top, 14)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 22)
 
                 // 4. Strain
                 hairline
                 StrainSection(strain: model.agingStrain)
                     .padding(.top, 14)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 18)
 
                 // 5. Outlook
                 OutlookLine(projection: model.healthProjection)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 18)
 
                 // 6. Action chip
                 if let action = model.longevityAssessment.actions.first {
                     ActionChip(action: action)
-                        .padding(.bottom, 16)
+                        .padding(.bottom, 18)
                 }
 
                 // 7. Details expander
+                hairline
                 DetailsToggleRow(showDetails: $showDetails)
                     .padding(.bottom, showDetails ? 14 : 0)
 
@@ -49,9 +50,10 @@ struct LongevityTab: View {
                     DetailsContent(model: model)
                 }
             }
-            .padding(22)
+            .padding(26)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Color.appBackground)
     }
 
     private var hairline: some View {
@@ -66,17 +68,14 @@ struct LongevityTab: View {
 private struct PatinaHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Text("Patina")
-                    .font(.patinaDisplay(22))
+                    .font(.patinaDisplay(26, .semibold))
                     .foregroundStyle(Color.textPrimary)
                 Circle()
                     .fill(Color.leafAccent)
                     .frame(width: 7, height: 7)
                 Spacer()
-                Circle()
-                    .fill(Color.leafAccent)
-                    .frame(width: 7, height: 7)
             }
             Text("See your battery age, honestly.")
                 .font(.patinaBody(13))
@@ -94,10 +93,10 @@ private struct AgingHeroSection: View {
     private var multiplier: Double { rate?.multiplier ?? 1.0 }
     private var warmth: Color { Color.agingWarmth(multiplier) }
 
-    private var formattedMultiplier: String {
+    private var formattedNumber: String {
         guard let rate else { return "" }
         let m = rate.multiplier
-        return m >= 10 ? "\(Int(m.rounded()))×" : String(format: "%.1f×", m)
+        return m >= 10 ? "\(Int(m.rounded()))" : String(format: "%.1f", m)
     }
 
     private var driverLine: String {
@@ -110,38 +109,50 @@ private struct AgingHeroSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("AGING SPEED NOW")
-                .font(.thermoCaption)
-                .kerning(0.8)
+                .font(.patinaBody(11, .semibold))
+                .tracking(1.4)
+                .textCase(.uppercase)
                 .foregroundStyle(Color.textTertiary)
+                .padding(.bottom, 10)
 
             if rate == nil {
                 Text("Collecting…")
                     .font(.patinaBody(15))
                     .foregroundStyle(Color.textSecondary)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 14) {
-                    // Hero number + companion arc
-                    ZStack {
-                        // Decorative companion arc (not a gauge)
-                        CompanionArc(color: warmth)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    // "≈ " prefix
+                    Text("≈ ")
+                        .font(.patinaDisplay(40, .medium))
+                        .foregroundStyle(warmth)
 
-                        Text("≈ \(formattedMultiplier)")
-                            .font(.patinaDisplay(56, .medium))
-                            .foregroundStyle(warmth)
-                            .shadow(color: warmth.opacity(0.5), radius: 8)
-                            .monospacedDigit()
-                            .padding(.leading, 10)
-                    }
-                    .frame(height: 72)
+                    // Hero numeral
+                    Text(formattedNumber)
+                        .font(.patinaDisplay(86, .medium))
+                        .foregroundStyle(warmth)
+                        .shadow(color: warmth.opacity(0.5), radius: 10)
+                        .monospacedDigit()
+
+                    // "×" suffix
+                    Text("×")
+                        .font(.patinaDisplay(40, .medium))
+                        .foregroundStyle(warmth)
+
+                    // Companion arc
+                    CompanionArc(color: warmth)
+                        .frame(width: 48, height: 80)
+                        .padding(.leading, 14)
                 }
 
                 Text("aging vs an ideal idle (25° / 50%)")
                     .font(.patinaBody(12))
                     .foregroundStyle(Color.textTertiary)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
                     Circle()
                         .fill(warmth)
                         .frame(width: 7, height: 7)
@@ -151,7 +162,7 @@ private struct AgingHeroSection: View {
                 }
 
                 if rate?.coldChargeCaution == true {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 7) {
                         Circle()
                             .fill(Color.garnetAccent)
                             .frame(width: 7, height: 7)
@@ -159,13 +170,17 @@ private struct AgingHeroSection: View {
                             .font(.patinaBody(13))
                             .foregroundStyle(Color.garnetAccent)
                     }
+                    .padding(.top, 4)
                 }
             }
 
             Text("Relative estimate from published kinetics — not a capacity measurement.")
-                .font(.thermoCaption)
+                .font(.patinaBody(11))
                 .foregroundStyle(Color.textTertiary)
+                .padding(.top, 10)
         }
+        .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
+        .heroPanel()
     }
 }
 
@@ -211,14 +226,21 @@ private struct DriversRow: View {
         HStack(spacing: 0) {
             DriverCell(value: hottestC.map { "\(Int($0.rounded()))°" } ?? "—",
                        label: "CELL TEMP")
-            Divider().frame(height: 30).padding(.horizontal, 4)
+            driverDivider
             DriverCell(value: "\(snapshot.battery.percent)%",
                        label: "CHARGE")
-            Divider().frame(height: 30).padding(.horizontal, 4)
+            driverDivider
             DriverCell(value: snapshot.battery.isCharging ? "Charging" : "On battery",
                        label: "POWER")
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var driverDivider: some View {
+        Rectangle()
+            .fill(Color.subtleStroke)
+            .frame(width: 1, height: 28)
+            .padding(.horizontal, 4)
     }
 }
 
@@ -227,14 +249,15 @@ private struct DriverCell: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(value)
-                .font(.patinaDisplay(18, .medium))
+                .font(.patinaBody(21, .medium))
                 .foregroundStyle(Color.textPrimary)
                 .monospacedDigit()
             Text(label)
-                .font(.thermoCaption)
-                .kerning(0.6)
+                .font(.patinaBody(10, .semibold))
+                .tracking(0.8)
+                .textCase(.uppercase)
                 .foregroundStyle(Color.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,7 +273,7 @@ private struct StrainSection: View {
         VStack(alignment: .leading, spacing: 8) {
             if !strain.hasData {
                 Text("This week · Collecting…")
-                    .font(.patinaBody(14))
+                    .font(.patinaBody(13.5))
                     .foregroundStyle(Color.textSecondary)
             } else {
                 let ratioTint = Color.agingWarmth(strain.ratio7d)
@@ -258,25 +281,25 @@ private struct StrainSection: View {
 
                 HStack(spacing: 4) {
                     Text("This week ran")
-                        .font(.patinaBody(14))
+                        .font(.patinaBody(13.5))
                         .foregroundStyle(Color.textSecondary)
                     Text(String(format: "%.1f×", strain.ratio7d))
-                        .font(.patinaBody(14, .semibold))
+                        .font(.patinaBody(13.5, .semibold))
                         .foregroundStyle(ratioTint)
                     Text("ideal · +\(String(format: "%.1f", displayDays)) aging-days")
-                        .font(.patinaBody(14))
+                        .font(.patinaBody(13.5))
                         .foregroundStyle(Color.textSecondary)
                 }
                 .fixedSize(horizontal: false, vertical: true)
 
                 if !strain.recent7.isEmpty {
                     StrainSparkline(ratios: strain.recent7)
-                        .frame(height: 36)
+                        .frame(height: 28)
                 }
             }
 
             Text("Relative estimate — not a capacity measurement.")
-                .font(.thermoCaption)
+                .font(.patinaBody(11))
                 .foregroundStyle(Color.textTertiary)
         }
     }
@@ -367,18 +390,18 @@ private struct ActionChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 7) {
             Circle()
                 .fill(chipColor)
                 .frame(width: 7, height: 7)
             Text(action.title)
                 .font(.patinaBody(13))
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(chipColor)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 8)
         .background(chipColor.opacity(0.14))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 9))
     }
 }
 
@@ -390,7 +413,7 @@ private struct DetailsToggleRow: View {
     var body: some View {
         HStack {
             Text("Details · Patterns")
-                .font(.patinaBody(13, .medium))
+                .font(.patinaBody(12.5))
                 .foregroundStyle(Color.textSecondary)
             Spacer()
             Button(showDetails ? "Hide" : "Show") {
@@ -398,8 +421,8 @@ private struct DetailsToggleRow: View {
                     showDetails.toggle()
                 }
             }
-            .font(.patinaBody(12))
-            .foregroundStyle(Color.leafAccent)
+            .font(.patinaBody(12.5))
+            .foregroundStyle(Color.textSecondary)
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
@@ -415,8 +438,9 @@ private struct DetailsContent: View {
             // Heat strip section
             VStack(alignment: .leading, spacing: 6) {
                 Text("WHEN IT RUNS HOT")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.1)
+                    .textCase(.uppercase)
                     .foregroundStyle(Color.textTertiary)
                 Text("Cell temperature by hour of day")
                     .font(.patinaBody(12))
@@ -424,7 +448,7 @@ private struct DetailsContent: View {
 
                 if model.heatPattern.hasEnoughData {
                     HeatStrip(profile: model.heatPattern.hourlyProfile)
-                        .frame(height: 28)
+                        .frame(height: 34)
                 } else {
                     Text("Collecting…")
                         .font(.patinaBody(13))
@@ -435,7 +459,7 @@ private struct DetailsContent: View {
             // Heat vs health
             VStack(alignment: .leading, spacing: 4) {
                 Text("Heat vs health.")
-                    .font(.patinaBody(13, .medium))
+                    .font(.patinaBody(13))
                     .foregroundStyle(Color.textSecondary)
                 Text(verdictCopy)
                     .font(.patinaBody(12))
@@ -446,8 +470,9 @@ private struct DetailsContent: View {
             // Health outlook
             VStack(alignment: .leading, spacing: 8) {
                 Text("HEALTH OUTLOOK")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.1)
+                    .textCase(.uppercase)
                     .foregroundStyle(Color.textTertiary)
 
                 switch model.healthProjection.status {
@@ -457,7 +482,7 @@ private struct DetailsContent: View {
                         points: model.healthProjection.points
                     )
                     Text("Projection band · relative estimate, not a capacity measurement.")
-                        .font(.thermoCaption)
+                        .font(.patinaBody(11))
                         .foregroundStyle(Color.textTertiary)
                 case .flat:
                     Text("Battery health is holding steady at the current trend.")
@@ -473,8 +498,9 @@ private struct DetailsContent: View {
             // Longevity factors
             VStack(alignment: .leading, spacing: 10) {
                 Text("LONGEVITY FACTORS")
-                    .font(.thermoCaption)
-                    .kerning(0.8)
+                    .font(.patinaBody(11, .semibold))
+                    .tracking(1.1)
+                    .textCase(.uppercase)
                     .foregroundStyle(Color.textTertiary)
 
                 ForEach(model.longevityAssessment.factors) { factor in
@@ -486,13 +512,13 @@ private struct DetailsContent: View {
             let score = model.longevityAssessment.score
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(score)")
-                    .font(.patinaDisplay(28, .medium))
+                    .font(.patinaDisplay(38, .medium))
                     .foregroundStyle(scoreTint(score))
                     .shadow(color: scoreTint(score).opacity(0.45), radius: 6)
                     .monospacedDigit()
                 Text("/ 100 longevity score")
                     .font(.patinaBody(13))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.textTertiary)
             }
             .padding(.top, 4)
         }
@@ -525,28 +551,23 @@ private struct FactorRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(factor.title)
-                    .font(.patinaBody(13, .medium))
-                    .foregroundStyle(Color.textPrimary)
-                Spacer()
-            }
-            // Horizontal bar tinted by status
+        HStack(spacing: 12) {
+            Text(factor.title)
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+            // Pill bar on the right
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.insetFill)
-                        .frame(height: 5)
+                        .frame(height: 6)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(tint)
-                        .frame(width: barWidth(geo.size.width), height: 5)
+                        .frame(width: barWidth(geo.size.width), height: 6)
                 }
             }
-            .frame(height: 5)
-            Text(factor.summary)
-                .font(.patinaBody(11))
-                .foregroundStyle(Color.textTertiary)
+            .frame(width: 80, height: 6)
         }
     }
 
@@ -574,14 +595,14 @@ struct HeatStrip: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(heatCellColor(h < profile.count ? profile[h] : nil))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 18)
+                        .frame(height: 34)
                 }
             }
             HStack(spacing: 0) {
                 ForEach(0..<25, id: \.self) { h in
                     if tickHours.contains(h) {
                         Text("\(h)")
-                            .font(.system(size: 8))
+                            .font(.patinaBody(10))
                             .foregroundStyle(Color.textTertiary)
                     } else {
                         Color.clear
