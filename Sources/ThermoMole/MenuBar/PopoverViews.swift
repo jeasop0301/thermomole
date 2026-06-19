@@ -28,6 +28,9 @@ struct MenuBarPopoverView: View {
         .frame(width: 424)
         .background(Color.appBackground)
         .tint(Color.amberAccent)
+        // The card is designed Dark Jewel only; pin dark so a Light-mode Mac doesn't
+        // flip the adaptive surfaces to white and wash out the amber/garnet accents.
+        .preferredColorScheme(.dark)
     }
 }
 

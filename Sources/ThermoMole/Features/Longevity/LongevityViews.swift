@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ThermoMoleCore
 
 // MARK: - PatinaAgingCard
@@ -49,7 +50,10 @@ struct PatinaAgingCard: View {
                 .padding(.bottom, showDetails ? 14 : 0)
 
             if showDetails {
-                DetailsContent(model: model)
+                // Bound the (long) details so the auto-sized popover can't grow past the
+                // screen and clip the score/factors off the bottom — scroll within instead.
+                ScrollView { DetailsContent(model: model) }
+                    .frame(height: detailsViewportHeight)
             }
         }
         .padding(24)
@@ -63,6 +67,14 @@ struct PatinaAgingCard: View {
         Rectangle()
             .fill(Color.subtleStroke)
             .frame(height: 1)
+    }
+
+    /// Cap the expanded details to what fits under the menu bar on the current screen,
+    /// leaving room for the collapsed card + footer. DetailsContent is longer than this,
+    /// so it always scrolls — no wasted space.
+    private var detailsViewportHeight: CGFloat {
+        let screenH = NSScreen.main?.visibleFrame.height ?? 900
+        return max(220, min(380, screenH - 760))
     }
 }
 
@@ -94,7 +106,12 @@ private struct AgingHeroSection: View {
     let snapshot: SystemSnapshot
 
     private var multiplier: Double { rate?.multiplier ?? 1.0 }
-    private var warmth: Color { Color.agingWarmth(multiplier) }
+    /// Cold-charge plating risk dominates the calendar rate, which floors to ~1.0×.
+    /// Tint the hero garnet so the number agrees with the plating caution below
+    /// instead of reading as a calm "ideal".
+    private var warmth: Color {
+        rate?.coldChargeCaution == true ? Color.garnetAccent : Color.agingWarmth(multiplier)
+    }
 
     private var formattedNumber: String {
         guard let rate else { return "" }
@@ -104,6 +121,9 @@ private struct AgingHeroSection: View {
 
     private var driverLine: String {
         guard let rate else { return "" }
+        // Driver attribution only makes sense once aging is actually elevated;
+        // at the low band the multiplier is ~1.0× so naming a "main driver" misleads.
+        if rate.band == .low { return "Aging at the ideal idle rate" }
         switch rate.dominantDriver {
         case .temperature: return "Heat is the main driver right now"
         case .charge: return "High charge is the main driver right now"
@@ -148,6 +168,8 @@ private struct AgingHeroSection: View {
                         .frame(width: 48, height: 80)
                         .padding(.leading, 14)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle"))
 
                 Text("aging vs an ideal idle (25° / 50%)")
                     .font(.patinaBody(12))
@@ -225,6 +247,15 @@ private struct DriversRow: View {
         return snapshot.thermal.batteryDisplayC
     }
 
+    /// 3-state power label. "On battery" only when genuinely off AC — an AC-connected
+    /// pack that isn't charging (held by a limiter, or full) must NOT read as on-battery.
+    private var powerLabel: String {
+        let b = snapshot.battery
+        if !b.isOnACPower { return "On battery" }
+        if b.isCharging { return "Charging" }
+        return b.isCharged ? "Full · AC" : "Held · AC"
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             DriverCell(value: hottestC.map { "\(Int($0.rounded()))°" } ?? "—",
@@ -233,7 +264,7 @@ private struct DriversRow: View {
             DriverCell(value: "\(snapshot.battery.percent)%",
                        label: "CHARGE")
             driverDivider
-            DriverCell(value: snapshot.battery.isCharging ? "Charging" : "On battery",
+            DriverCell(value: powerLabel,
                        label: "POWER")
         }
         .frame(maxWidth: .infinity)
@@ -264,6 +295,8 @@ private struct DriverCell: View {
                 .foregroundStyle(Color.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(label): \(value)"))
     }
 }
 
@@ -308,7 +341,7 @@ private struct StrainSection: View {
     }
 }
 
-/// 7-point polyline sparkline with dots; last point emphasized; emerald/warmth color.
+/// 7-point polyline; neutral taupe line, last dot tinted by agingWarmth (cream/amber/garnet).
 private struct StrainSparkline: View {
     let ratios: [Double]
 
@@ -363,6 +396,10 @@ private struct OutlookLine: View {
         case .projecting:
             if let r = projection.monthsTo80Range {
                 return "Outlook · ~80% health in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) months"
+            }
+            // Already at/below 80%: months-to-80 is undefined, so don't sit on "projecting…".
+            if projection.currentHealthPercent <= 80 {
+                return "Outlook · already below 80% — tracking further fade"
             }
             return "Outlook · projecting…"
         case .flat:

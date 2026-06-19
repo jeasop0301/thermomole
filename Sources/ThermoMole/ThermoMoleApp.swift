@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindow: NSWindow?
     private var freshnessTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
+    /// True only in THERMOMOLE_SNAPSHOT render mode — keeps the dev hook side-effect-free
+    /// (don't flush accumulated exposure/strain back over the user's real history on exit).
+    private var isSnapshotMode = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dev hook: render the menu-bar card to a PNG and quit (for sharing screenshots).
@@ -56,6 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         freshnessTimer?.invalidate()
+        // Snapshot mode is a throwaway render run — never write its samples to disk.
+        guard !isSnapshotMode else { return }
         let semaphore = DispatchSemaphore(value: 0)
         Task.detached { [model] in
             await model.flushExposureForTermination()
@@ -68,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Invoked via THERMOMOLE_SNAPSHOT=<path>. Waits briefly so the model loads
     /// persisted history and takes a first live sample before rendering.
     private func runSnapshotMode(path: String) {
+        isSnapshotMode = true
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .darkAqua)
         model.start()
@@ -119,6 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Size the popover to the SwiftUI content (the Patina card is 424 wide with
         // intrinsic height) so the box hugs the card and the arrow stays aligned.
         hosting.sizingOptions = [.preferredContentSize]
+        // The card is Dark Jewel only — pin the host appearance so thermoAdaptive resolves
+        // dark even when the system is in Light mode (mirrors the snapshot path).
+        hosting.view.appearance = NSAppearance(named: .darkAqua)
         popover.contentViewController = hosting
     }
 
@@ -215,7 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        if level == .hot, snapshot.battery.isCharging {
+        if level == .hot, snapshot.battery.isOnACPower {
             let attachment = NSTextAttachment()
             attachment.image = NSImage(systemSymbolName: "flame.fill", accessibilityDescription: "charging while hot")?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed]))
@@ -226,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         button.attributedTitle = attributed
         button.toolTip = presentation.toolTip
-        if level == .hot, snapshot.battery.isCharging {
+        if level == .hot, snapshot.battery.isOnACPower {
             button.setAccessibilityLabel("Charging while hot. " + presentation.accessibilityLabel)
         } else {
             button.setAccessibilityLabel(presentation.accessibilityLabel)

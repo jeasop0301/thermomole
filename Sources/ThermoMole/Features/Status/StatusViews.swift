@@ -59,7 +59,7 @@ struct StatusTab: View {
                     TrendTile(
                         title: "Battery power",
                         value: formatBatteryPower(model.snapshot.battery.instantPowerW) ?? "--",
-                        detail: model.snapshot.battery.isCharging ? "into pack" : "from pack",
+                        detail: batteryPowerDirection(model.snapshot.battery),
                         series: model.statusHistory.batteryPowerSeries,
                         tint: Color.thermoAccent
                     )

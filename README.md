@@ -101,7 +101,7 @@ codesign --force --sign - .build/arm64-apple-macosx/debug/ThermoMoleCoreCheck
 
 ## Longevity
 
-A dedicated Longevity tab turns the raw signals into a single 0–100 score, per-factor status (battery, heat, charging habits, storage, memory), and a prioritized list of plain-language actions to keep the Mac healthy longer. Backing it:
+The menu-bar popover surfaces a Patina aging card — a live accelerated-aging multiplier, weekly strain, and a Details expander with the full breakdown: a single 0–100 longevity score, per-factor status (battery, heat, charging habits, storage, memory), and a prioritized list of plain-language actions to keep the Mac healthy longer. Backing it:
 
 - Battery thermal-exposure and CPU/system thermal-exposure tracking (per-day minutes above thresholds, 7-day strips), persisted locally.
 - High state-of-charge dwell tracking — time held at ≥80% / ≥95% while on AC power (a primary aging factor), persisted locally.

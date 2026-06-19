@@ -156,6 +156,14 @@ func formatBatteryPower(_ watts: Double) -> String? {
     return String(format: "%@%.0f W", sign, abs(watts))
 }
 
+/// Power-flow direction from the boolean flags (amperage sign is unreliable across Macs).
+/// "from pack" only when genuinely off AC — AC-connected-but-not-charging is "holding"/"full".
+func batteryPowerDirection(_ b: BatteryStatus) -> String {
+    if b.isCharging { return "into pack" }
+    if !b.isOnACPower { return "from pack" }
+    return b.isCharged ? "full" : "holding"
+}
+
 func batterySourceLabel(_ source: BatteryTemperatureSource) -> String {
     switch source {
     case .unavailable: "Unavailable"
