@@ -10,7 +10,7 @@ Please report security issues privately via GitHub Security Advisories
 (the "Report a vulnerability" button on the repository's Security tab) rather
 than opening a public issue.
 
-ThermoMole runs locally, performs no network telemetry, and never writes to the
+Patina runs locally, performs no network telemetry, and never writes to the
 SMC. Maintenance actions (cleanup, optimize) are confirmation-gated and logged
 to `~/Library/Logs/ThermoMole/operations.jsonl`. Please include macOS version,
 Mac model, and reproduction steps in your report.

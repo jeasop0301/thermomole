@@ -1,8 +1,8 @@
-# ThermoMole
+# Patina
 
-ThermoMole is a menu-bar-first macOS SwiftUI system utility for Apple Silicon Macs.
+Patina is a battery-longevity and aging-insight menu-bar app for Apple Silicon Macs.
 
-It pairs a menu-bar HUD with a multi-tab dashboard and native Apple Silicon thermal reads:
+It runs entirely on-device — no network telemetry, no account required — and complements charge-limiter tools like AlDente by showing you *why* your battery ages: thermal exposure, high-SoC dwell, and charging habits surfaced as a single 0–100 longevity score with plain-language actions.
 
 - Menu bar HUD with configurable metrics. CPU temperature, battery temperature, and RAM percent are always available.
 - Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`-`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
@@ -60,19 +60,19 @@ swift run ThermoMoleCLI status --json
 
 ```bash
 ./scripts/build-app.sh
-open dist/ThermoMole.app
+open dist/Patina.app
 ```
 
 The app bundle is menu-bar-first (`LSUIElement`) and hides the Dock icon by default.
 
 ### Install a release build
 
-Download `ThermoMole.zip` from the latest [GitHub Release](../../releases), unzip,
-and move `ThermoMole.app` to `/Applications`. Release builds are signed with a
+Download `Patina.zip` from the latest [GitHub Release](../../releases), unzip,
+and move `Patina.app` to `/Applications`. Release builds are signed with a
 Developer ID and notarized by Apple, so they launch without a Gatekeeper prompt.
 
 If you build from source instead, the app is ad-hoc signed; on first launch use
-Finder's right-click → Open, or run `xattr -dr com.apple.quarantine dist/ThermoMole.app`.
+Finder's right-click → Open, or run `xattr -dr com.apple.quarantine dist/Patina.app`.
 
 ## Verify
 
@@ -108,10 +108,10 @@ A dedicated Longevity tab turns the raw signals into a single 0–100 score, per
 - Battery health trend log (daily health %, cycle count, capacity) → longevity score, fade/cycle-rate inference, and projected months to 80%.
 - Instant battery power (V × A watts) and internal SSD temperature (via IOHIDEvent sensors).
 - Optional local notifications (off by default) for charging-while-hot, sustained heat, prolonged high charge, and low storage — throttled, with quiet hours.
-- No charge control: ThermoMole reads sensors only and never writes to the SMC.
+- No charge control: Patina reads sensors only and never writes to the SMC.
 
 ## License
 
-ThermoMole is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).
+Patina is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
 Copyright (C) 2026 jeasop0301.

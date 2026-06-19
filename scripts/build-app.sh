@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="$ROOT/dist/ThermoMole.app"
+APP_DIR="$ROOT/dist/Patina.app"
 STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/thermomole-app.XXXXXX")"
-STAGED_APP="$STAGE_ROOT/ThermoMole.app"
+STAGED_APP="$STAGE_ROOT/Patina.app"
 CONTENTS="$STAGED_APP/Contents"
 MACOS="$CONTENTS/MacOS"
 
@@ -44,9 +44,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>local.thermomole.app</string>
   <key>CFBundleName</key>
-  <string>ThermoMole</string>
+  <string>Patina</string>
   <key>CFBundleDisplayName</key>
-  <string>ThermoMole</string>
+  <string>Patina</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

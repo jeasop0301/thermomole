@@ -38,7 +38,7 @@ struct MenuBarPopoverView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Spacer()
-                Button("Open ThermoMole", action: openMain)
+                Button("Open Patina", action: openMain)
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -62,7 +62,7 @@ struct PopoverHeader: View {
             }
             .frame(width: 54, height: 54)
             VStack(alignment: .leading, spacing: 3) {
-                Text("ThermoMole")
+                Text("Patina")
                     .font(.system(.headline, design: .rounded).weight(.semibold))
                 Text("Quietly watching \(snapshot.modelIdentifier)")
                     .font(.caption)
@@ -76,7 +76,7 @@ struct PopoverHeader: View {
             Spacer()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("ThermoMole health score \(snapshot.health.value), \(conditionTitle(systemCondition(for: snapshot)))"))
+        .accessibilityLabel(Text("Patina health score \(snapshot.health.value), \(conditionTitle(systemCondition(for: snapshot)))"))
         .accessibilityValue(Text(StatusFreshness(sampledAt: snapshot.sampledAt).accessibilityLabel))
     }
 }
