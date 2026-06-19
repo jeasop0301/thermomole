@@ -19,6 +19,13 @@ swift build -c release
 mkdir -p "$MACOS"
 cp "$ROOT/.build/arm64-apple-macosx/release/ThermoMole" "$MACOS/ThermoMole"
 
+# Stage bundled fonts (SIL OFL) — macOS registers them at launch via ATSApplicationFontsPath
+FONTS_SRC="$ROOT/Sources/ThermoMole/Resources/Fonts"
+FONTS_DST="$CONTENTS/Resources/Fonts"
+mkdir -p "$FONTS_DST"
+cp "$FONTS_SRC/"*.ttf "$FONTS_DST/"
+cp "$FONTS_SRC/"*.txt "$FONTS_DST/"
+
 # WINDOWED=1 builds a regular (dock-visible) app so screen-control tools can
 # enumerate and grant it. Default is a menu-bar-only agent (LSUIElement=true).
 if [ "${WINDOWED:-0}" = "1" ]; then
@@ -52,6 +59,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <${LSUI_VALUE}/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>ATSApplicationFontsPath</key>
+  <string>Fonts</string>
 </dict>
 </plist>
 PLIST
