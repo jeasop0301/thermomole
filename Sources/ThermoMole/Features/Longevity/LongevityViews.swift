@@ -80,10 +80,13 @@ struct PatinaAgingCard: View {
 
     /// Cap the expanded details to what fits under the menu bar on the current screen,
     /// leaving room for the collapsed card + footer. DetailsContent is longer than this,
-    /// so it always scrolls — no wasted space.
+    /// so it always scrolls — no wasted space. The reservation grows when the heat-pattern
+    /// section is promoted onto the collapsed card (~150pt) so the popover can't overrun a
+    /// 14" screen and clip the score/factors off the bottom.
     private var detailsViewportHeight: CGFloat {
         let screenH = NSScreen.main?.visibleFrame.height ?? 900
-        return max(220, min(380, screenH - 760))
+        let reserved: CGFloat = model.heatPattern.hasEnoughData ? 900 : 760
+        return max(220, min(380, screenH - reserved))
     }
 }
 
@@ -119,24 +122,34 @@ private struct AgingHeroSection: View {
     let snapshot: SystemSnapshot
 
     private var multiplier: Double { rate?.multiplier ?? 1.0 }
-    /// Cold-charge plating risk dominates the calendar rate, which floors to ~1.0×.
-    /// Tint the hero garnet so the number agrees with the plating caution below
-    /// instead of reading as a calm "ideal".
+
+    /// The one-decimal value the user actually sees. Band word, tint, and the "≈ N×"
+    /// numeral all derive from THIS, so they can never disagree at a rounding boundary
+    /// (e.g. 1.48 must not show "LOW" next to "1.5×").
+    private var shownMultiplier: Double { (multiplier * 10).rounded() / 10 }
+
+    /// Hero numeral tint. Cold-charge plating risk floors the rate to ~1.0×, so override
+    /// to garnet there so the number agrees with the plating caution below.
     private var warmth: Color {
-        rate?.coldChargeCaution == true ? Color.garnetAccent : Color.agingWarmth(multiplier)
+        rate?.coldChargeCaution == true ? Color.garnetAccent : Color.agingWarmth(shownMultiplier)
     }
+    /// The band pill keeps its semantic color even under the cold-charge garnet override,
+    /// so a floored ~1.0× never renders an alarming garnet "LOW".
+    private var pillColor: Color { Color.agingWarmth(shownMultiplier) }
 
     private var formattedNumber: String {
-        guard let rate else { return "" }
-        let m = rate.multiplier
+        guard rate != nil else { return "" }
+        let m = shownMultiplier
         return m >= 10 ? "\(Int(m.rounded()))" : String(format: "%.1f", m)
     }
+
+    private var isLowBand: Bool { shownMultiplier < 1.5 }
 
     private var driverLine: String {
         guard let rate else { return "" }
         // Driver attribution only makes sense once aging is actually elevated;
         // at the low band the multiplier is ~1.0× so naming a "main driver" misleads.
-        if rate.band == .low { return "Aging at the ideal idle rate" }
+        if isLowBand { return "Aging at the ideal idle rate" }
         switch rate.dominantDriver {
         case .temperature: return "Heat is the main driver right now"
         case .charge: return "High charge is the main driver right now"
@@ -146,12 +159,11 @@ private struct AgingHeroSection: View {
 
     /// Categorical truth alongside the precise-looking numeral, so the headline
     /// doesn't lean on one-decimal precision the noisy inputs can't support.
+    /// Derived from shownMultiplier so it always matches the displayed number.
     private var bandWord: String {
-        switch rate?.band {
-        case .high: return "HIGH"
-        case .moderate: return "ELEVATED"
-        case .low, .none: return "LOW"
-        }
+        if shownMultiplier >= 3.0 { return "HIGH" }
+        if shownMultiplier >= 1.5 { return "ELEVATED" }
+        return "LOW"
     }
 
     var body: some View {
@@ -166,11 +178,12 @@ private struct AgingHeroSection: View {
                     Text(bandWord)
                         .font(.patinaBody(10, .semibold))
                         .tracking(1.0)
-                        .foregroundStyle(warmth)
+                        .foregroundStyle(pillColor)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(warmth.opacity(0.14))
+                        .background(pillColor.opacity(0.18))
                         .clipShape(Capsule())
+                        .accessibilityHidden(true) // folded into the hero number's a11y label
                 }
                 Spacer()
             }
@@ -205,7 +218,7 @@ private struct AgingHeroSection: View {
                         .padding(.leading, 14)
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle"))
+                .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle, \(bandWord) band"))
 
                 Text("aging vs an ideal idle (25° / 50%)")
                     .font(.patinaBody(12))
@@ -238,7 +251,7 @@ private struct AgingHeroSection: View {
                             .frame(width: 7, height: 7)
                         Text("Charging while cold — risk of lithium plating")
                             .font(.patinaBody(13))
-                            .foregroundStyle(Color.garnetAccent)
+                            .foregroundStyle(Color.textPrimary) // garnet text under-contrasts on the hero panel; dot carries the color
                     }
                     .padding(.top, 4)
                 }
@@ -393,16 +406,17 @@ private struct StrainSection: View {
                     Text("Cycling ·")
                         .font(.patinaBody(13))
                         .foregroundStyle(Color.textSecondary)
-                    Text(String(format: "~%.0f full cycles/week", cw))
+                    Text(String(format: "~%.0f/week", cw))
                         .font(.patinaBody(13, heavyCycling ? .semibold : .regular))
                         .foregroundStyle(heavyCycling ? Color.amberAccent : Color.textSecondary)
-                    if heavyCycling {
-                        Text("· heavy")
-                            .font(.patinaBody(13, .semibold))
-                            .foregroundStyle(Color.amberAccent)
-                    }
+                    // cyclesPerWeek is averaged over the whole health log, NOT the last 7 days —
+                    // label it so it isn't misread as "this week" under the header above.
+                    Text(heavyCycling ? "lifetime avg · heavy" : "lifetime avg")
+                        .font(.patinaBody(13))
+                        .foregroundStyle(heavyCycling ? Color.amberAccent : Color.textTertiary)
                 }
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
             }
 
             Text("Relative estimate — calendar aging only; cycle wear is tracked separately.")
@@ -523,17 +537,24 @@ private struct ActionChip: View {
         }
     }
 
-    /// Close the action loop: route charge/battery advice to the automated lever
-    /// (macOS Optimized Charging in Battery settings) instead of nagging a manual chore.
+    /// Title legibility: garnet at 13pt under-contrasts on the tinted chip, so the urgent
+    /// title is rendered cream (the garnet dot/chevron still carry the severity color).
+    private var titleColor: Color {
+        action.severity == .urgent ? Color.textPrimary : chipColor
+    }
+
+    /// Close the action loop: route only genuinely ACTIONABLE charge advice to the
+    /// automated lever (macOS Optimized Charging). Pure-status ids (battery-low,
+    /// battery-fade) and heat advice get no chevron — the destination can't act on them.
     private var deepLink: URL? {
-        let id = action.id
-        if id.contains("soc") || id.contains("charge") || id.contains("battery") {
+        switch action.id {
+        case "high-soc", "charge-hot":
             return URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")
+        default:
+            return action.id.contains("storage")
+                ? URL(string: "x-apple.systempreferences:com.apple.settings.Storage")
+                : nil
         }
-        if id.contains("storage") {
-            return URL(string: "x-apple.systempreferences:com.apple.settings.Storage")
-        }
-        return nil
     }
 
     var body: some View {
@@ -557,7 +578,7 @@ private struct ActionChip: View {
                 .frame(width: 7, height: 7)
             Text(action.title)
                 .font(.patinaBody(13))
-                .foregroundStyle(chipColor)
+                .foregroundStyle(titleColor)
             if showChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9, weight: .semibold))
