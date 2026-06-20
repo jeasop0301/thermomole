@@ -8,3 +8,6 @@ dist/
 # stray build outputs / scratch binaries in repo root
 /codable_test2
 *.o
+
+# AI design/plan/spec docs — kept local, out of the public repo
+docs/superpowers/
