@@ -16,6 +16,11 @@ public struct BatteryLongevityReport: Equatable, Sendable {
     public var healthDropPerWeek: Double?     // % per week (positive = declining); nil if too little history
     public var cyclesPerWeek: Double?
     public var projectedMonthsTo80: Double?   // nil if already <=80% or not declining
+    /// Estimated capacity loss/yr from cycle throughput (measured cycles × published per-EFC
+    /// loss). A range, not a point value; nil when cyclesPerWeek is nil. Heat is NOT included
+    /// here (that's the calendar term) — these are shown separately, never fused.
+    public var cycleWearPctPerYearLow: Double?
+    public var cycleWearPctPerYearHigh: Double?
     public var alerts: [BatteryLongevityAlert]
 
     public init(
@@ -25,6 +30,8 @@ public struct BatteryLongevityReport: Equatable, Sendable {
         healthDropPerWeek: Double?,
         cyclesPerWeek: Double?,
         projectedMonthsTo80: Double?,
+        cycleWearPctPerYearLow: Double? = nil,
+        cycleWearPctPerYearHigh: Double? = nil,
         alerts: [BatteryLongevityAlert]
     ) {
         self.score = score
@@ -33,11 +40,19 @@ public struct BatteryLongevityReport: Equatable, Sendable {
         self.healthDropPerWeek = healthDropPerWeek
         self.cyclesPerWeek = cyclesPerWeek
         self.projectedMonthsTo80 = projectedMonthsTo80
+        self.cycleWearPctPerYearLow = cycleWearPctPerYearLow
+        self.cycleWearPctPerYearHigh = cycleWearPctPerYearHigh
         self.alerts = alerts
     }
 }
 
 public enum BatteryLongevity {
+    /// Capacity loss per equivalent full cycle (EFC), in percent. Anchored to Apple's design
+    /// spec (recent Macs ~80% at 1000 cycles ⇒ ~0.02%/cycle); ceiling ~0.06%/cycle from
+    /// deep-cycle lab data (Battery University BU-808). CycleCount already counts EFCs.
+    public static let capacityLossPerEFCLowPct = 0.02
+    public static let capacityLossPerEFCHighPct = 0.06
+
     /// Pure evaluation over a (chronological or unordered) daily health history.
     public static func evaluate(history: [DailyBatteryHealth], calendar: Calendar = .current) -> BatteryLongevityReport? {
         let sorted = history.sorted { $0.day < $1.day }
@@ -50,8 +65,20 @@ public enum BatteryLongevity {
             let daySpan = d1.timeIntervalSince(d0) / 86_400.0
             if daySpan >= 3 {
                 healthDropPerWeek = Double(earliest.healthPercent - latest.healthPercent) / daySpan * 7.0
-                cyclesPerWeek = Double(latest.cycleCount - earliest.cycleCount) / daySpan * 7.0
+                // Negative delta = battery service / SMC reset / firmware re-estimation —
+                // don't fabricate a rate from it.
+                let cycleDelta = latest.cycleCount - earliest.cycleCount
+                if cycleDelta >= 0 {
+                    cyclesPerWeek = Double(cycleDelta) / daySpan * 7.0
+                }
             }
+        }
+
+        var cycleWearPctPerYearLow: Double?
+        var cycleWearPctPerYearHigh: Double?
+        if let cw = cyclesPerWeek {
+            cycleWearPctPerYearLow = cw * 52.0 * capacityLossPerEFCLowPct
+            cycleWearPctPerYearHigh = cw * 52.0 * capacityLossPerEFCHighPct
         }
 
         var projectedMonthsTo80: Double?
@@ -80,6 +107,8 @@ public enum BatteryLongevity {
             healthDropPerWeek: healthDropPerWeek,
             cyclesPerWeek: cyclesPerWeek,
             projectedMonthsTo80: projectedMonthsTo80,
+            cycleWearPctPerYearLow: cycleWearPctPerYearLow,
+            cycleWearPctPerYearHigh: cycleWearPctPerYearHigh,
             alerts: alerts
         )
     }
