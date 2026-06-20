@@ -149,11 +149,11 @@ private struct AgingHeroSection: View {
         guard let rate else { return "" }
         // Driver attribution only makes sense once aging is actually elevated;
         // at the low band the multiplier is ~1.0× so naming a "main driver" misleads.
-        if isLowBand { return "Aging at the ideal idle rate" }
+        if isLowBand { return NSLocalizedString("Aging at the ideal idle rate", comment: "") }
         switch rate.dominantDriver {
-        case .temperature: return "Heat is the main driver right now"
-        case .charge: return "High charge is the main driver right now"
-        case .balanced: return "High charge + heat"
+        case .temperature: return NSLocalizedString("Heat is the main driver right now", comment: "")
+        case .charge: return NSLocalizedString("High charge is the main driver right now", comment: "")
+        case .balanced: return NSLocalizedString("High charge + heat", comment: "")
         }
     }
 
@@ -161,9 +161,9 @@ private struct AgingHeroSection: View {
     /// doesn't lean on one-decimal precision the noisy inputs can't support.
     /// Derived from shownMultiplier so it always matches the displayed number.
     private var bandWord: String {
-        if shownMultiplier >= 3.0 { return "HIGH" }
-        if shownMultiplier >= 1.5 { return "ELEVATED" }
-        return "LOW"
+        if shownMultiplier >= 3.0 { return NSLocalizedString("HIGH", comment: "aging band") }
+        if shownMultiplier >= 1.5 { return NSLocalizedString("ELEVATED", comment: "aging band") }
+        return NSLocalizedString("LOW", comment: "aging band")
     }
 
     var body: some View {
@@ -344,11 +344,13 @@ private struct DriverCell: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value)
+            // LocalizedStringKey so text values (power state) and labels localize;
+            // numeric values (30°, 52%) have no key and fall back verbatim.
+            Text(LocalizedStringKey(value))
                 .font(.patinaBody(21, .medium))
                 .foregroundStyle(Color.textPrimary)
                 .monospacedDigit()
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.patinaBody(10, .semibold))
                 .tracking(0.8)
                 .textCase(.uppercase)
@@ -406,7 +408,7 @@ private struct StrainSection: View {
                     Text("Cycling ·")
                         .font(.patinaBody(13))
                         .foregroundStyle(Color.textSecondary)
-                    Text(String(format: "~%.0f/week", cw))
+                    Text(String(format: NSLocalizedString("~%.0f/week", comment: "cycles per week"), cw))
                         .font(.patinaBody(13, heavyCycling ? .semibold : .regular))
                         .foregroundStyle(heavyCycling ? Color.amberAccent : Color.textSecondary)
                     // cyclesPerWeek is averaged over the whole health log, NOT the last 7 days —
@@ -480,17 +482,18 @@ private struct OutlookLine: View {
         switch projection.status {
         case .projecting:
             if let r = projection.monthsTo80Range {
-                return "Outlook · ~80% health in \(Int(r.min.rounded()))–\(Int(r.max.rounded())) months"
+                return String(format: NSLocalizedString("Outlook · ~80%% health in %d–%d months", comment: ""),
+                              Int(r.min.rounded()), Int(r.max.rounded()))
             }
             // Already at/below 80%: months-to-80 is undefined, so don't sit on "projecting…".
             if projection.currentHealthPercent <= 80 {
-                return "Outlook · already below 80% — tracking further fade"
+                return NSLocalizedString("Outlook · already below 80% — tracking further fade", comment: "")
             }
-            return "Outlook · projecting…"
+            return NSLocalizedString("Outlook · projecting…", comment: "")
         case .flat:
-            return "Outlook · holding steady at the current trend"
+            return NSLocalizedString("Outlook · holding steady at the current trend", comment: "")
         case .insufficient:
-            return "Outlook · collecting data…"
+            return NSLocalizedString("Outlook · collecting data…", comment: "")
         }
     }
 
@@ -576,7 +579,7 @@ private struct ActionChip: View {
             Circle()
                 .fill(chipColor)
                 .frame(width: 7, height: 7)
-            Text(action.title)
+            Text(LocalizedStringKey(action.title)) // Core returns English; localize via key lookup
                 .font(.patinaBody(13))
                 .foregroundStyle(titleColor)
             if showChevron {
@@ -694,9 +697,9 @@ private struct DetailsContent: View {
 
     private var verdictCopy: String {
         switch model.heatHealthInsight.verdict {
-        case .warmFadesFaster:    "Warmer hours track with faster aging in your readings."
-        case .noClearDifference:  "No clear link between heat and aging yet."
-        case .insufficientData:   "Collecting data…"
+        case .warmFadesFaster:    NSLocalizedString("Warmer hours track with faster aging in your readings.", comment: "")
+        case .noClearDifference:  NSLocalizedString("No clear link between heat and aging yet.", comment: "")
+        case .insufficientData:   NSLocalizedString("Collecting data…", comment: "")
         }
     }
 
@@ -720,7 +723,7 @@ private struct FactorRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(factor.title)
+            Text(LocalizedStringKey(factor.title)) // Core returns English; localize via key lookup
                 .font(.patinaBody(13))
                 .foregroundStyle(Color.textSecondary)
             Spacer()

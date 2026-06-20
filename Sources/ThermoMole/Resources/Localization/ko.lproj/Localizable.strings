@@ -1,0 +1,87 @@
+/* Patina — Korean (ko) localization.
+   Keys are the English development strings; a missing key falls back to English,
+   so en users + the test runner (no ko.lproj) see English unchanged. */
+
+/* ---- Header ---- */
+"See your battery age, honestly." = "배터리 노화를, 정직하게.";
+
+/* ---- Aging hero ---- */
+"AGING SPEED NOW" = "현재 노화 속도";
+"Collecting…" = "수집 중…";
+"Collecting data…" = "데이터 수집 중…";
+"LOW" = "낮음";
+"ELEVATED" = "높음";
+"HIGH" = "매우 높음";
+"aging vs an ideal idle (25° / 50%)" = "이상적 대기 상태(25° / 50%) 대비";
+"Aging at the ideal idle rate" = "이상적 대기 속도로 노화 중";
+"Heat is the main driver right now" = "지금은 열이 주된 요인";
+"High charge is the main driver right now" = "지금은 높은 충전이 주된 요인";
+"High charge + heat" = "높은 충전 + 열";
+"Low charge isn’t “better” — mid charge (~50%) is healthiest." = "낮은 충전이 “더 좋은” 게 아닙니다 — 중간 충전(~50%)이 가장 건강합니다.";
+"Charging while cold — risk of lithium plating" = "저온 충전 중 — 리튬 도금 위험";
+"Relative estimate from published kinetics — not a capacity measurement." = "공개된 반응속도론 기반 상대 추정치 — 용량 측정값이 아닙니다.";
+
+/* ---- Drivers ---- */
+"CELL TEMP" = "셀 온도";
+"CHARGE" = "충전";
+"POWER" = "전원";
+"On battery" = "배터리 사용";
+"Charging" = "충전 중";
+"Full · AC" = "완충 · AC";
+"Held · AC" = "유지 · AC";
+
+/* ---- Strain ---- */
+"This week · Collecting…" = "이번 주 · 수집 중…";
+"This week ran" = "이번 주";
+"ideal · +%@ aging-days" = "이상 대비 · +%@ 노화일";
+"Cycling ·" = "사이클 ·";
+"~%.0f/week" = "~%.0f회/주";
+"lifetime avg" = "전체 평균";
+"lifetime avg · heavy" = "전체 평균 · 과다";
+"Relative estimate — calendar aging only; cycle wear is tracked separately." = "상대 추정치 — 달력 노화만; 사이클 마모는 별도 추적.";
+
+/* ---- When it runs hot ---- */
+"WHEN IT RUNS HOT" = "언제 뜨거워지나";
+"Cell temperature by hour of day" = "시간대별 셀 온도";
+
+/* ---- Outlook (formatted) ---- */
+"Outlook · ~80%% health in %d–%d months" = "전망 · ~%d–%d개월 후 건강 80%%";
+"Outlook · projecting…" = "전망 · 예측 중…";
+"Outlook · already below 80% — tracking further fade" = "전망 · 이미 80% 미만 — 추가 저하 추적 중";
+"Outlook · holding steady at the current trend" = "전망 · 현재 추세 유지 중";
+"Outlook · collecting data…" = "전망 · 데이터 수집 중…";
+
+/* ---- Action chip (from LongevityAdvisor, Core) ---- */
+"Battery is fading fast" = "배터리가 빠르게 저하 중";
+"Battery is below 80% health" = "배터리 건강 80% 미만";
+"Unplug to let the battery cool" = "전원을 빼 배터리를 식히세요";
+"Reduce sustained heat" = "지속적인 발열을 줄이세요";
+"Watch sustained warmth" = "지속적인 온기에 주의하세요";
+"Unplug around 80% when you can" = "가능하면 80% 부근에서 전원을 빼세요";
+"Free up disk space" = "디스크 공간을 확보하세요";
+"Free up some disk space" = "디스크 공간을 조금 확보하세요";
+
+/* ---- Longevity factor titles (Core) ---- */
+"Battery" = "배터리";
+"Heat" = "발열";
+"Charging habits" = "충전 습관";
+"Storage" = "저장공간";
+"Memory" = "메모리";
+
+/* ---- Details expander ---- */
+"Details · Patterns" = "상세 · 패턴";
+"Show" = "펼치기";
+"Hide" = "접기";
+"Heat vs health." = "열 대 건강.";
+"Warmer hours track with faster aging in your readings." = "기록상 더운 시간대가 더 빠른 노화와 연관됩니다.";
+"No clear link between heat and aging yet." = "아직 열과 노화의 뚜렷한 연관이 없습니다.";
+"HEALTH OUTLOOK" = "건강 전망";
+"Projection band · relative estimate, not a capacity measurement." = "예측 밴드 · 상대 추정치, 용량 측정값 아님.";
+"Battery health is holding steady at the current trend." = "배터리 건강이 현재 추세로 안정적입니다.";
+"Collecting data… a trend appears after ~2 weeks of readings." = "데이터 수집 중… ~2주 기록 후 추세가 나타납니다.";
+"LONGEVITY FACTORS" = "수명 요인";
+"/ 100 longevity score" = "/ 100 수명 점수";
+
+/* ---- Popover footer ---- */
+"Refresh" = "새로고침";
+"Open Patina" = "Patina 열기";

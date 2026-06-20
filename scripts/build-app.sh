@@ -26,6 +26,16 @@ mkdir -p "$FONTS_DST"
 cp "$FONTS_SRC/"*.ttf "$FONTS_DST/"
 cp "$FONTS_SRC/"*.txt "$FONTS_DST/"
 
+# Stage .lproj localizations into Contents/Resources so Bundle.main (the .app) resolves
+# them. English is the development-language fallback (keys are English), so only ko.lproj
+# ships; en users and the test runner see the English keys unchanged.
+LOC_SRC="$ROOT/Sources/ThermoMole/Resources/Localization"
+if [ -d "$LOC_SRC" ]; then
+  for lproj in "$LOC_SRC"/*.lproj; do
+    [ -d "$lproj" ] && cp -R "$lproj" "$CONTENTS/Resources/"
+  done
+fi
+
 # WINDOWED=1 builds a regular (dock-visible) app so screen-control tools can
 # enumerate and grant it. Default is a menu-bar-only agent (LSUIElement=true).
 if [ "${WINDOWED:-0}" = "1" ]; then
@@ -47,6 +57,13 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <string>Patina</string>
   <key>CFBundleDisplayName</key>
   <string>Patina</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>ko</string>
+  </array>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

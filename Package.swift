@@ -38,7 +38,7 @@ let package = Package(
         .executableTarget(
             name: "ThermoMole",
             dependencies: ["ThermoMoleCore", "ThermoMoleNative", "ThermoMoleAppCore"],
-            exclude: ["Resources/Fonts"],
+            exclude: ["Resources/Fonts", "Resources/Localization"],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
