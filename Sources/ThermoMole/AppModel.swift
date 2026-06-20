@@ -148,12 +148,13 @@ final class AppModel: ObservableObject {
             heatPattern = HeatPatternInsight.build(
                 await hourlyHeatCoordinator.grid(endingAt: next.sampledAt, calendar: .current)
             )
-            let hottestCellC: Double? = {
-                let candidates = [next.thermal.batteryIORegC, next.thermal.batteryCellMaxC].compactMap { $0 }
-                return candidates.max() ?? next.thermal.batteryDisplayC
-            }()
+            // Use the canonical BMS pack temperature (= batteryDisplayC, what AlDente/Apple
+            // report and what calendar-aging kinetics are characterized at), NOT the SMC
+            // board-thermistor max — feeding that hotter/noisier value into the 2×-per-10°C
+            // Arrhenius would systematically over-state aging. The hottest-cell max stays the
+            // (conservative) basis for the warning level only.
             agingRate = BatteryAgingRate.evaluate(
-                cellTempC: hottestCellC,
+                cellTempC: next.thermal.batteryDisplayC,
                 socPercent: Double(next.battery.percent),
                 isCharging: next.battery.isCharging
             )

@@ -325,13 +325,11 @@ private struct CompanionArc: View {
 private struct DriversRow: View {
     let snapshot: SystemSnapshot
 
-    private var hottestC: Double? {
-        let candidates: [Double?] = [
-            snapshot.thermal.batteryIORegC,
-            snapshot.thermal.batteryCellMaxC,
-        ]
-        if let best = candidates.compactMap({ $0 }).max() { return best }
-        return snapshot.thermal.batteryDisplayC
+    /// Canonical BMS pack temperature (= what AlDente/Apple report, = the menu-bar/Status
+    /// reading, = the aging-model input). The SMC hottest-cell max stays an upper-bound shown
+    /// only in the battery-sensor detail card and used for the (conservative) warning level.
+    private var batteryTempC: Double? {
+        snapshot.thermal.batteryDisplayC
     }
 
     /// 3-state power label. "On battery" only when genuinely off AC — an AC-connected
@@ -345,7 +343,7 @@ private struct DriversRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            DriverCell(value: hottestC.map { "\(Int($0.rounded()))°" } ?? "—",
+            DriverCell(value: batteryTempC.map { "\(Int($0.rounded()))°" } ?? "—",
                        label: "CELL TEMP")
             driverDivider
             DriverCell(value: "\(snapshot.battery.percent)%",
