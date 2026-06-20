@@ -202,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Patina"
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua) // Dark Jewel only, like the popover
         window.contentViewController = NSHostingController(
             rootView: MainWindowView(model: model)
         )

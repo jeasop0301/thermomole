@@ -171,7 +171,7 @@ struct ThermalExposureWeekStrip: View {
                 HStack(alignment: .bottom, spacing: 4) {
                     ForEach(chronological, id: \.day) { day in
                         let m = minutes(day.secondsAbove40)
-                        let tint: Color = day.secondsAbove45 > 0 ? .red : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
+                        let tint: Color = day.secondsAbove45 > 0 ? Color.garnetAccent : (m > 0 ? .amberAccent : Color.secondary.opacity(0.3))
                         RoundedRectangle(cornerRadius: 2)
                             .fill(tint)
                             .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
@@ -271,7 +271,7 @@ struct BatteryHealthCard: View {
         guard let s = report?.score else { return Color.oceanAccent }
         if s >= 85 { return Color.leafAccent }
         if s >= 65 { return Color.amberAccent }
-        return .red
+        return Color.garnetAccent
     }
 
     private var detailLine: String {
@@ -343,7 +343,7 @@ struct StatusBriefPanel: View {
         switch brief.mood {
         case .steady: Color.leafAccent
         case .watch: Color.amberAccent
-        case .hot: .red
+        case .hot: Color.garnetAccent
         }
     }
 
@@ -484,7 +484,7 @@ struct CPUCoreBar: View {
     let percent: Double
 
     private var tint: Color {
-        if percent >= 80 { return .red }
+        if percent >= 80 { return Color.garnetAccent }
         if percent >= 50 { return Color.amberAccent }
         return Color.thermoAccent
     }

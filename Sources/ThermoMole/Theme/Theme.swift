@@ -53,16 +53,16 @@ extension Color {
     ))
 
     // MARK: - Jewel Accents
-    /// Emerald — primary brand accent
-    static let leafAccent   = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
     static let amberAccent  = Color(red: 0.878, green: 0.647, blue: 0.227)  // #E0A53A
-    /// NEW: garnet accent for high-severity states
+    /// garnet accent for high-severity states
     static let garnetAccent = Color(red: 0.886, green: 0.376, blue: 0.290)  // #E2604A
-    static let plumAccent   = Color(red: 0.369, green: 0.361, blue: 0.902)
-    /// Unified to emerald (same as leafAccent)
-    static let oceanAccent  = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
-    /// Unified to emerald (same as leafAccent)
-    static let thermoAccent = Color(red: 0.137, green: 0.788, blue: 0.627)  // #23C9A0
+    // Patina has no green/teal/indigo. The window (Status/Settings) shares the card's
+    // Dark-Jewel palette: calm "good/healthy/live" = cream, chrome accent = gold.
+    // These four tokens are window-only (the card uses amber/garnet/textPrimary directly).
+    static let leafAccent   = Color(red: 0.945, green: 0.937, blue: 0.918)  // good/healthy → cream
+    static let oceanAccent  = Color(red: 0.945, green: 0.937, blue: 0.918)  // good → cream
+    static let thermoAccent = Color(red: 0.878, green: 0.647, blue: 0.227)  // chrome → gold
+    static let plumAccent   = Color(red: 0.878, green: 0.647, blue: 0.227)  // SSD tile → gold (was indigo)
 
     // MARK: - Semantic helper
     /// Returns garnet / amber / calm-cream based on battery aging multiplier magnitude.
@@ -201,7 +201,7 @@ func batteryColor(_ level: TemperatureWarningLevel) -> Color {
     switch level {
     case .normal: Color.leafAccent
     case .caution: Color.amberAccent
-    case .hot: .red
+    case .hot: Color.garnetAccent
     }
 }
 
@@ -210,7 +210,7 @@ func healthColor(_ band: HealthBand) -> Color {
     case .excellent: Color.leafAccent
     case .good: Color.oceanAccent
     case .fair: Color.amberAccent
-    case .needsAttention: .red
+    case .needsAttention: Color.garnetAccent
     }
 }
 
@@ -227,7 +227,7 @@ func conditionColor(_ condition: SystemConditionLevel) -> Color {
     switch condition {
     case .normal: Color.leafAccent
     case .caution: Color.amberAccent
-    case .hot: .red
+    case .hot: Color.garnetAccent
     }
 }
 
@@ -259,7 +259,7 @@ func freshnessColor(_ level: StatusFreshnessLevel) -> Color {
     switch level {
     case .live: Color.leafAccent
     case .updating: Color.amberAccent
-    case .stale: .red
+    case .stale: Color.garnetAccent
     }
 }
 

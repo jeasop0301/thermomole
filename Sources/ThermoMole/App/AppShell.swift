@@ -56,6 +56,8 @@ struct MainWindowView: View {
         .frame(minWidth: 1040, minHeight: 680)
         .background(Color.appBackground)
         .tint(Color.thermoAccent)
+        // Dark Jewel only — match the popover so a Light-mode Mac doesn't flip surfaces.
+        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -82,7 +84,7 @@ struct AppToolbar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)
             Text("Patina")
-                .font(.system(.headline, design: .rounded).weight(.semibold))
+                .font(.patinaDisplay(20, .semibold))
 
             BatteryPackChip(
                 temperatureC: model.snapshot.thermal.batteryDisplayC,
