@@ -18,13 +18,13 @@ public struct StatusFreshness: Equatable, Sendable {
 
         if age <= 6 {
             level = .live
-            title = "Live"
+            title = NSLocalizedString("Live", comment: "freshness")
         } else if age <= 20 {
             level = .updating
-            title = "Updating"
+            title = NSLocalizedString("Updating", comment: "freshness")
         } else {
             level = .stale
-            title = "Stale"
+            title = NSLocalizedString("Stale", comment: "freshness")
         }
 
         detail = Self.detail(seconds: seconds)
@@ -32,14 +32,18 @@ public struct StatusFreshness: Equatable, Sendable {
     }
 
     private static func detail(seconds: Int) -> String {
-        seconds == 0 ? "now" : "\(seconds)s ago"
+        seconds == 0
+            ? NSLocalizedString("now", comment: "freshness")
+            : String(format: NSLocalizedString("%ds ago", comment: "freshness"), seconds)
     }
 
     private static func accessibilityLabel(title: String, seconds: Int) -> String {
         if seconds == 0 {
-            return "\(title), last updated now"
+            return String(format: NSLocalizedString("%@, last updated now", comment: ""), title)
         }
-        let unit = seconds == 1 ? "second" : "seconds"
-        return "\(title), last updated \(seconds) \(unit) ago"
+        let unit = seconds == 1
+            ? NSLocalizedString("second", comment: "")
+            : NSLocalizedString("seconds", comment: "")
+        return String(format: NSLocalizedString("%@, last updated %d %@ ago", comment: ""), title, seconds, unit)
     }
 }

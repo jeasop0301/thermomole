@@ -41,76 +41,87 @@ public struct StatusBrief: Equatable, Sendable {
         signals = [
             StatusBriefSignal(
                 id: "battery",
-                title: "Battery",
+                title: NSLocalizedString("Battery", comment: ""),
                 value: StatusBrief.formatTemperature(snapshot.thermal.batteryDisplayC),
-                detail: snapshot.thermal.batteryTemperatureSource == .ioregTemperature ? "Physical pack" : "Thermal sensor"
+                detail: snapshot.thermal.batteryTemperatureSource == .ioregTemperature ? NSLocalizedString("Physical pack", comment: "") : NSLocalizedString("Thermal sensor", comment: "")
             ),
             StatusBriefSignal(
                 id: "cpu",
-                title: "CPU",
+                title: NSLocalizedString("CPU", comment: ""),
                 value: StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC),
-                detail: snapshot.thermal.cpuTemperatureSource == .cpuDieHotspot ? "Die hotspot" : "Average sensor"
+                detail: snapshot.thermal.cpuTemperatureSource == .cpuDieHotspot ? NSLocalizedString("Die hotspot", comment: "") : NSLocalizedString("Average sensor", comment: "")
             ),
             StatusBriefSignal(
                 id: "memory",
-                title: "Memory",
+                title: NSLocalizedString("Memory", comment: ""),
                 value: "\(snapshot.memory.usedPercent)%",
-                detail: snapshot.memory.pressure.rawValue.capitalized
+                detail: StatusBrief.localizedPressure(snapshot.memory.pressure)
             )
         ]
 
         if snapshot.memory.pressure == .critical {
             mood = .hot
-            title = "Memory pressure is critical"
-            detail = "\(snapshot.memory.usedPercent)% memory used. Review top processes before cleanup actions."
+            title = NSLocalizedString("Memory pressure is critical", comment: "")
+            detail = String(format: NSLocalizedString("%d%% memory used. Review top processes before cleanup actions.", comment: ""), snapshot.memory.usedPercent)
             prioritySignalID = "memory"
             return
         }
 
         if snapshot.thermal.batteryWarningLevel == .hot {
             mood = .hot
-            title = "Battery needs a cooldown"
-            detail = "Physical battery temperature is at \(StatusBrief.formatTemperature(snapshot.thermal.batteryDisplayC)). Reduce charging heat and workload."
+            title = NSLocalizedString("Battery needs a cooldown", comment: "")
+            detail = String(format: NSLocalizedString("Physical battery temperature is at %@. Reduce charging heat and workload.", comment: ""), StatusBrief.formatTemperature(snapshot.thermal.batteryDisplayC))
             prioritySignalID = "battery"
             return
         }
 
         if let cpu = snapshot.thermal.cpuDisplayC, cpu >= ThermalThresholds.cpuHotC {
             mood = .hot
-            title = "CPU is running hot"
-            detail = "CPU hotspot is at \(StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC)). Let sustained work settle."
+            title = NSLocalizedString("CPU is running hot", comment: "")
+            detail = String(format: NSLocalizedString("CPU hotspot is at %@. Let sustained work settle.", comment: ""), StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC))
             prioritySignalID = "cpu"
             return
         }
 
         if snapshot.memory.pressure == .warning {
             mood = .watch
-            title = "Memory is getting tight"
-            detail = "\(snapshot.memory.usedPercent)% memory used. Watch top processes before taking action."
+            title = NSLocalizedString("Memory is getting tight", comment: "")
+            detail = String(format: NSLocalizedString("%d%% memory used. Watch top processes before taking action.", comment: ""), snapshot.memory.usedPercent)
             prioritySignalID = "memory"
             return
         }
 
         if snapshot.thermal.batteryWarningLevel == .caution {
             mood = .watch
-            title = "Battery is warming"
-            detail = "Physical battery crossed the \(Int(ThermalThresholds.batteryCautionC))° caution line. Keep airflow clear and avoid extra charging heat."
+            title = NSLocalizedString("Battery is warming", comment: "")
+            detail = String(format: NSLocalizedString("Physical battery crossed the %d° caution line. Keep airflow clear and avoid extra charging heat.", comment: ""), Int(ThermalThresholds.batteryCautionC))
             prioritySignalID = "battery"
             return
         }
 
         if let cpu = snapshot.thermal.cpuDisplayC, cpu >= ThermalThresholds.cpuWarmC {
             mood = .watch
-            title = "CPU warmth is elevated"
-            detail = "CPU hotspot is at \(StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC)). Sustained load may keep it warm."
+            title = NSLocalizedString("CPU warmth is elevated", comment: "")
+            detail = String(format: NSLocalizedString("CPU hotspot is at %@. Sustained load may keep it warm.", comment: ""), StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC))
             prioritySignalID = "cpu"
             return
         }
 
         mood = .steady
-        title = "Everything is steady"
-        detail = "\(StatusBrief.formatTemperature(snapshot.thermal.batteryDisplayC)) battery, \(StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC)) CPU, \(snapshot.memory.usedPercent)% memory."
+        title = NSLocalizedString("Everything is steady", comment: "")
+        detail = String(format: NSLocalizedString("%@ battery, %@ CPU, %d%% memory.", comment: ""), StatusBrief.formatTemperature(snapshot.thermal.batteryDisplayC), StatusBrief.formatTemperature(snapshot.thermal.cpuDisplayC), snapshot.memory.usedPercent)
         prioritySignalID = nil
+    }
+
+    private static func localizedPressure(_ pressure: MemoryPressure) -> String {
+        switch pressure {
+        case .normal:
+            return NSLocalizedString("Normal", comment: "")
+        case .warning:
+            return NSLocalizedString("Warning", comment: "")
+        case .critical:
+            return NSLocalizedString("Critical", comment: "")
+        }
     }
 
     private static func formatTemperature(_ value: Double?) -> String {

@@ -75,7 +75,7 @@ struct SettingsTab: View {
                     SettingsInfoRow(title: "Battery source", value: "AppleSmartBattery (BMS) — shown")
                     SettingsInfoRow(title: "Hottest cell", value: "SMC TB max — upper bound")
                     SettingsInfoRow(title: "VirtualTemperature", value: "Shown as reference")
-                    SettingsInfoRow(title: "Warnings", value: "\(Int(ThermalThresholds.batteryCautionC))°C caution · \(Int(ThermalThresholds.batteryHotC))°C hot")
+                    SettingsInfoRow(title: "Warnings", value: String(format: NSLocalizedString("%d°C caution · %d°C hot", comment: "Battery temperature warning thresholds"), Int(ThermalThresholds.batteryCautionC), Int(ThermalThresholds.batteryHotC)))
                 }
             }
             .padding(22)
@@ -104,7 +104,7 @@ struct SettingsPanel<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: symbol)
+            Label(LocalizedStringKey(title), systemImage: symbol)
                 .font(.headline)
             VStack(spacing: 8) {
                 content
@@ -137,10 +137,10 @@ struct SettingsInfoRow: View {
 
     var body: some View {
         SettingsRow {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.callout.weight(.medium))
             Spacer()
-            Text(value)
+            Text(LocalizedStringKey(value))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)

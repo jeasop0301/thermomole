@@ -19,7 +19,7 @@ struct StatusTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                TabHeader(subtitle: "Battery heat, CPU warmth, and memory pressure without the noise.") {}
+                TabHeader(subtitle: NSLocalizedString("Battery heat, CPU warmth, and memory pressure without the noise.", comment: "")) {}
 
                 if statusBrief.isChargingWhileHot {
                     ChargeWhileHotBanner()
@@ -84,9 +84,9 @@ struct StatusTab: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
-                    MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: "\(model.snapshot.battery.healthPercent)% health · \(model.snapshot.battery.cycleCount) cycles", tint: .mint)
+                    MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: String(format: NSLocalizedString("%d%% health · %d cycles", comment: ""), model.snapshot.battery.healthPercent, model.snapshot.battery.cycleCount), tint: .mint)
                     MetricTile(title: "SSD Temp", value: formatTemperature(model.snapshot.thermal.ssdTemperatureC), detail: "Internal drive", tint: Color.plumAccent)
-                    MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : "Read-only", detail: "No fan control", tint: .gray)
+                    MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : NSLocalizedString("Read-only", comment: ""), detail: "No fan control", tint: .gray)
                 }
 
                 BatterySensorDetailCard(summary: BatterySensorSummary(thermal: model.snapshot.thermal))
@@ -150,8 +150,8 @@ struct ThermalExposureCard: View {
 
     private func exposureStat(_ label: String, _ value: Int) -> some View {
         VStack(alignment: .leading) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text("\(value) min").font(.title3).monospacedDigit()
+            Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(.secondary)
+            Text(String(format: NSLocalizedString("%d min", comment: ""), value)).font(.title3).monospacedDigit()
         }
     }
 }
@@ -175,7 +175,7 @@ struct ThermalExposureWeekStrip: View {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(tint)
                             .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
-                            .accessibilityLabel("\(day.day): \(m) minutes above 40 degrees")
+                            .accessibilityLabel(Text(String(format: NSLocalizedString("%@: %d minutes above 40 degrees", comment: ""), day.day, m)))
                     }
                 }
                 .frame(height: 28, alignment: .bottom)
@@ -184,7 +184,7 @@ struct ThermalExposureWeekStrip: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(height: 28, alignment: .center)
-                    .accessibilityLabel("No battery heat above 40 degrees in the last 7 days")
+                    .accessibilityLabel(Text("No battery heat above 40 degrees in the last 7 days"))
             }
         }
     }
@@ -222,8 +222,8 @@ struct ChargeExposureCard: View {
 
     private func stat(_ label: String, _ value: Int) -> some View {
         VStack(alignment: .leading) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text("\(value) min").font(.title3).monospacedDigit()
+            Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(.secondary)
+            Text(String(format: NSLocalizedString("%d min", comment: ""), value)).font(.title3).monospacedDigit()
         }
     }
 }
@@ -247,7 +247,7 @@ struct ChargeDwellWeekStrip: View {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(tint)
                             .frame(width: 14, height: max(3, CGFloat(m) / CGFloat(maxMinutes) * 28))
-                            .accessibilityLabel("\(day.day): \(m) minutes at or above 80 percent on AC")
+                            .accessibilityLabel(Text(String(format: NSLocalizedString("%@: %d minutes at or above 80 percent on AC", comment: ""), day.day, m)))
                     }
                 }
                 .frame(height: 28, alignment: .bottom)
@@ -256,7 +256,7 @@ struct ChargeDwellWeekStrip: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(height: 28, alignment: .center)
-                    .accessibilityLabel("No high charge dwell on AC in the last 7 days")
+                    .accessibilityLabel(Text("No high charge dwell on AC in the last 7 days"))
             }
         }
     }
@@ -275,8 +275,8 @@ struct BatteryHealthCard: View {
     }
 
     private var detailLine: String {
-        guard let h = health else { return "Collecting daily readings…" }
-        return "\(h.healthPercent)% health · \(h.cycleCount) cycles · \(h.maxCapacityMAh) mAh"
+        guard let h = health else { return NSLocalizedString("Collecting daily readings…", comment: "") }
+        return String(format: NSLocalizedString("%d%% health · %d cycles · %d mAh", comment: ""), h.healthPercent, h.cycleCount, h.maxCapacityMAh)
     }
 
     var body: some View {
@@ -286,7 +286,7 @@ struct BatteryHealthCard: View {
                 Text("Battery longevity").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if let months = report?.projectedMonthsTo80 {
-                    Text("~\(Int(months.rounded())) mo to 80%")
+                    Text(String(format: NSLocalizedString("~%d mo to 80%%", comment: ""), Int(months.rounded())))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -323,15 +323,15 @@ struct BatteryHealthCard: View {
         .softPanel()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Battery longevity"))
-        .accessibilityValue(Text(report.map { "score \($0.score) of 100, \($0.healthPercent) percent health, \($0.cycleCount) cycles" } ?? "collecting"))
+        .accessibilityValue(Text(report.map { String(format: NSLocalizedString("score %d of 100, %d percent health, %d cycles", comment: ""), $0.score, $0.healthPercent, $0.cycleCount) } ?? NSLocalizedString("collecting", comment: "")))
     }
 
     private func alertText(_ alert: BatteryLongevityAlert) -> String {
         switch alert {
-        case .fastFade: "Fading fast"
-        case .healthBelow80: "Below 80%"
-        case .healthBelow60: "Below 60%"
-        case .highCycleRate: "High cycle rate"
+        case .fastFade: NSLocalizedString("Fading fast", comment: "")
+        case .healthBelow80: NSLocalizedString("Below 80%", comment: "")
+        case .healthBelow60: NSLocalizedString("Below 60%", comment: "")
+        case .highCycleRate: NSLocalizedString("High cycle rate", comment: "")
         }
     }
 }
@@ -367,9 +367,9 @@ struct StatusBriefPanel: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(brief.title)
+                    Text(LocalizedStringKey(brief.title))
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                    Text(brief.detail)
+                    Text(LocalizedStringKey(brief.detail))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -391,8 +391,8 @@ struct StatusBriefPanel: View {
         .padding(16)
         .softPanel()
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Status summary \(brief.title)"))
-        .accessibilityValue(Text(brief.detail))
+        .accessibilityLabel(Text(String(format: NSLocalizedString("Status summary %@", comment: ""), NSLocalizedString(brief.title, comment: ""))))
+        .accessibilityValue(Text(LocalizedStringKey(brief.detail)))
     }
 }
 
@@ -408,11 +408,11 @@ struct StatusBriefSignalPill: View {
                 .frame(width: 7, height: 7)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(signal.title)
+                Text(LocalizedStringKey(signal.title))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text(signal.value)
+                Text(LocalizedStringKey(signal.value))
                     .font(.system(.callout, design: .rounded).weight(.semibold))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -420,7 +420,7 @@ struct StatusBriefSignalPill: View {
 
             Spacer(minLength: 0)
 
-            Text(signal.detail)
+            Text(LocalizedStringKey(signal.detail))
                 .font(.caption2.weight(isPriority ? .semibold : .regular))
                 .foregroundStyle(isPriority ? tint : .secondary)
                 .lineLimit(1)
@@ -432,7 +432,7 @@ struct StatusBriefSignalPill: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(isPriority ? tint.opacity(0.28) : Color.subtleStroke))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(signal.title))
+        .accessibilityLabel(Text(LocalizedStringKey(signal.title)))
         .accessibilityValue(Text("\(signal.value), \(signal.detail)"))
     }
 }
@@ -441,9 +441,9 @@ struct CPUCoreGridView: View {
     let cpu: CPUStatus
 
     private var summary: String {
-        var parts = ["\(cpu.logicalCoreCount) cores"]
+        var parts = [String(format: NSLocalizedString("%d cores", comment: ""), cpu.logicalCoreCount)]
         if cpu.performanceCoreCount > 0 || cpu.efficiencyCoreCount > 0 {
-            parts.append("\(cpu.performanceCoreCount)P + \(cpu.efficiencyCoreCount)E")
+            parts.append(String(format: NSLocalizedString("%dP + %dE", comment: ""), cpu.performanceCoreCount, cpu.efficiencyCoreCount))
         }
         return parts.joined(separator: " · ")
     }
@@ -538,9 +538,9 @@ struct BatterySensorDetailCard: View {
                         .monospacedDigit()
                 }
             }
-            Text(summary.hasMismatch
+            Text(LocalizedStringKey(summary.hasMismatch
                  ? "Sensors read different spots (pack vs hottest cell). ~1°C difference is normal."
-                 : "BMS pack is the trend basis; hottest cell is the conservative upper bound.")
+                 : "BMS pack is the trend basis; hottest cell is the conservative upper bound."))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -553,17 +553,17 @@ struct BatterySensorDetailCard: View {
 
     private func label(_ kind: BatterySensorKind) -> String {
         switch kind {
-        case .bms: "BMS pack"
-        case .cellMax: "Hottest cell"
-        case .virtual: "Virtual"
+        case .bms: NSLocalizedString("BMS pack", comment: "")
+        case .cellMax: NSLocalizedString("Hottest cell", comment: "")
+        case .virtual: NSLocalizedString("Virtual", comment: "")
         }
     }
 
     private func detail(_ kind: BatterySensorKind) -> String {
         switch kind {
-        case .bms: "shown · trend basis"
-        case .cellMax: "SMC thermistor max"
-        case .virtual: "BMS estimate"
+        case .bms: NSLocalizedString("shown · trend basis", comment: "")
+        case .cellMax: NSLocalizedString("SMC thermistor max", comment: "")
+        case .virtual: NSLocalizedString("BMS estimate", comment: "")
         }
     }
 }
@@ -606,7 +606,7 @@ struct TrendTile: View {
                 Circle()
                     .fill(tint.opacity(0.85))
                     .frame(width: 7, height: 7)
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -619,7 +619,7 @@ struct TrendTile: View {
                 .minimumScaleFactor(0.7)
             SparklineView(values: series, tint: tint)
                 .frame(height: 40)
-            Text(detail)
+            Text(LocalizedStringKey(detail))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -628,7 +628,7 @@ struct TrendTile: View {
         .padding(14)
         .softPanel()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text(LocalizedStringKey(title)))
         .accessibilityValue(Text("\(value), \(detail)"))
     }
 }
@@ -704,7 +704,7 @@ struct MetricTile: View {
                 Circle()
                     .fill(tint.opacity(0.85))
                     .frame(width: 7, height: 7)
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -722,7 +722,7 @@ struct MetricTile: View {
             .font(.system(size: 22, weight: .semibold, design: .rounded))
             .lineLimit(1)
             if !detail.isEmpty {
-                Text(detail)
+                Text(LocalizedStringKey(detail))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -735,7 +735,7 @@ struct MetricTile: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: Color.panelShadow, radius: 2, x: 0, y: 1)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text(LocalizedStringKey(title)))
         .accessibilityValue(Text(detail.isEmpty ? value : "\(value), \(detail)"))
     }
 }

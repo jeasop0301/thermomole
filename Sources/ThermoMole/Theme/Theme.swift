@@ -159,24 +159,26 @@ func formatBatteryPower(_ watts: Double) -> String? {
 /// Power-flow direction from the boolean flags (amperage sign is unreliable across Macs).
 /// "from pack" only when genuinely off AC — AC-connected-but-not-charging is "holding"/"full".
 func batteryPowerDirection(_ b: BatteryStatus) -> String {
-    if b.isCharging { return "into pack" }
-    if !b.isOnACPower { return "from pack" }
-    return b.isCharged ? "full" : "holding"
+    if b.isCharging { return NSLocalizedString("into pack", comment: "") }
+    if !b.isOnACPower { return NSLocalizedString("from pack", comment: "") }
+    return b.isCharged
+        ? NSLocalizedString("full", comment: "")
+        : NSLocalizedString("holding", comment: "")
 }
 
 func batterySourceLabel(_ source: BatteryTemperatureSource) -> String {
     switch source {
-    case .unavailable: "Unavailable"
-    case .smcCellMax: "SMC TB Max"
-    case .ioregTemperature: "AppleSmartBattery"
+    case .unavailable: NSLocalizedString("Unavailable", comment: "")
+    case .smcCellMax: NSLocalizedString("SMC TB Max", comment: "")
+    case .ioregTemperature: NSLocalizedString("AppleSmartBattery", comment: "")
     }
 }
 
 func cpuSourceLabel(_ source: CPUTemperatureSource) -> String {
     switch source {
-    case .unavailable: "Unavailable"
-    case .cpuDieHotspot: "CPU Die Hotspot"
-    case .cpuAverage: "CPU Average"
+    case .unavailable: NSLocalizedString("Unavailable", comment: "")
+    case .cpuDieHotspot: NSLocalizedString("CPU Die Hotspot", comment: "")
+    case .cpuAverage: NSLocalizedString("CPU Average", comment: "")
     }
 }
 

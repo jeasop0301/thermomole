@@ -10,7 +10,7 @@ struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            TextField(placeholder, text: $text)
+            TextField(LocalizedStringKey(placeholder), text: $text)
                 .textFieldStyle(.plain)
             if !text.isEmpty {
                 Button {
@@ -42,9 +42,9 @@ struct ProgressPanel: View {
                 .controlSize(.regular)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.headline)
-                Text(message)
+                Text(LocalizedStringKey(message))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -69,7 +69,7 @@ struct IconButton: View {
                 .frame(width: 26, height: 26)
         }
         .buttonStyle(.borderless)
-        .help(help)
-        .accessibilityLabel(Text(help))
+        .help(LocalizedStringKey(help))
+        .accessibilityLabel(Text(LocalizedStringKey(help)))
     }
 }

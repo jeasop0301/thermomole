@@ -143,7 +143,7 @@ public struct MenuBarPresentation: Equatable, Sendable {
         toolTip = [
             "ThermoMole",
             title,
-            "Freshness: \(freshness.title) · \(freshness.detail)",
+            String(format: NSLocalizedString("Freshness: %@ · %@", comment: "menu-bar tooltip"), freshness.title, freshness.detail),
             "Battery: \(batterySource)",
             "CPU: \(cpuSource)",
             "Updated: \(sampledAt)"

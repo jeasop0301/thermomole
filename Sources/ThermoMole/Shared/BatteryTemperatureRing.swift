@@ -41,6 +41,12 @@ struct BatteryTemperatureRing: View {
         }
         .frame(width: diameter, height: diameter)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Battery temperature \(temperatureC.map { String(format: "%.1f degrees", $0) } ?? "unavailable")")
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        let reading = temperatureC.map { String(format: NSLocalizedString("%.1f degrees", comment: ""), $0) }
+            ?? NSLocalizedString("unavailable", comment: "")
+        return String(format: NSLocalizedString("Battery temperature %@", comment: ""), reading)
     }
 }

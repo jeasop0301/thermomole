@@ -9,15 +9,15 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .status: "Status"
-        case .settings: "Settings"
+        case .status: NSLocalizedString("Status", comment: "")
+        case .settings: NSLocalizedString("Settings", comment: "")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .status: "Battery heat, CPU warmth"
-        case .settings: "Local choices"
+        case .status: NSLocalizedString("Battery heat, CPU warmth", comment: "")
+        case .settings: NSLocalizedString("Local choices", comment: "")
         }
     }
 

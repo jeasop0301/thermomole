@@ -48,7 +48,7 @@ public final class SettingsModel {
             }
             reportError(nil)
         } catch {
-            reportError("Launch at Login: \(error.localizedDescription)")
+            reportError(String(format: NSLocalizedString("Launch at Login: %@", comment: ""), error.localizedDescription))
         }
         refreshLaunchAtLoginStatus()
     }
@@ -57,11 +57,11 @@ public final class SettingsModel {
         let status = launchStatus()
         launchAtLoginEnabled = status == .enabled
         launchAtLoginStatusText = switch status {
-        case .enabled: "On"
-        case .notRegistered: "Off"
-        case .notFound: "Install to /Applications"
-        case .requiresApproval: "Needs Approval"
-        case .unknown: "Unknown"
+        case .enabled: NSLocalizedString("On", comment: "")
+        case .notRegistered: NSLocalizedString("Off", comment: "")
+        case .notFound: NSLocalizedString("Install to /Applications", comment: "")
+        case .requiresApproval: NSLocalizedString("Needs Approval", comment: "")
+        case .unknown: NSLocalizedString("Unknown", comment: "")
         }
     }
 }

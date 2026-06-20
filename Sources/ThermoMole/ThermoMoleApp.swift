@@ -85,8 +85,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func captureSnapshot(to path: String) {
-        let content = MenuBarPopoverView(model: model) {}
-            .environment(\.colorScheme, .dark)
+        // THERMOMOLE_SNAPSHOT_VIEW=window renders the main window (Status/Settings, tab via
+        // THERMOMOLE_TAB); default renders the menu-bar popover card.
+        let content: AnyView
+        if ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT_VIEW"] == "window" {
+            content = AnyView(MainWindowView(model: model)
+                .frame(width: 1040, height: 720)
+                .environment(\.colorScheme, .dark))
+        } else {
+            content = AnyView(MenuBarPopoverView(model: model) {}
+                .environment(\.colorScheme, .dark))
+        }
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
 
