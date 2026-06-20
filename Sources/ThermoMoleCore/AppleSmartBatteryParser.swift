@@ -48,17 +48,47 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
 
 public enum AppleSmartBatteryParser {
     public static func parse(_ raw: String) -> AppleSmartBatteryInfo {
-        AppleSmartBatteryInfo(
-            temperatureC: centiCelsiusValue(for: "Temperature", in: raw),
-            virtualTemperatureC: centiCelsiusValue(for: "VirtualTemperature", in: raw),
-            cycleCount: intValue(for: "CycleCount", in: raw),
-            currentCapacityPercent: intValue(for: "CurrentCapacity", in: raw),
-            rawCurrentCapacityMAh: intValue(for: "AppleRawCurrentCapacity", in: raw),
-            rawMaxCapacityMAh: intValue(for: "AppleRawMaxCapacity", in: raw),
-            designCapacityMAh: intValue(for: "DesignCapacity", in: raw),
-            voltageMV: intValue(for: "Voltage", in: raw),
-            amperageMA: signedIntValue(for: "Amperage", in: raw)
+        // The nested `"BatteryData" = {…}` dict appears BEFORE the top-level keys and carries its
+        // own DesignCapacity / CycleCount / Voltage. A first-match regex would read those nested
+        // values (equal today, but they diverge after a battery service / firmware re-estimation,
+        // which would corrupt cycle-wear + calibration). Strip that block so only top-level wins.
+        let top = strippingNestedBlock(named: "BatteryData", from: raw)
+        return AppleSmartBatteryInfo(
+            temperatureC: centiCelsiusValue(for: "Temperature", in: top),
+            virtualTemperatureC: centiCelsiusValue(for: "VirtualTemperature", in: top),
+            cycleCount: intValue(for: "CycleCount", in: top),
+            currentCapacityPercent: intValue(for: "CurrentCapacity", in: top),
+            rawCurrentCapacityMAh: intValue(for: "AppleRawCurrentCapacity", in: top),
+            rawMaxCapacityMAh: intValue(for: "AppleRawMaxCapacity", in: top),
+            designCapacityMAh: intValue(for: "DesignCapacity", in: top),
+            voltageMV: intValue(for: "Voltage", in: top),
+            amperageMA: signedIntValue(for: "Amperage", in: top)
         )
+    }
+
+    /// Removes a `"<name>" = {…}` block (balanced braces) so its nested keys don't shadow the
+    /// top-level ones. Returns the input unchanged if the block isn't found.
+    static func strippingNestedBlock(named name: String, from raw: String) -> String {
+        guard let open = raw.range(of: #""\#(name)"\s*=\s*\{"#, options: .regularExpression) else {
+            return raw
+        }
+        var depth = 1
+        var i = open.upperBound // first char after the opening '{'
+        while i < raw.endIndex {
+            switch raw[i] {
+            case "{": depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 {
+                    var s = raw
+                    s.removeSubrange(open.lowerBound...i)
+                    return s
+                }
+            default: break
+            }
+            i = raw.index(after: i)
+        }
+        return raw // unbalanced — leave as-is
     }
 
     private static func centiCelsiusValue(for key: String, in raw: String) -> Double? {
