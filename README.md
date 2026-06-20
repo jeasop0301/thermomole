@@ -8,12 +8,20 @@ It runs entirely on-device — no network telemetry, no account required — and
   <img src="docs/assets/patina-card.png" width="380" alt="Patina menu-bar aging card: a live accelerated-aging multiplier, drivers, weekly strain, and an hour-of-day heat strip">
 </p>
 
+## Download
+
+Grab the latest **notarized** build from [Releases](https://github.com/jeasop0301/thermomole/releases/latest): download `Patina.zip`, unzip, and move `Patina.app` to `/Applications`. It's signed with a Developer ID and notarized by Apple, so it opens with a double-click — no right-click → Open. Apple Silicon, macOS 14+. The UI follows your system language (English / 한국어).
+
+## Features
+
 - Menu bar HUD with configurable metrics — CPU temperature, battery temperature, and RAM percent are always available; the title tints by system condition.
 - Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`–`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
 - Battery warning policy: 42°C caution, 48°C hot (cell-referenced). No notification by default.
 - Thermal exposure tracking: per-day cumulative minutes at/above 40°C and 45°C plus the day's peak battery temperature, persisted locally to `~/Library/Application Support/ThermoMole/`. Surfaced in the Status dashboard and the menu-bar card.
 - High state-of-charge dwell tracking: time held at ≥80% / ≥95% while on AC power (a primary calendar-aging factor), persisted locally.
 - Accelerated-aging engine: a live "aging speed" multiplier versus an ideal idle baseline (25°C / 50%), derived from published Li-ion kinetics — Arrhenius temperature acceleration (Ea = 0.55 eV) × a state-of-charge factor — plus a cumulative weekly "strain" (effective aging-days) and a cold-charge lithium-plating caution. Labeled throughout as a relative estimate, not a capacity measurement.
+- Measured cycle-wear estimate: real `CycleCount` throughput × published per-EFC loss (anchored to Apple's ~80%-at-1000-cycles rating), shown as a range, separate from the calendar term.
+- Measured calibration: after ~8 weeks it anchors the calendar model to *your* battery's own full-charge-capacity fade (robust Theil–Sen trend), reporting whether you're aging slower / about / faster than the generic model — a coarse band, never false precision.
 - Patina aging card (menu-bar popover): the live multiplier and its dominant driver (heat vs charge); cell temperature / charge / power state (On battery · Charging · Full · AC · Held · AC); the weekly strain with a 7-day sparkline; a health outlook; and a Details expander with an hour-of-day heat strip, a battery-health projection band, longevity factors, and a 0–100 longevity score with plain-language actions.
 - Charging-while-hot warning: an in-app banner and a menu-bar flame when the battery is hot while on AC power. No system notification by default.
 - Status dashboard with a human-readable system brief, CPU (with a per-core grid), battery, RAM, disk, network, health score, top processes, instant battery power, internal SSD temperature, and 60-second trend sparklines.
