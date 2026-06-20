@@ -22,6 +22,7 @@ final class AppModel: ObservableObject {
     @Published var batteryHealthSeries: [Double] = []
     @Published var latestBatteryHealth: DailyBatteryHealth?
     @Published var batteryLongevity: BatteryLongevityReport?
+    @Published var batteryCalibration: BatteryCalibrationResult = .modeled
     @Published var todayCPUExposure = CPUExposureSummary.empty
     @Published var longevityAssessment = LongevityAssessment(score: 100, factors: [], actions: [])
     @Published var heatPattern = HeatPatternInsight.empty
@@ -85,6 +86,7 @@ final class AppModel: ObservableObject {
             await hourlyHeatCoordinator.bootstrap()
             await agingStrainCoordinator.bootstrap()
             agingStrain = await agingStrainCoordinator.summary(at: Date(), calendar: .current)
+            recomputeCalibration(history: batteryHealthLog.all())
             heatPattern = HeatPatternInsight.build(
                 await hourlyHeatCoordinator.grid(endingAt: Date(), calendar: .current)
             )
@@ -215,6 +217,36 @@ final class AppModel: ObservableObject {
         longevityAssessment = LongevityAdvisor.assess(signals)
     }
 
+    /// Anchor the calendar-aging model to the user's measured capacity fade (un-clamped
+    /// maxCapacity/designCapacity trend), removing the cycle-wear share. Stays `.modeled`
+    /// until ~8 weeks of data clear the gates.
+    private func recomputeCalibration(history: [DailyBatteryHealth]) {
+        guard let firstDate = Self.parseDay(history.first?.day) else {
+            batteryCalibration = .modeled
+            return
+        }
+        let points: [(day: Double, ratio: Double)] = history.compactMap { d in
+            guard d.designCapacityMAh > 0, d.maxCapacityMAh > 0,
+                  let date = Self.parseDay(d.day) else { return nil }
+            return (day: date.timeIntervalSince(firstDate) / 86_400.0,
+                    ratio: Double(d.maxCapacityMAh) / Double(d.designCapacityMAh))
+        }
+        let cycleWearPerWeek = (batteryLongevity?.cyclesPerWeek)
+            .map { $0 * BatteryLongevity.capacityLossPerEFCCentralPct } ?? 0
+        batteryCalibration = BatteryCalibration.evaluate(
+            points: points,
+            strainRatio: agingStrain.ratio30d,
+            cycleWearPctPerWeek: cycleWearPerWeek
+        )
+    }
+
+    private static func parseDay(_ day: String?) -> Date? {
+        guard let day else { return nil }
+        let p = day.split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: p[0], month: p[1], day: p[2]))
+    }
+
     private func recordBatteryHealth(from snapshot: SystemSnapshot) {
         batteryHealthLog.record(
             healthPercent: snapshot.battery.healthPercent,
@@ -229,6 +261,7 @@ final class AppModel: ObservableObject {
         latestBatteryHealth = batteryHealthLog.latest
         batteryLongevity = BatteryLongevity.evaluate(history: history)
         healthProjection = HealthProjection.evaluate(history)
+        recomputeCalibration(history: history)
         let record = BatteryHealthRecord(days: history).pruned()
         if record != lastSavedHealthRecord {
             lastSavedHealthRecord = record

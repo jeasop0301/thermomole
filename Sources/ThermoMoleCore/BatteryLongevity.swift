@@ -51,6 +51,7 @@ public enum BatteryLongevity {
     /// spec (recent Macs ~80% at 1000 cycles ⇒ ~0.02%/cycle); ceiling ~0.06%/cycle from
     /// deep-cycle lab data (Battery University BU-808). CycleCount already counts EFCs.
     public static let capacityLossPerEFCLowPct = 0.02
+    public static let capacityLossPerEFCCentralPct = 0.03   // real-world mid (used for calibration subtraction)
     public static let capacityLossPerEFCHighPct = 0.06
 
     /// Pure evaluation over a (chronological or unordered) daily health history.

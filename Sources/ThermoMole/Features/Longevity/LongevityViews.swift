@@ -19,7 +19,8 @@ struct PatinaAgingCard: View {
                 .padding(.bottom, 22)
 
             // 2. Aging hero
-            AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot)
+            AgingHeroSection(rate: model.agingRate, snapshot: model.snapshot,
+                             calibration: model.batteryCalibration)
                 .padding(.bottom, 22)
 
             // 3. Drivers
@@ -31,7 +32,9 @@ struct PatinaAgingCard: View {
             // 4. Strain (calendar) + cycle throughput
             hairline
             StrainSection(strain: model.agingStrain,
-                          cyclesPerWeek: model.batteryLongevity?.cyclesPerWeek)
+                          cyclesPerWeek: model.batteryLongevity?.cyclesPerWeek,
+                          cycleWearLow: model.batteryLongevity?.cycleWearPctPerYearLow,
+                          cycleWearHigh: model.batteryLongevity?.cycleWearPctPerYearHigh)
                 .padding(.top, 14)
                 .padding(.bottom, 18)
 
@@ -120,8 +123,19 @@ private struct PatinaHeader: View {
 private struct AgingHeroSection: View {
     let rate: BatteryAgingRate?
     let snapshot: SystemSnapshot
+    let calibration: BatteryCalibrationResult
 
     private var multiplier: Double { rate?.multiplier ?? 1.0 }
+
+    /// When the model has been anchored to the user's measured fade, a short verdict line.
+    private var calibrationLine: (text: String, tint: Color)? {
+        guard calibration.status == .calibrated, let band = calibration.band else { return nil }
+        switch band {
+        case .slower: return (NSLocalizedString("Calibrated to your battery — aging slower than the model", comment: ""), Color.textPrimary)
+        case .about:  return (NSLocalizedString("Calibrated to your battery — about as the model predicts", comment: ""), Color.textPrimary)
+        case .faster: return (NSLocalizedString("Calibrated to your battery — aging faster than the model", comment: ""), Color.amberAccent)
+        }
+    }
 
     /// The one-decimal value the user actually sees. Band word, tint, and the "≈ N×"
     /// numeral all derive from THIS, so they can never disagree at a rounding boundary
@@ -263,6 +277,19 @@ private struct AgingHeroSection: View {
                 .font(.patinaBody(11))
                 .foregroundStyle(Color.textSecondary)
                 .padding(.top, 10)
+
+            if let cal = calibrationLine {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(cal.tint)
+                    Text(cal.text)
+                        .font(.patinaBody(11))
+                        .foregroundStyle(cal.tint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 6)
+            }
         }
         .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
         .heroPanel()
@@ -369,8 +396,17 @@ private struct StrainSection: View {
     /// Cycle throughput is a SEPARATE wear mechanism the calendar multiplier doesn't capture;
     /// surfacing it stops heavy-cyclers (cool + mid-SoC) from being silently under-warned.
     let cyclesPerWeek: Double?
+    /// Estimated capacity loss/yr from cycle throughput (range; measured cycles × published per-EFC loss).
+    let cycleWearLow: Double?
+    let cycleWearHigh: Double?
 
     private var heavyCycling: Bool { (cyclesPerWeek ?? 0) >= 15 }   // matches BatteryLongevity.highCycleRate
+
+    private var cycleWearText: String? {
+        guard let lo = cycleWearLow, let hi = cycleWearHigh else { return nil }
+        if hi < 0.1 { return NSLocalizedString("→ < 0.1%/yr capacity (est.)", comment: "") }
+        return String(format: NSLocalizedString("→ ~%.1f–%.1f%%/yr capacity (est.)", comment: ""), lo, hi)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -419,6 +455,13 @@ private struct StrainSection: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
+
+                if let wear = cycleWearText {
+                    Text(wear)
+                        .font(.patinaBody(11.5))
+                        .foregroundStyle(Color.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Text("Relative estimate — calendar aging only; cycle wear is tracked separately.")

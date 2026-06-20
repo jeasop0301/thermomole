@@ -97,7 +97,8 @@ public actor AgingStrainCoordinator {
     }
 
     private func flush(at date: Date) {
-        let record = AgingStrainRecord(days: Array(tracker.days.values)).pruned(toDays: 30)
+        // 90 days so the measured-calibration loop has model-side coverage over its ≥8-week window.
+        let record = AgingStrainRecord(days: Array(tracker.days.values)).pruned(toDays: 90)
         do {
             try store.save(record)
             lastFlushAt = date

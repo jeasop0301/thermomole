@@ -222,3 +222,10 @@
 "%@, last updated now" = "%@, 방금 업데이트됨";
 "%@, last updated %d %@ ago" = "%@, %d%@ 전 업데이트됨";
 "Freshness: %@ · %@" = "최신도: %@ · %@";
+
+/* ---- Actual-aging: cycle wear + measured calibration ---- */
+"→ < 0.1%/yr capacity (est.)" = "→ 연 < 0.1% 용량 (추정)";
+"→ ~%.1f–%.1f%%/yr capacity (est.)" = "→ 연 ~%.1f–%.1f%% 용량 (추정)";
+"Calibrated to your battery — aging slower than the model" = "내 배터리 기준 보정 — 모델보다 느리게 노화";
+"Calibrated to your battery — about as the model predicts" = "내 배터리 기준 보정 — 모델 예측과 비슷";
+"Calibrated to your battery — aging faster than the model" = "내 배터리 기준 보정 — 모델보다 빠르게 노화";
