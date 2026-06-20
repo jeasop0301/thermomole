@@ -58,7 +58,9 @@ struct StatusTab: View {
                         .frame(maxWidth: .infinity)
                     TrendTile(
                         title: "Battery power",
-                        value: formatBatteryPower(model.snapshot.battery.instantPowerW) ?? "--",
+                        // Held on AC = no current flow → show an explicit "0 W" instead of "--".
+                        value: formatBatteryPower(model.snapshot.battery.instantPowerW)
+                            ?? (model.snapshot.battery.isOnACPower ? "0 W" : "--"),
                         detail: batteryPowerDirection(model.snapshot.battery),
                         series: model.statusHistory.batteryPowerSeries,
                         tint: Color.thermoAccent
