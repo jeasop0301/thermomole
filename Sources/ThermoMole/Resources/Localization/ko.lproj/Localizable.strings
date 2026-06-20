@@ -12,12 +12,12 @@
 "LOW" = "낮음";
 "ELEVATED" = "높음";
 "HIGH" = "매우 높음";
-"aging vs an ideal idle (25° / 50%)" = "이상적 대기 상태(25° / 50%) 대비";
-"Aging at the ideal idle rate" = "이상적 대기 속도로 노화 중";
+"aging vs an ideal idle (25° / 50%)" = "이상적인 대기 상태(25° / 50%) 대비";
+"Aging at the ideal idle rate" = "이상적인 대기 수준으로 노화 중";
 "Heat is the main driver right now" = "지금은 열이 주된 요인";
 "High charge is the main driver right now" = "지금은 높은 충전이 주된 요인";
 "High charge + heat" = "높은 충전 + 열";
-"Low charge isn’t “better” — mid charge (~50%) is healthiest." = "낮은 충전이 “더 좋은” 게 아닙니다 — 중간 충전(~50%)이 가장 건강합니다.";
+"Low charge isn’t “better” — mid charge (~50%) is healthiest." = "충전을 낮게 유지하는 게 “더 좋은” 건 아닙니다 — 중간 충전(~50%)이 가장 건강합니다.";
 "Charging while cold — risk of lithium plating" = "저온 충전 중 — 리튬 도금 위험";
 "Relative estimate from published kinetics — not a capacity measurement." = "공개된 반응속도론 기반 상대 추정치 — 용량 측정값이 아닙니다.";
 
@@ -33,12 +33,12 @@
 /* ---- Strain ---- */
 "This week · Collecting…" = "이번 주 · 수집 중…";
 "This week ran" = "이번 주";
-"ideal · +%@ aging-days" = "이상 대비 · +%@ 노화일";
+"ideal · +%@ aging-days" = "기준 대비 · +%@ 노화일";
 "Cycling ·" = "사이클 ·";
 "~%.0f/week" = "~%.0f회/주";
 "lifetime avg" = "전체 평균";
 "lifetime avg · heavy" = "전체 평균 · 과다";
-"Relative estimate — calendar aging only; cycle wear is tracked separately." = "상대 추정치 — 달력 노화만; 사이클 마모는 별도 추적.";
+"Relative estimate — calendar aging only; cycle wear is tracked separately." = "상대 추정치 — 달력 노화만 반영, 사이클 마모는 별도 추적.";
 
 /* ---- When it runs hot ---- */
 "WHEN IT RUNS HOT" = "언제 뜨거워지나";
@@ -54,10 +54,10 @@
 /* ---- Action chip (from LongevityAdvisor, Core) ---- */
 "Battery is fading fast" = "배터리가 빠르게 저하 중";
 "Battery is below 80% health" = "배터리 건강 80% 미만";
-"Unplug to let the battery cool" = "전원을 빼 배터리를 식히세요";
+"Unplug to let the battery cool" = "전원을 분리해 배터리를 식히세요";
 "Reduce sustained heat" = "지속적인 발열을 줄이세요";
 "Watch sustained warmth" = "지속적인 온기에 주의하세요";
-"Unplug around 80% when you can" = "가능하면 80% 부근에서 전원을 빼세요";
+"Unplug around 80% when you can" = "가능하면 80% 부근에서 전원을 분리하세요";
 "Free up disk space" = "디스크 공간을 확보하세요";
 "Free up some disk space" = "디스크 공간을 조금 확보하세요";
 
@@ -95,8 +95,8 @@
 "Battery pack temperature" = "배터리 팩 온도";
 "Current section" = "현재 섹션";
 "Open section" = "섹션 열기";
-"Battery heat, CPU warmth, and memory pressure without the noise." = "배터리 발열, CPU 발열, 메모리 압력을 군더더기 없이.";
-"Charging while hot — unplug to let the battery cool. Heat plus charging accelerates aging." = "뜨거운 상태로 충전 중 — 연결을 해제해 배터리를 식히세요. 발열과 충전이 겹치면 노화가 빨라집니다.";
+"Battery heat, CPU warmth, and memory pressure without the noise." = "배터리 발열, CPU 온도, 메모리 압박을 군더더기 없이.";
+"Charging while hot — unplug to let the battery cool. Heat plus charging accelerates aging." = "뜨거운 상태로 충전 중 — 전원을 분리해 배터리를 식히세요. 발열과 충전이 겹치면 노화가 빨라집니다.";
 "Today's battery heat exposure" = "오늘의 배터리 발열 노출";
 "Above 40°" = "40° 이상";
 "Above 45°" = "45° 이상";
@@ -124,7 +124,7 @@
 "No fan control" = "팬 제어 불가";
 "Read-only" = "읽기 전용";
 "Real battery pack" = "실제 배터리 팩";
-"CPU warmth" = "CPU 발열";
+"CPU warmth" = "CPU 온도";
 "Battery power" = "배터리 전력";
 "%d%% health · %d cycles" = "건강 %d%% · 사이클 %d회";
 "%d min" = "%d분";
@@ -172,7 +172,7 @@
 "into pack" = "팩으로 충전";
 "from pack" = "팩에서 사용";
 "full" = "완충";
-"holding" = "유지";
+"holding" = "유지 중";
 "Unavailable" = "사용 불가";
 "SMC TB Max" = "SMC TB Max";
 "AppleSmartBattery" = "AppleSmartBattery";
@@ -188,7 +188,7 @@
 "Memory pressure is critical" = "메모리 압박이 심각합니다";
 "Memory is getting tight" = "메모리가 부족해지고 있습니다";
 "Battery is warming" = "배터리가 따뜻해지고 있습니다";
-"CPU warmth is elevated" = "CPU 발열이 높아졌습니다";
+"CPU warmth is elevated" = "CPU 온도가 높아졌습니다";
 "%d%% memory used. Review top processes before cleanup actions." = "메모리 %d%% 사용 중. 정리 작업 전에 상위 프로세스를 확인하세요.";
 "Physical battery temperature is at %@. Reduce charging heat and workload." = "실제 배터리 온도가 %@입니다. 충전 발열과 작업 부하를 줄이세요.";
 "CPU hotspot is at %@. Let sustained work settle." = "CPU 핫스팟이 %@입니다. 지속 작업이 진정되도록 두세요.";

@@ -150,11 +150,11 @@ final class MenuBarMetricTests: XCTestCase {
 
         XCTAssertEqual(presentation.title, "CPU 58.1° · BAT 30.6° · RAM 55%")
         XCTAssertEqual(presentation.visibleTitle, "● CPU 58.1° · BAT 30.6° · RAM 55%")
-        XCTAssertTrue(presentation.toolTip.contains("ThermoMole"))
+        XCTAssertTrue(presentation.toolTip.contains("Patina"))
         XCTAssertTrue(presentation.toolTip.contains("CPU 58.1° · BAT 30.6° · RAM 55%"))
         XCTAssertTrue(presentation.toolTip.contains("Battery: Physical pack"))
         XCTAssertTrue(presentation.toolTip.contains("CPU: Die hotspot"))
-        XCTAssertTrue(presentation.accessibilityLabel.contains("ThermoMole status"))
+        XCTAssertTrue(presentation.accessibilityLabel.contains("Patina status"))
         XCTAssertTrue(presentation.accessibilityLabel.contains("battery 30.6 degrees, physical pack"))
         XCTAssertTrue(presentation.accessibilityLabel.contains("memory 55 percent, normal pressure"))
     }

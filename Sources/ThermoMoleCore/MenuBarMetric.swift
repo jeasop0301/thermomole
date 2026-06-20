@@ -141,7 +141,7 @@ public struct MenuBarPresentation: Equatable, Sendable {
         let sampledAt = ISO8601DateFormatter().string(from: snapshot.sampledAt)
 
         toolTip = [
-            "ThermoMole",
+            "Patina",
             title,
             String(format: NSLocalizedString("Freshness: %@ · %@", comment: "menu-bar tooltip"), freshness.title, freshness.detail),
             "Battery: \(batterySource)",
@@ -150,7 +150,7 @@ public struct MenuBarPresentation: Equatable, Sendable {
         ].joined(separator: "\n")
 
         accessibilityLabel = [
-            "ThermoMole status",
+            "Patina status",
             freshness.title.lowercased(),
             "CPU \(Self.accessibleTemperature(snapshot.thermal.cpuDisplayC)), \(cpuSource.lowercased())",
             "battery \(Self.accessibleTemperature(snapshot.thermal.batteryDisplayC)), \(batterySource.lowercased())",
