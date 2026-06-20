@@ -76,15 +76,16 @@ struct AppToolbar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "thermometer.medium")
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(Color.thermoAccent)
-                .frame(width: 30, height: 30)
-                .background(Color.iconBadgeFill)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .accessibilityHidden(true)
-            Text("Patina")
-                .font(.patinaDisplay(20, .semibold))
+            // Match the card header: "Patina" + a small live aging-status dot (no icon badge).
+            HStack(spacing: 7) {
+                Text("Patina")
+                    .font(.patinaDisplay(20, .semibold))
+                    .foregroundStyle(Color.textPrimary)
+                Circle()
+                    .fill(Color.agingWarmth(model.agingRate?.multiplier ?? 1.0))
+                    .frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
+            }
 
             BatteryPackChip(
                 temperatureC: model.snapshot.thermal.batteryDisplayC,
