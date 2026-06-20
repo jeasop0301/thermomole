@@ -85,14 +85,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func captureSnapshot(to path: String) {
-        // THERMOMOLE_SNAPSHOT_VIEW=window renders the main window (Status/Settings, tab via
-        // THERMOMOLE_TAB); default renders the menu-bar popover card.
+        // THERMOMOLE_SNAPSHOT_VIEW: "window" = main window; "card" = the aging card alone
+        // (clean hero for the README); default = the menu-bar popover (card + footer).
         let content: AnyView
-        if ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT_VIEW"] == "window" {
+        switch ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT_VIEW"] {
+        case "window":
             content = AnyView(MainWindowView(model: model)
                 .frame(width: 1040, height: 720)
                 .environment(\.colorScheme, .dark))
-        } else {
+        case "card":
+            content = AnyView(PatinaAgingCard(model: model)
+                .padding(20)
+                .background(Color.appBackground)
+                .environment(\.colorScheme, .dark))
+        default:
             content = AnyView(MenuBarPopoverView(model: model) {}
                 .environment(\.colorScheme, .dark))
         }

@@ -4,6 +4,10 @@ Patina is a battery-longevity and aging-insight menu-bar app for Apple Silicon M
 
 It runs entirely on-device — no network telemetry, no account required — and complements charge-limiter tools like AlDente by showing you *why* your battery ages: thermal exposure, high-SoC dwell, and charging habits surfaced as a single 0–100 longevity score with plain-language actions.
 
+<p align="center">
+  <img src="docs/assets/patina-card.png" width="380" alt="Patina menu-bar aging card: a live accelerated-aging multiplier, drivers, weekly strain, and an hour-of-day heat strip">
+</p>
+
 - Menu bar HUD with configurable metrics — CPU temperature, battery temperature, and RAM percent are always available; the title tints by system condition.
 - Battery temperature policy: `AppleSmartBattery` `Temperature / 100` first, SMC `TB0T`–`TB2T` fallback/diagnostics, `VirtualTemperature` ignored.
 - Battery warning policy: 42°C caution, 48°C hot (cell-referenced). No notification by default.
