@@ -34,7 +34,10 @@ struct PatinaAgingCard: View {
             StrainSection(strain: model.agingStrain,
                           cyclesPerWeek: model.batteryLongevity?.cyclesPerWeek,
                           cycleWearLow: model.batteryLongevity?.cycleWearPctPerYearLow,
-                          cycleWearHigh: model.batteryLongevity?.cycleWearPctPerYearHigh)
+                          cycleWearHigh: model.batteryLongevity?.cycleWearPctPerYearHigh,
+                          ratedCycle: RatedCycleContext.make(
+                              cycleCount: model.snapshot.battery.cycleCount,
+                              ratedCycleCount: model.snapshot.battery.ratedCycleCount))
                 .padding(.top, 14)
                 .padding(.bottom, 18)
 
@@ -442,6 +445,8 @@ private struct StrainSection: View {
     /// Estimated capacity loss/yr from cycle throughput (range; measured cycles × published per-EFC loss).
     let cycleWearLow: Double?
     let cycleWearHigh: Double?
+    /// Apple's rated-cycle context ("N · ~M rated"). nil when the BMS doesn't report a rating.
+    let ratedCycle: RatedCycleContext?
 
     private var heavyCycling: Bool { (cyclesPerWeek ?? 0) >= 15 }   // matches BatteryLongevity.highCycleRate
 
@@ -505,6 +510,19 @@ private struct StrainSection: View {
                         .foregroundStyle(Color.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            }
+
+            // Rated-cycle context — one honest line: where the count sits vs Apple's spec. Apple
+            // rates Apple Silicon packs ~M cycles to 80% health; it's an expectation, NOT a hard
+            // limit. Shown only when the BMS reports a rating (some Macs don't).
+            if let rated = ratedCycle {
+                Text(String(format: NSLocalizedString("Cycle count %d · ~%d rated", comment: "battery cycle count vs Apple's rated count"),
+                            rated.cycleCount, rated.ratedCycleCount))
+                    .font(.patinaBody(13))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
             }
 
             Text("Relative estimate — calendar aging only; cycle wear is tracked separately.")
@@ -771,6 +789,26 @@ private struct DetailsContent: View {
                     .font(.patinaBody(12))
                     .foregroundStyle(Color.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Rated cycles — the fuller, honest note. Apple's spec/expectation, explicitly NOT a
+            // hard limit and not a "replace at N" threshold. Shown only when the BMS reports it.
+            if let rated = RatedCycleContext.make(
+                cycleCount: model.snapshot.battery.cycleCount,
+                ratedCycleCount: model.snapshot.battery.ratedCycleCount) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(format: NSLocalizedString("Cycle count %d · ~%d rated (%d%%)", comment: "cycle count, Apple rated count, percent through rating"),
+                                rated.cycleCount, rated.ratedCycleCount, rated.percentThrough))
+                        .font(.patinaBody(13))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(String(format: NSLocalizedString("Apple rates this pack for ~%d cycles to 80%% health — a spec, not a hard limit. Batteries keep working past it.", comment: "honest rated-cycle caption"),
+                                rated.ratedCycleCount))
+                        .font(.patinaBody(12))
+                        .foregroundStyle(Color.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             // Health reconciliation — explain the intraday % swing honestly.
