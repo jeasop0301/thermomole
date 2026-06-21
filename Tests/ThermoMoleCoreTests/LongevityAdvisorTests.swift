@@ -148,6 +148,29 @@ final class LongevityAdvisorTests: XCTestCase {
         XCTAssertFalse(a.actions.contains { $0.id == "high-soc" })
     }
 
+    func testNativeNudgeDetailQuantifiesBenefitWhenMaxSocPresent() {
+        var s = pristine()
+        s.dailyMaxSoc = 98
+        s.nativeChargeLimitAvailable = true
+        let a = LongevityAdvisor.assess(s)
+        let nudge = a.actions.first { $0.id == "high-soc-limit" }
+        XCTAssertNotNil(nudge)
+        // honest framing: high-charge aging reduction, with both the max SoC and the % present
+        XCTAssertTrue(nudge!.detail.contains("98"))
+        XCTAssertTrue(nudge!.detail.contains("19"))
+    }
+
+    func testNativeNudgeDetailFallsBackWithoutMaxSoc() {
+        var s = pristine()
+        s.dailyMaxSoc = nil
+        s.chargeExposure = chargeExposure(min80: 300, min95: 180) // high-charge via dwell, no max SoC
+        s.nativeChargeLimitAvailable = true
+        let a = LongevityAdvisor.assess(s)
+        let nudge = a.actions.first { $0.id == "high-soc-limit" }
+        XCTAssertNotNil(nudge)
+        XCTAssertFalse(nudge!.detail.contains("%d")) // formatted, not a raw placeholder
+    }
+
     func testHighSocNudgeDoesNotOutrankUrgentBatteryFade() {
         var s = pristine()
         s.dailyMaxSoc = 99

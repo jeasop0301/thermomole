@@ -171,7 +171,10 @@ public enum LongevityAdvisor {
                 // 24/7 / remote users who can't physically pull the plug).
                 let detail: String
                 if let maxSoc = s.dailyMaxSoc {
-                    detail = String(format: NSLocalizedString("Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging.", comment: ""), maxSoc)
+                    // Quantify the benefit — honest framing: this is the high-charge (SoC) AGING
+                    // component, not total battery life. Computed from the same socFactor curve.
+                    let reductionPct = ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: maxSoc)
+                    detail = String(format: NSLocalizedString("Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging by about %d%%.", comment: ""), maxSoc, reductionPct)
                 } else {
                     detail = NSLocalizedString("Holding a high charge on AC ages the cells faster — cap at 80%% in Settings → Battery.", comment: "")
                 }

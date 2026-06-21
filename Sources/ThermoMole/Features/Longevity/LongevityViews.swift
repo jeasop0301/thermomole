@@ -41,7 +41,8 @@ struct PatinaAgingCard: View {
             // Recent charge range — surfaces high-SoC dwell, the lever behind the charge-limit nudge.
             // Guard at the parent so firmware that doesn't report daily SoC reserves no phantom gap.
             if let minSoc = model.snapshot.battery.dailyMinSoc, let maxSoc = model.snapshot.battery.dailyMaxSoc {
-                ChargeRangeLine(minSoc: minSoc, maxSoc: maxSoc)
+                ChargeRangeLine(minSoc: minSoc, maxSoc: maxSoc,
+                                nativeChargeLimitAvailable: AppModel.nativeChargeLimitAvailable)
                     .padding(.bottom, 18)
             }
 
@@ -523,24 +524,47 @@ private struct StrainSparkline: View {
 
 // MARK: - Charge range (high-SoC exposure)
 
-/// Unobtrusive line: the recent charge window the BMS recorded, plus a subtle high-SoC hint when
-/// the pack routinely sits near full. The actionable nudge lives in the ActionChip; this is context.
-/// The parent only instantiates this when both values are present, so params are non-optional.
+/// Unobtrusive line: the recent charge window the BMS recorded, plus a state-aware second clause —
+/// a positive confirmation when a limit appears active, or a subtle high-SoC hint when the pack
+/// routinely sits near full. The actionable nudge (with the %) lives in the ActionChip; this is
+/// context. The parent only instantiates this when both values are present, so params are non-optional.
 private struct ChargeRangeLine: View {
     let minSoc: Int
     let maxSoc: Int
+    /// Gates the positive "limit active" confirmation — only meaningful where macOS exposes the
+    /// native Charge Limit (26.4+). Without it, a low max SoC is just a habit, not a confirmed limit.
+    let nativeChargeLimitAvailable: Bool
 
-    private var highExposure: Bool { maxSoc >= 90 }
+    private var state: ChargeLimitInsight.State {
+        ChargeLimitInsight.classify(dailyMaxSoc: maxSoc)
+    }
 
     var body: some View {
         HStack(spacing: 6) {
             Text(String(format: NSLocalizedString("Charge range %d–%d%% recently", comment: ""), minSoc, maxSoc))
                 .font(.patinaBody(12))
                 .foregroundStyle(Color.textTertiary)
-            if highExposure {
-                Text(NSLocalizedString("high-SoC exposure", comment: ""))
+
+            switch state {
+            case .limitActive where nativeChargeLimitAvailable:
+                // Reassurance that the user's action worked — a limit being active is GOOD, so this
+                // is cream/secondary, never garnet. (Inferred from a recent max ≤82%; no public API
+                // exposes the native limit state.) Not a LongevityAction — there's nothing to do.
+                Text(NSLocalizedString("Charge limit active ✓ — high-charge aging minimized", comment: ""))
+                    .font(.patinaBody(12, .semibold))
+                    .foregroundStyle(Color.textSecondary)
+            case .highExposure(let reductionPct):
+                // Surface the quantified benefit ON the visible card line — the ActionChip renders
+                // only the action title, so this is the only place the user actually SEES the %.
+                // amber = the "you could do better" hint. Fall back to the static label at 0% gain.
+                Text(reductionPct > 0
+                     ? String(format: NSLocalizedString("high-SoC exposure · ~%d%% less high-charge aging if capped at 80%%", comment: ""), reductionPct)
+                     : NSLocalizedString("high-SoC exposure", comment: ""))
                     .font(.patinaBody(12, .semibold))
                     .foregroundStyle(Color.amberAccent)
+            default:
+                // .normal, or .limitActive on older macOS — just the range, no second clause.
+                EmptyView()
             }
         }
         .fixedSize(horizontal: false, vertical: true)
