@@ -797,8 +797,13 @@ private struct DetailsContent: View {
                 cycleCount: model.snapshot.battery.cycleCount,
                 ratedCycleCount: model.snapshot.battery.ratedCycleCount) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(String(format: NSLocalizedString("Cycle count %d · ~%d rated (%d%%)", comment: "cycle count, Apple rated count, percent through rating"),
-                                rated.cycleCount, rated.ratedCycleCount, rated.percentThrough))
+                    // Show the percent-through only once it rounds to ≥1% — a near-new pack reading
+                    // "(0%)" looks like a bug, so it falls back to the plain card phrasing.
+                    Text(rated.percentThrough >= 1
+                         ? String(format: NSLocalizedString("Cycle count %d · ~%d rated (%d%%)", comment: "cycle count, Apple rated count, percent through rating"),
+                                  rated.cycleCount, rated.ratedCycleCount, rated.percentThrough)
+                         : String(format: NSLocalizedString("Cycle count %d · ~%d rated", comment: "battery cycle count vs Apple's rated count"),
+                                  rated.cycleCount, rated.ratedCycleCount))
                         .font(.patinaBody(13))
                         .monospacedDigit()
                         .foregroundStyle(Color.textSecondary)
