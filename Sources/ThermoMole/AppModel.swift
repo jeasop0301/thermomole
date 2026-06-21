@@ -34,6 +34,7 @@ final class AppModel: ObservableObject {
 
     private let provider = NativeSensorProvider()
     private let statusSnapshotStore = StatusSnapshotStore.live
+    private let metricsExportStore = MetricsExportStore.live
     private let exposureCoordinator = ThermalExposureCoordinator()
     private let chargeCoordinator = ChargeExposureCoordinator()
     private let cpuExposureCoordinator = CPUExposureCoordinator()
@@ -165,6 +166,23 @@ final class AppModel: ObservableObject {
             )
             agingStrain = await agingStrainCoordinator.summary(at: next.sampledAt, calendar: .current)
             recordBatteryHealth(from: next)
+            // Machine-readable longevity export for headless/remote Macs. Assembled from the
+            // values just computed for THIS sample so it matches the card; uses the snapshot's
+            // sampledAt (Core never reads the wall clock). Same fire-and-forget pattern as the
+            // snapshot save above.
+            let export = FleetMetricsExport.from(
+                battery: next.battery,
+                agingRate: agingRate,
+                calibration: batteryCalibration,
+                chargeExposure: todayChargeExposure,
+                dailyMaxSoc: next.battery.dailyMaxSoc,
+                dailyMinSoc: next.battery.dailyMinSoc,
+                batteryTempC: next.thermal.batteryDisplayC,
+                nativeChargeLimitAvailable: Self.nativeChargeLimitAvailable,
+                appVersion: Self.appVersion,
+                generatedAt: next.sampledAt
+            )
+            Task.detached { [metricsExportStore] in try? metricsExportStore.save(export) }
             heatHealthInsight = HeatHealthCorrelation.evaluate(
                 thermal: await exposureCoordinator.allDays(),
                 health: batteryHealthLog.all()
@@ -210,6 +228,10 @@ final class AppModel: ObservableObject {
         let v = ProcessInfo.processInfo.operatingSystemVersion
         return (v.majorVersion, v.minorVersion) >= (26, 4)
     }()
+
+    /// Marketing version for the machine-readable metrics export (CFBundleShortVersionString).
+    static let appVersion: String =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
 
     private func recomputeLongevity() {
         let signals = LongevitySignals(
