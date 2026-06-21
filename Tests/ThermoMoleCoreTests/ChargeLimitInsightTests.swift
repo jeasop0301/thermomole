@@ -29,6 +29,80 @@ final class ChargeLimitInsightTests: XCTestCase {
         XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 70), 0)
     }
 
+    // MARK: - socAgingReductionPercent(currentMaxSoc:cap:) — generalized cap
+
+    func testGeneralizedReduction98To80() {
+        // socFactor(98)=1.91, socFactor(80)=1.55 → (1 - 1.55/1.91)*100 ≈ 18.8 → 19
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 98, cap: 80), 19)
+    }
+
+    func testGeneralizedReduction98To90() {
+        // socFactor(90)=1.75 → (1 - 1.75/1.91)*100 ≈ 8.4 → 8
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 98, cap: 90), 8)
+    }
+
+    func testGeneralizedReduction98To85() {
+        // socFactor(85)=1.65 → (1 - 1.65/1.91)*100 ≈ 13.6 → 14
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 98, cap: 85), 14)
+    }
+
+    func testGeneralizedReduction98To95() {
+        // socFactor(95)=1.85 → (1 - 1.85/1.91)*100 ≈ 3.1 → 3
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 98, cap: 95), 3)
+    }
+
+    func testGeneralizedReduction100To85() {
+        // socFactor(100)=1.95, socFactor(85)=1.65 → (1 - 1.65/1.95)*100 ≈ 15.4 → 15
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 100, cap: 85), 15)
+    }
+
+    func testGeneralizedReductionCapNotBelowCurrentClampsToZero() {
+        // cap >= currentMax → no benefit → clamped ≥ 0
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 90, cap: 95), 0)
+        XCTAssertEqual(ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: 90, cap: 90), 0)
+    }
+
+    func testOneArgMatchesGeneralizedAtCap80() {
+        for soc in [85, 90, 95, 98, 100] {
+            XCTAssertEqual(
+                ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: soc),
+                ChargeLimitInsight.socAgingReductionPercent(currentMaxSoc: soc, cap: 80)
+            )
+        }
+    }
+
+    // MARK: - chargeLimitComparison (table builder)
+
+    func testComparisonAt98ReturnsAllFourCapsBelow() {
+        let rows = ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 98)
+        XCTAssertEqual(rows.map(\.cap), [80, 85, 90, 95])
+        XCTAssertEqual(rows.map(\.reductionPct), [19, 14, 8, 3])
+    }
+
+    func testComparisonAt90ExcludesCapsAtOrAboveCurrent() {
+        // Only caps strictly below 90 → 80, 85
+        let rows = ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 90)
+        XCTAssertEqual(rows.map(\.cap), [80, 85])
+        XCTAssertEqual(rows.map(\.reductionPct), [11, 6])
+    }
+
+    func testComparisonAt100ReturnsAllFourCaps() {
+        let rows = ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 100)
+        XCTAssertEqual(rows.map(\.cap), [80, 85, 90, 95])
+        XCTAssertEqual(rows.map(\.reductionPct), [21, 15, 10, 5])
+    }
+
+    func testComparisonAt80OrBelowIsEmpty() {
+        XCTAssertTrue(ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 80).isEmpty)
+        XCTAssertTrue(ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 75).isEmpty)
+    }
+
+    func testComparisonAt85ReturnsOnlyCap80() {
+        let rows = ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: 85)
+        XCTAssertEqual(rows.map(\.cap), [80])
+        XCTAssertEqual(rows.map(\.reductionPct), [6])
+    }
+
     // MARK: - classify (3-state)
 
     func testClassifyLimitActiveAtEightyTwo() {

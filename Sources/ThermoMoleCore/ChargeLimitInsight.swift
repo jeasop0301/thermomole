@@ -11,10 +11,41 @@ public enum ChargeLimitInsight {
     /// NOT cycle wear. Phrase to the user as "high-charge aging by ~X%".
     /// Formula: max(0, round((1 - socFactor(80)/socFactor(maxSoc)) * 100)), clamped ≥ 0.
     public static func socAgingReductionPercent(currentMaxSoc: Int) -> Int {
+        socAgingReductionPercent(currentMaxSoc: currentMaxSoc, cap: 80)
+    }
+
+    /// Generalized form of the above: high-charge (SoC) aging reduction if the pack were capped at
+    /// `cap` instead of the current daily max. Same caveat — this is the SoC factor ONLY, not total
+    /// battery life and not cycle wear. Negative (cap ≥ current) clamps to 0.
+    /// Formula: max(0, round((1 - socFactor(cap)/socFactor(maxSoc)) * 100)).
+    public static func socAgingReductionPercent(currentMaxSoc: Int, cap: Int) -> Int {
         let current = BatteryAgingRate.socFactor(Double(currentMaxSoc))
         guard current > 0 else { return 0 }
-        let reduction = (1.0 - BatteryAgingRate.socFactor(80) / current) * 100.0
+        let reduction = (1.0 - BatteryAgingRate.socFactor(Double(cap)) / current) * 100.0
         return max(0, Int(reduction.rounded()))
+    }
+
+    /// One row of the charge-limit comparison table: a candidate cap and the high-charge aging
+    /// reduction it would yield vs the current daily max.
+    public struct ChargeLimitStep: Equatable, Sendable {
+        public let cap: Int
+        public let reductionPct: Int
+        public init(cap: Int, reductionPct: Int) {
+            self.cap = cap
+            self.reductionPct = reductionPct
+        }
+    }
+
+    /// The candidate native Charge Limit caps macOS offers, in ascending order.
+    public static let comparisonCaps: [Int] = [80, 85, 90, 95]
+
+    /// Build the comparison rows: for each candidate cap strictly below `currentMaxSoc`, the
+    /// high-charge aging reduction at that cap. Only caps below the current max make sense (a cap
+    /// at or above the current habit yields nothing). Empty when `currentMaxSoc <= 80`.
+    public static func chargeLimitComparison(currentMaxSoc: Int) -> [ChargeLimitStep] {
+        comparisonCaps
+            .filter { $0 < currentMaxSoc }
+            .map { ChargeLimitStep(cap: $0, reductionPct: socAgingReductionPercent(currentMaxSoc: currentMaxSoc, cap: $0)) }
     }
 
     /// Three-state read on the user's charge habit, inferred purely from the BMS daily max SoC.
