@@ -46,6 +46,11 @@
 "high-SoC exposure · ~%d%% less high-charge aging if capped at 80%%" = "고충전 노출 · 80%% 제한 시 노화 ~%d%%↓";
 "Charge limit active ✓ — high-charge aging minimized" = "충전 제한 작동 중 ✓ — 고충전 노화 최소화됨";
 
+/* ---- Charge-limit options (DetailsContent comparison table) ---- */
+"CHARGE-LIMIT OPTIONS" = "충전 제한 옵션";
+"Cap %d%% → ~%d%% less high-charge aging" = "%d%% 제한 → 고충전 노화 ~%d%%↓";
+"High-charge aging only — not total battery life." = "고충전 노화 기준 — 전체 배터리 수명 아님.";
+
 /* ---- When it runs hot ---- */
 "WHEN IT RUNS HOT" = "언제 뜨거워지나";
 "Cell temperature by hour of day" = "시간대별 셀 온도";
