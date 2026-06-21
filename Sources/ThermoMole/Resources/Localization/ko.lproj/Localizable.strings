@@ -63,7 +63,7 @@
 "Watch sustained warmth" = "지속적인 온기에 주의하세요";
 "Unplug around 80% when you can" = "가능하면 80% 부근에서 전원을 분리하세요";
 "Enable charge limit" = "충전 제한 켜기";
-"Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging." = "배터리가 매일 %d%%까지 도달합니다 — 설정 → 배터리에서 80%%로 제한하면 고충전 노화를 줄입니다.";
+"Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging by about %d%%." = "배터리가 매일 %d%%까지 도달합니다 — 설정 → 배터리에서 80%%로 제한하면 고충전 노화를 약 %d%% 줄입니다.";
 "Holding a high charge on AC ages the cells faster — cap at 80%% in Settings → Battery." = "AC 전원에서 높은 충전 상태를 유지하면 셀 노화가 빨라집니다 — 설정 → 배터리에서 80%%로 제한하세요.";
 "Free up disk space" = "디스크 공간을 확보하세요";
 "Free up some disk space" = "디스크 공간을 조금 확보하세요";
