@@ -15,6 +15,9 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
     public var dailyMaxSoc: Int?
     /// Lowest state-of-charge over the same window. nil when unreported.
     public var dailyMinSoc: Int?
+    /// Apple's rated cycle count for this pack (BMS `DesignCycleCount9C`, =1000 on Apple Silicon —
+    /// the spec to ~80% health, NOT a hard limit). nil when the firmware doesn't report it.
+    public var ratedCycleCount: Int?
 
     public init(
         temperatureC: Double? = nil,
@@ -27,7 +30,8 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         voltageMV: Int = 0,
         amperageMA: Int = 0,
         dailyMaxSoc: Int? = nil,
-        dailyMinSoc: Int? = nil
+        dailyMinSoc: Int? = nil,
+        ratedCycleCount: Int? = nil
     ) {
         self.temperatureC = temperatureC
         self.virtualTemperatureC = virtualTemperatureC
@@ -40,6 +44,7 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         self.amperageMA = amperageMA
         self.dailyMaxSoc = dailyMaxSoc
         self.dailyMinSoc = dailyMinSoc
+        self.ratedCycleCount = ratedCycleCount
     }
 
     public var healthPercent: Int {
@@ -76,7 +81,10 @@ public enum AppleSmartBatteryParser {
             // in `top` (which had that block stripped) — read them from the full `raw`. intValue
             // returns 0 for a missing key; map 0 → nil to mean "unknown".
             dailyMaxSoc: optionalIntValue(for: "DailyMaxSoc", in: raw),
-            dailyMinSoc: optionalIntValue(for: "DailyMinSoc", in: raw)
+            dailyMinSoc: optionalIntValue(for: "DailyMinSoc", in: raw),
+            // DesignCycleCount9C is TOP-LEVEL (outside BatteryData), so read it from `top` to avoid
+            // a nested decoy shadowing it. 0/missing → nil so junk/unreporting Macs hide the line.
+            ratedCycleCount: optionalIntValue(for: "DesignCycleCount9C", in: top)
         )
     }
 
