@@ -780,6 +780,18 @@ private struct DetailsContent: View {
 
             // (The hour-of-day heat strip is promoted to the main card; see HeatPatternSection.)
 
+            // Accelerating-fade (knee) hint — RARE, advanced, Details-only signal. Shown only
+            // when the conservative detector clears its long-baseline + separated-CI bar. Soft,
+            // informational (textSecondary): no replace/months claim, no alarm color, no
+            // notification. `.steady`/`.insufficient` render nothing.
+            if model.fadeTrend == .accelerating {
+                Text(NSLocalizedString("Capacity fade may be speeding up — worth watching.",
+                                       comment: "rare in-UI knee/acceleration hint, informational not alarm"))
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             // Heat vs health
             VStack(alignment: .leading, spacing: 4) {
                 Text("Heat vs health.")
