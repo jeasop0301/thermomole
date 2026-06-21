@@ -51,6 +51,9 @@ public struct LongevitySignals: Equatable, Sendable {
     /// Highest state-of-charge the BMS recorded recently (from ioreg BatteryData). nil = unknown.
     /// Drives the native charge-limit nudge: high values mean the user keeps the pack near full.
     public var dailyMaxSoc: Int?
+    /// Whether macOS exposes a native Charge Limit toggle (shipped in macOS 26.4). When true the
+    /// high-charge nudge points at Settings; when false it falls back to "unplug around 80%".
+    public var nativeChargeLimitAvailable: Bool
 
     public init(
         batteryLongevity: BatteryLongevityReport? = nil,
@@ -63,7 +66,8 @@ public struct LongevitySignals: Equatable, Sendable {
         isChargingWhileHot: Bool = false,
         batteryTempC: Double? = nil,
         ssdTempC: Double? = nil,
-        dailyMaxSoc: Int? = nil
+        dailyMaxSoc: Int? = nil,
+        nativeChargeLimitAvailable: Bool = false
     ) {
         self.batteryLongevity = batteryLongevity
         self.batteryExposure = batteryExposure
@@ -76,6 +80,7 @@ public struct LongevitySignals: Equatable, Sendable {
         self.batteryTempC = batteryTempC
         self.ssdTempC = ssdTempC
         self.dailyMaxSoc = dailyMaxSoc
+        self.nativeChargeLimitAvailable = nativeChargeLimitAvailable
     }
 }
 
@@ -154,22 +159,27 @@ public enum LongevityAdvisor {
         }
         let chargingScore = clamp(100 - (soc80 * 0.05 + soc95 * 0.2))
         factors.append(LongevityFactor(id: "charging", title: "Charging habits", status: chargingStatus, summary: chargingSummary(soc80: soc80, soc95: soc95)))
-        if soc95 >= 30 {
-            actions.append(LongevityAction(id: "high-soc", severity: .suggest, title: "Unplug around 80% when you can", detail: "Holding a high charge on AC for long stretches ages the cells faster."))
-        }
 
-        // High-SoC exposure → nudge the user toward macOS's native Charge Limit. Pure insight:
-        // measure how high the pack actually sits (BMS DailyMaxSoc) and point at Settings; no
-        // SMC writes, no daemon. >=90 means routinely near full; <=82 means a limit is likely
-        // already active (no nudge); nil means unknown (no nudge). .suggest so it never outranks
-        // genuine urgent actions (battery-fade, charge-hot).
-        if let maxSoc = s.dailyMaxSoc, maxSoc >= 90 {
-            actions.append(LongevityAction(
-                id: "high-soc-limit",
-                severity: .suggest,
-                title: NSLocalizedString("Enable charge limit", comment: ""),
-                detail: String(format: NSLocalizedString("Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging.", comment: ""), maxSoc)
-            ))
+        // High-charge exposure → ONE recommendation, OS-aware (no duplicate nudges). The pack sits
+        // routinely near full either by measured BMS dwell (dailyMaxSoc>=90) or by sustained ≥95%
+        // on AC today (soc95>=30). Pure insight — no SMC writes, no daemon. .suggest so it never
+        // outranks genuine urgent actions (battery-fade, charge-hot).
+        let highCharge = (s.dailyMaxSoc ?? 0) >= 90 || soc95 >= 30
+        if highCharge {
+            if s.nativeChargeLimitAvailable {
+                // macOS 26.4+ has a native Charge Limit — point there (better than "unplug" for
+                // 24/7 / remote users who can't physically pull the plug).
+                let detail: String
+                if let maxSoc = s.dailyMaxSoc {
+                    detail = String(format: NSLocalizedString("Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging.", comment: ""), maxSoc)
+                } else {
+                    detail = NSLocalizedString("Holding a high charge on AC ages the cells faster — cap at 80%% in Settings → Battery.", comment: "")
+                }
+                actions.append(LongevityAction(id: "high-soc-limit", severity: .suggest, title: NSLocalizedString("Enable charge limit", comment: ""), detail: detail))
+            } else {
+                // Older macOS without a native limit — fall back to the manual habit.
+                actions.append(LongevityAction(id: "high-soc", severity: .suggest, title: "Unplug around 80% when you can", detail: "Holding a high charge on AC for long stretches ages the cells faster."))
+            }
         }
 
         // Storage

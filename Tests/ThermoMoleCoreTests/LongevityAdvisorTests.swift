@@ -67,12 +67,23 @@ final class LongevityAdvisorTests: XCTestCase {
         XCTAssertNotEqual(a.factors.first { $0.id == "memory" }?.status, .good)
     }
 
-    func testSustainedHighSoCOnACSuggestsUnplug() {
+    func testSustainedHighSoCOnACSuggestsUnplugWhenNoNativeLimit() {
         var s = pristine()
         s.chargeExposure = chargeExposure(min80: 300, min95: 180) // 5h / 3h
+        s.nativeChargeLimitAvailable = false
         let a = LongevityAdvisor.assess(s)
         XCTAssertTrue(a.actions.contains { $0.id == "high-soc" })
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
         XCTAssertNotEqual(a.factors.first { $0.id == "charging" }?.status, .good)
+    }
+
+    func testSustainedHighSoCOnACSuggestsLimitWhenNative() {
+        var s = pristine()
+        s.chargeExposure = chargeExposure(min80: 300, min95: 180)
+        s.nativeChargeLimitAvailable = true
+        let a = LongevityAdvisor.assess(s)
+        XCTAssertTrue(a.actions.contains { $0.id == "high-soc-limit" })
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc" })
     }
 
     func testActionsSortedBySeverityDescending() {
@@ -89,41 +100,58 @@ final class LongevityAdvisorTests: XCTestCase {
         XCTAssertEqual(Set(a.factors.map { $0.id }), ["battery", "heat", "charging", "storage", "memory"])
     }
 
-    // MARK: - High-SoC exposure nudge (native charge-limit)
+    // MARK: - High-charge nudge (single, OS-aware)
 
-    func testHighDailyMaxSocEmitsChargeLimitNudge() {
+    func testHighDailyMaxSocOnNativeEmitsChargeLimitOnly() {
         var s = pristine()
         s.dailyMaxSoc = 98
+        s.nativeChargeLimitAvailable = true
         let a = LongevityAdvisor.assess(s)
         let nudge = a.actions.first { $0.id == "high-soc-limit" }
         XCTAssertNotNil(nudge)
         XCTAssertEqual(nudge?.severity, .suggest)
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc" }) // no duplicate
+    }
+
+    func testHighDailyMaxSocWithoutNativeFallsBackToUnplug() {
+        var s = pristine()
+        s.dailyMaxSoc = 98
+        s.nativeChargeLimitAvailable = false
+        let a = LongevityAdvisor.assess(s)
+        XCTAssertTrue(a.actions.contains { $0.id == "high-soc" })
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
     }
 
     func testDailyMaxSocAtNinetyEmitsNudge() {
         var s = pristine()
         s.dailyMaxSoc = 90
+        s.nativeChargeLimitAvailable = true
         let a = LongevityAdvisor.assess(s)
         XCTAssertTrue(a.actions.contains { $0.id == "high-soc-limit" })
     }
 
-    func testLimitedDailyMaxSocSuppressesNudge() {
+    func testNotHighChargeEmitsNeitherAction() {
         var s = pristine()
-        s.dailyMaxSoc = 80 // limit likely already active
+        s.dailyMaxSoc = 80 // below 90, and no soc95 dwell from pristine()
+        s.nativeChargeLimitAvailable = true
         let a = LongevityAdvisor.assess(s)
         XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc" })
     }
 
-    func testNilDailyMaxSocSuppressesNudge() {
+    func testNilDailyMaxSocAndNoDwellEmitsNeither() {
         var s = pristine()
         s.dailyMaxSoc = nil
+        s.nativeChargeLimitAvailable = true
         let a = LongevityAdvisor.assess(s)
         XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc" })
     }
 
     func testHighSocNudgeDoesNotOutrankUrgentBatteryFade() {
         var s = pristine()
         s.dailyMaxSoc = 99
+        s.nativeChargeLimitAvailable = true
         s.batteryLongevity = BatteryLongevityReport(score: 60, healthPercent: 82, cycleCount: 400, healthDropPerWeek: 7, cyclesPerWeek: 5, projectedMonthsTo80: 1, alerts: [.fastFade])
         let a = LongevityAdvisor.assess(s)
         // urgent battery-fade must sort ahead of the suggest-level nudge

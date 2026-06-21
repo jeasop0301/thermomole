@@ -202,6 +202,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// macOS shipped a native Charge Limit toggle in 26.4. Detect it at runtime via the OS version
+    /// rather than `#available(macOS 26.4,*)` — the build SDK may not yet know that version. Stable
+    /// for the process lifetime, so compute once.
+    static let nativeChargeLimitAvailable: Bool = {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return (v.majorVersion, v.minorVersion) >= (26, 4)
+    }()
+
     private func recomputeLongevity() {
         let signals = LongevitySignals(
             batteryLongevity: batteryLongevity,
@@ -214,7 +222,8 @@ final class AppModel: ObservableObject {
             isChargingWhileHot: StatusBrief(snapshot: snapshot).isChargingWhileHot,
             batteryTempC: snapshot.thermal.batteryDisplayC,
             ssdTempC: snapshot.thermal.ssdTemperatureC,
-            dailyMaxSoc: snapshot.battery.dailyMaxSoc
+            dailyMaxSoc: snapshot.battery.dailyMaxSoc,
+            nativeChargeLimitAvailable: Self.nativeChargeLimitAvailable
         )
         longevityAssessment = LongevityAdvisor.assess(signals)
     }
