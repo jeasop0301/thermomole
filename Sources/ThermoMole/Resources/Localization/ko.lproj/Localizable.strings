@@ -89,6 +89,11 @@
 "Heat vs health." = "열 대 건강.";
 "Warmer hours track with faster aging in your readings." = "기록상 더운 시간대가 더 빠른 노화와 연관됩니다.";
 "No clear link between heat and aging yet." = "아직 열과 노화의 뚜렷한 연관이 없습니다.";
+"Health readings swing intraday — that's the battery gauge, not real loss." = "건강 수치는 하루 안에도 출렁입니다 — 실제 손실이 아니라 배터리 게이지 때문입니다.";
+"Patina's trend reading: ~%d%% · %@" = "Patina 추세 수치: ~%d%% · %@";
+"steady" = "안정적";
+"variable" = "변동 큼";
+"macOS may report a different % — both are views of the same battery." = "macOS는 다른 %를 표시할 수 있습니다 — 둘 다 같은 배터리의 다른 관점입니다.";
 "HEALTH OUTLOOK" = "건강 전망";
 "Projection band · relative estimate, not a capacity measurement." = "예측 밴드 · 상대 추정치, 용량 측정값 아님.";
 "Battery health is holding steady at the current trend." = "배터리 건강이 현재 추세로 안정적입니다.";
