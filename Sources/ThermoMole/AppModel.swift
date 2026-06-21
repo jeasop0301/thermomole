@@ -187,7 +187,8 @@ final class AppModel: ObservableObject {
             snapshot: snapshot,
             todayChargeExposure: todayChargeExposure,
             todayCPUExposure: todayCPUExposure,
-            batteryLongevity: batteryLongevity
+            batteryLongevity: batteryLongevity,
+            dailyMaxSoc: snapshot.battery.dailyMaxSoc
         )
         let due = NotificationPolicy.due(
             active: active,
@@ -197,7 +198,7 @@ final class AppModel: ObservableObject {
             calendar: .current
         )
         for notification in due {
-            notifier.post(notification)
+            notifier.post(notification, nativeChargeLimitAvailable: Self.nativeChargeLimitAvailable)
             lastNotified[notification] = snapshot.sampledAt
         }
     }

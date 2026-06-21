@@ -238,3 +238,18 @@
 "Calibrated to your battery — aging slower than the model" = "내 배터리 기준 보정 — 모델보다 느리게 노화";
 "Calibrated to your battery — about as the model predicts" = "내 배터리 기준 보정 — 모델 예측과 비슷";
 "Calibrated to your battery — aging faster than the model" = "내 배터리 기준 보정 — 모델보다 빠르게 노화";
+
+/* ---- Longevity notifications (LongevityNotification, Core — posted via UNUserNotificationCenter) ---- */
+"Charging while hot" = "뜨거운 상태로 충전 중";
+"Battery running hot" = "배터리 과열";
+"Held at high charge" = "높은 충전 상태 유지 중";
+"Storage almost full" = "저장 공간 거의 가득 참";
+"CPU running hot" = "CPU 과열";
+"High charge cycles" = "충전 사이클 과다";
+"Unplug to let the battery cool — heat plus charging ages it fastest." = "전원을 분리해 배터리를 식히세요 — 발열과 충전이 겹치면 노화가 가장 빨라집니다.";
+"The battery has been hot for a while. Ease the load to cool it down." = "배터리가 한동안 뜨거웠습니다. 부하를 줄여 식히세요.";
+"It's been near full on AC for hours. Turn on Charge Limit in Settings → Battery to hold it lower." = "AC 전원에서 몇 시간째 완충에 가깝습니다. 설정 → 배터리에서 충전 제한을 켜 충전 상태를 낮게 유지하세요.";
+"It's been near full on AC for hours. Unplug around 80% when you can." = "AC 전원에서 몇 시간째 완충에 가깝습니다. 가능하면 80% 부근에서 전원을 분리하세요.";
+"Low free space forces swap to the SSD. Free up some room." = "여유 공간이 부족해 SSD 스왑이 발생합니다. 공간을 확보하세요.";
+"CPU has been very hot. Ease the load to cool it down." = "CPU가 매우 뜨거웠습니다. 부하를 줄여 식히세요.";
+"Charge cycles are climbing fast. Fewer full charge/discharge swings help." = "충전 사이클이 빠르게 증가하고 있습니다. 완충/완전 방전 폭을 줄이면 도움이 됩니다.";
