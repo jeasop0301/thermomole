@@ -76,6 +76,9 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
     /// Feeds the native charge-limit insight; optional/decodeIfPresent for old persisted snapshots.
     public var dailyMaxSoc: Int?
     public var dailyMinSoc: Int?
+    /// Apple's rated cycle count (BMS DesignCycleCount9C, ~1000 to 80% health). nil = unreported.
+    /// Context only — Apple's spec, NOT a hard limit. decodeIfPresent for old persisted snapshots.
+    public var ratedCycleCount: Int?
 
     public init(
         percent: Int,
@@ -90,7 +93,8 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         designCapacityMAh: Int,
         instantPowerW: Double = 0,
         dailyMaxSoc: Int? = nil,
-        dailyMinSoc: Int? = nil
+        dailyMinSoc: Int? = nil,
+        ratedCycleCount: Int? = nil
     ) {
         self.percent = percent
         self.isCharging = isCharging
@@ -105,12 +109,13 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         self.instantPowerW = instantPowerW
         self.dailyMaxSoc = dailyMaxSoc
         self.dailyMinSoc = dailyMinSoc
+        self.ratedCycleCount = ratedCycleCount
     }
 
     private enum CodingKeys: String, CodingKey {
         case percent, isCharging, isCharged, isOnACPower, timeRemaining, cycleCount
         case healthPercent, currentCapacityMAh, maxCapacityMAh, designCapacityMAh, instantPowerW
-        case dailyMaxSoc, dailyMinSoc
+        case dailyMaxSoc, dailyMinSoc, ratedCycleCount
     }
 
     public init(from decoder: Decoder) throws {
@@ -128,6 +133,7 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         instantPowerW = try c.decodeIfPresent(Double.self, forKey: .instantPowerW) ?? 0
         dailyMaxSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMaxSoc)
         dailyMinSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMinSoc)
+        ratedCycleCount = try c.decodeIfPresent(Int.self, forKey: .ratedCycleCount)
     }
 }
 

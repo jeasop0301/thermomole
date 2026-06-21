@@ -220,7 +220,8 @@ public actor NativeSensorProvider: SensorProvider {
             designCapacityMAh: info.designCapacityMAh,
             instantPowerW: info.instantPowerW,
             dailyMaxSoc: info.dailyMaxSoc,
-            dailyMinSoc: info.dailyMinSoc
+            dailyMinSoc: info.dailyMinSoc,
+            ratedCycleCount: info.ratedCycleCount
         )
     }
 
