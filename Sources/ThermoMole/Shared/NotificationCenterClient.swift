@@ -13,11 +13,11 @@ final class NotificationCenterClient {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    func post(_ notification: LongevityNotification) {
+    func post(_ notification: LongevityNotification, nativeChargeLimitAvailable: Bool) {
         guard isBundled else { return }
         let content = UNMutableNotificationContent()
         content.title = notification.title
-        content.body = notification.body
+        content.body = notification.body(nativeChargeLimitAvailable: nativeChargeLimitAvailable)
         content.sound = .default
         let request = UNNotificationRequest(
             identifier: "thermomole.\(notification.rawValue)",
