@@ -63,6 +63,58 @@ final class BatteryCalibrationTests: XCTestCase {
         XCTAssertEqual(r.status, .calibrated)    // still enough valid rows; doesn't crash
     }
 
+    // MARK: - Calendar-vs-cycle fade attribution (qualitative)
+
+    func testAttributionCalendarDominantWhenCycleWearSmall() {
+        // Measured fade ~0.35%/wk; trivial cycle wear ⇒ overwhelmingly calendar.
+        let pts = series(days: 60, slopePerDay: -0.0005)
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: 0.001)
+        XCTAssertEqual(r.status, .calibrated)
+        XCTAssertEqual(r.attribution, .calendarDominant)
+    }
+
+    func testAttributionCycleDominantWhenCycleWearNearMeasured() {
+        // Cycle wear ≈ measured fade ⇒ calendar share collapses toward 0 ⇒ cycle-dominant.
+        let pts = series(days: 60, slopePerDay: -0.0005)
+        let measured = -(-0.0005) * 7.0 * 100.0 // = 0.35 %/wk
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: measured)
+        XCTAssertEqual(r.status, .calibrated)
+        XCTAssertEqual(r.attribution, .cycleDominant)
+    }
+
+    func testAttributionBalancedInBetween() {
+        // Cycle wear ≈ half of measured ⇒ calendarShare ~0.5 ⇒ balanced.
+        let pts = series(days: 60, slopePerDay: -0.0005)
+        let measured = -(-0.0005) * 7.0 * 100.0
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: measured * 0.5)
+        XCTAssertEqual(r.status, .calibrated)
+        XCTAssertEqual(r.attribution, .balanced)
+    }
+
+    func testAttributionNilWhileModeled() {
+        let pts = series(days: 30, slopePerDay: -0.0005) // window < 56 ⇒ modeled
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: 0)
+        XCTAssertEqual(r.status, .modeled)
+        XCTAssertNil(r.attribution)
+    }
+
+    func testWindowDaysCarriedOnShortModeled() {
+        // 41 points spanning 40 days: enough points, but window < 56 ⇒ modeled WITH progress.
+        let pts = series(days: 41, slopePerDay: -0.0005) // day 0…40 ⇒ 40-day window
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: 0)
+        XCTAssertEqual(r.status, .modeled)
+        XCTAssertNil(r.attribution)
+        XCTAssertEqual(r.windowDays, 40)
+    }
+
+    func testWindowDaysZeroWhenTooFewPoints() {
+        // Sparse: too few points, window never computed ⇒ windowDays 0.
+        let pts = stride(from: 0, through: 60, by: 6).map { (day: Double($0), ratio: 1.0 - 0.0005 * Double($0)) }
+        let r = BatteryCalibration.evaluate(points: pts, strainRatio: 1.0, cycleWearPctPerWeek: 0)
+        XCTAssertEqual(r.status, .modeled)
+        XCTAssertEqual(r.windowDays, 0)
+    }
+
     // MARK: - Cycle-wear term (BatteryLongevity)
 
     private func day(_ d: String, health: Int, cycles: Int) -> DailyBatteryHealth {

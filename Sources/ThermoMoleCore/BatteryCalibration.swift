@@ -11,17 +11,25 @@ public struct BatteryCalibrationResult: Equatable, Sendable {
     public enum Status: String, Sendable, Equatable { case modeled, calibrated }
     /// How the user's measured calendar aging compares to the generic 25°C/50% model.
     public enum Band: String, Sendable, Equatable { case slower, about, faster }
+    /// Which mechanism dominates the measured fade — *qualitative only*. We never publish a
+    /// calendar-vs-cycle percentage or stacked bar: the cycle-wear term is a coarse literature
+    /// band and the calendar split is its complement, so a point % would be fake precision.
+    /// This coarse three-way tag is the most we can honestly say.
+    public enum FadeAttribution: String, Sendable, Equatable { case calendarDominant, cycleDominant, balanced }
 
     public var status: Status
     public var band: Band?      // nil while modeled
     public var k: Double?       // shrunk scale factor (debug/opt-in only); nil while modeled
     public var windowDays: Int
+    public var attribution: FadeAttribution?  // nil while modeled
 
-    public init(status: Status, band: Band? = nil, k: Double? = nil, windowDays: Int = 0) {
+    public init(status: Status, band: Band? = nil, k: Double? = nil, windowDays: Int = 0,
+                attribution: FadeAttribution? = nil) {
         self.status = status
         self.band = band
         self.k = k
         self.windowDays = windowDays
+        self.attribution = attribution
     }
 
     public static let modeled = BatteryCalibrationResult(status: .modeled)
@@ -39,6 +47,12 @@ public enum BatteryCalibration {
     public static let minDropPctOfDesign = 0.5        // SNR floor: real fade must clear gauge jitter
     public static let kClamp = 0.5 ... 2.0            // beyond 2× over 8 weeks ⇒ gauge artifact, refuse
 
+    /// Qualitative attribution cutoffs on the calendar share of measured fade.
+    /// Wide deadband (0.35…0.65) keeps a 30-pt grey zone "balanced" rather than flip-flopping
+    /// across a sharp boundary as the noisy cycle-wear estimate jitters.
+    public static let calendarDominantShare = 0.65
+    public static let cycleDominantShare = 0.35
+
     /// - points: (dayOffset, rawRatio) where rawRatio = maxCapacityMAh / designCapacityMAh
     ///           (un-clamped, may exceed 1.0). Oldest → newest.
     /// - strainRatio: the model's recent strain ratio (effective/calendar aging, ≈1 at ideal idle).
@@ -50,8 +64,12 @@ public enum BatteryCalibration {
         let pts = points.filter { $0.ratio.isFinite && $0.ratio > 0 && $0.day.isFinite }
         guard pts.count >= minPoints, let first = pts.first, let last = pts.last else { return .modeled }
 
+        // windowDays is known from here on — carry it on modeled early-returns so the UI can
+        // show calibration progress ({windowDays}/56) instead of a bare "collecting".
         let windowDays = Int((last.day - first.day).rounded())
-        guard windowDays >= minWindowDays else { return .modeled }
+        guard windowDays >= minWindowDays else {
+            return BatteryCalibrationResult(status: .modeled, windowDays: windowDays)
+        }
 
         // Robust slope (ratio per day). Theil–Sen survives the FCC jitter/step-recalibration.
         let slopePerDay = theilSenSlope(pts)
@@ -60,12 +78,16 @@ public enum BatteryCalibration {
 
         // SNR: the total measured drop over the window must clear the noise floor.
         let totalDropPct = -slopePerDay * Double(windowDays) * 100.0
-        guard abs(totalDropPct) >= minDropPctOfDesign else { return .modeled }
+        guard abs(totalDropPct) >= minDropPctOfDesign else {
+            return BatteryCalibrationResult(status: .modeled, windowDays: windowDays)
+        }
 
         // Calendar-only fade: remove the cycle-wear estimate so calendar k isn't polluted.
         let calendarFadePctPerWeek = max(0.0, measuredFadePctPerWeek - max(0.0, cycleWearPctPerWeek))
         let modelExpected = baselineCalendarFadePctPerWeek * max(0.1, strainRatio)
-        guard modelExpected > 0 else { return .modeled }
+        guard modelExpected > 0 else {
+            return BatteryCalibrationResult(status: .modeled, windowDays: windowDays)
+        }
 
         let kRaw = calendarFadePctPerWeek / modelExpected
         // Shrink toward 1 (no adjustment) until there's plenty of data; then clamp hard.
@@ -73,7 +95,22 @@ public enum BatteryCalibration {
         let k = min(kClamp.upperBound, max(kClamp.lowerBound, w * kRaw + (1 - w) * 1.0))
 
         let band: BatteryCalibrationResult.Band = k < 0.85 ? .slower : (k > 1.15 ? .faster : .about)
-        return BatteryCalibrationResult(status: .calibrated, band: band, k: k, windowDays: windowDays)
+
+        // Qualitative split: what fraction of the *measured* fade is calendar (vs cycle)?
+        // If there's effectively no measured fade, the split is undefined → balanced.
+        // We deliberately stop at this three-way tag; no published number (fake precision).
+        let attribution: BatteryCalibrationResult.FadeAttribution
+        if measuredFadePctPerWeek > 0 {
+            let calendarShare = calendarFadePctPerWeek / measuredFadePctPerWeek
+            if calendarShare >= calendarDominantShare { attribution = .calendarDominant }
+            else if calendarShare <= cycleDominantShare { attribution = .cycleDominant }
+            else { attribution = .balanced }
+        } else {
+            attribution = .balanced
+        }
+
+        return BatteryCalibrationResult(status: .calibrated, band: band, k: k,
+                                        windowDays: windowDays, attribution: attribution)
     }
 
     static func theilSenSlope(_ pts: [(day: Double, ratio: Double)]) -> Double {
