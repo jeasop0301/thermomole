@@ -213,7 +213,8 @@ final class AppModel: ObservableObject {
             memoryPressure: snapshot.memory.pressure.rawValue,
             isChargingWhileHot: StatusBrief(snapshot: snapshot).isChargingWhileHot,
             batteryTempC: snapshot.thermal.batteryDisplayC,
-            ssdTempC: snapshot.thermal.ssdTemperatureC
+            ssdTempC: snapshot.thermal.ssdTemperatureC,
+            dailyMaxSoc: snapshot.battery.dailyMaxSoc
         )
         longevityAssessment = LongevityAdvisor.assess(signals)
     }

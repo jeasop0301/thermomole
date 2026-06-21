@@ -38,6 +38,11 @@ struct PatinaAgingCard: View {
                 .padding(.top, 14)
                 .padding(.bottom, 18)
 
+            // Recent charge range — surfaces high-SoC dwell, the lever behind the charge-limit nudge.
+            ChargeRangeLine(maxSoc: model.snapshot.battery.dailyMaxSoc,
+                            minSoc: model.snapshot.battery.dailyMinSoc)
+                .padding(.bottom, 18)
+
             // 5. When it runs hot — promoted from Details: the one pattern no competitor shows.
             if model.heatPattern.hasEnoughData {
                 hairline
@@ -514,6 +519,33 @@ private struct StrainSparkline: View {
     }
 }
 
+// MARK: - Charge range (high-SoC exposure)
+
+/// Unobtrusive line: the recent charge window the BMS recorded, plus a subtle high-SoC hint when
+/// the pack routinely sits near full. The actionable nudge lives in the ActionChip; this is context.
+private struct ChargeRangeLine: View {
+    let maxSoc: Int?
+    let minSoc: Int?
+
+    private var highExposure: Bool { (maxSoc ?? 0) >= 90 }
+
+    var body: some View {
+        if let maxSoc, let minSoc {
+            HStack(spacing: 6) {
+                Text(String(format: NSLocalizedString("Charge range %d–%d%% recently", comment: ""), minSoc, maxSoc))
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textTertiary)
+                if highExposure {
+                    Text(NSLocalizedString("high-SoC exposure", comment: ""))
+                        .font(.patinaBody(12, .semibold))
+                        .foregroundStyle(Color.amberAccent)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 // MARK: - 5. Outlook
 
 private struct OutlookLine: View {
@@ -592,7 +624,7 @@ private struct ActionChip: View {
     /// battery-fade) and heat advice get no chevron — the destination can't act on them.
     private var deepLink: URL? {
         switch action.id {
-        case "high-soc", "charge-hot":
+        case "high-soc", "charge-hot", "high-soc-limit":
             return URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")
         default:
             return action.id.contains("storage")
