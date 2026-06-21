@@ -10,6 +10,11 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
     public var designCapacityMAh: Int
     public var voltageMV: Int
     public var amperageMA: Int
+    /// Highest state-of-charge the BMS recorded over the recent rolling window (BatteryData block).
+    /// nil when the firmware doesn't report it. High values flag high-SoC dwell aging.
+    public var dailyMaxSoc: Int?
+    /// Lowest state-of-charge over the same window. nil when unreported.
+    public var dailyMinSoc: Int?
 
     public init(
         temperatureC: Double? = nil,
@@ -20,7 +25,9 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         rawMaxCapacityMAh: Int = 0,
         designCapacityMAh: Int = 0,
         voltageMV: Int = 0,
-        amperageMA: Int = 0
+        amperageMA: Int = 0,
+        dailyMaxSoc: Int? = nil,
+        dailyMinSoc: Int? = nil
     ) {
         self.temperatureC = temperatureC
         self.virtualTemperatureC = virtualTemperatureC
@@ -31,6 +38,8 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         self.designCapacityMAh = designCapacityMAh
         self.voltageMV = voltageMV
         self.amperageMA = amperageMA
+        self.dailyMaxSoc = dailyMaxSoc
+        self.dailyMinSoc = dailyMinSoc
     }
 
     public var healthPercent: Int {
@@ -62,8 +71,19 @@ public enum AppleSmartBatteryParser {
             rawMaxCapacityMAh: intValue(for: "AppleRawMaxCapacity", in: top),
             designCapacityMAh: intValue(for: "DesignCapacity", in: top),
             voltageMV: intValue(for: "Voltage", in: top),
-            amperageMA: signedIntValue(for: "Amperage", in: top)
+            amperageMA: signedIntValue(for: "Amperage", in: top),
+            // DailyMaxSoc / DailyMinSoc live INSIDE the nested BatteryData block, so they are NOT
+            // in `top` (which had that block stripped) — read them from the full `raw`. intValue
+            // returns 0 for a missing key; map 0 → nil to mean "unknown".
+            dailyMaxSoc: optionalIntValue(for: "DailyMaxSoc", in: raw),
+            dailyMinSoc: optionalIntValue(for: "DailyMinSoc", in: raw)
         )
+    }
+
+    /// Like `intValue` but treats a missing/zero key as `nil` (unknown) rather than 0.
+    private static func optionalIntValue(for key: String, in raw: String) -> Int? {
+        let value = intValue(for: key, in: raw)
+        return value > 0 ? value : nil
     }
 
     /// Removes a `"<name>" = {…}` block (balanced braces) so its nested keys don't shadow the

@@ -72,6 +72,10 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
     public var maxCapacityMAh: Int
     public var designCapacityMAh: Int
     public var instantPowerW: Double
+    /// Recent highest/lowest state-of-charge from the BMS (ioreg BatteryData). nil = unreported.
+    /// Feeds the native charge-limit insight; optional/decodeIfPresent for old persisted snapshots.
+    public var dailyMaxSoc: Int?
+    public var dailyMinSoc: Int?
 
     public init(
         percent: Int,
@@ -84,7 +88,9 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         currentCapacityMAh: Int,
         maxCapacityMAh: Int,
         designCapacityMAh: Int,
-        instantPowerW: Double = 0
+        instantPowerW: Double = 0,
+        dailyMaxSoc: Int? = nil,
+        dailyMinSoc: Int? = nil
     ) {
         self.percent = percent
         self.isCharging = isCharging
@@ -97,11 +103,14 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         self.maxCapacityMAh = maxCapacityMAh
         self.designCapacityMAh = designCapacityMAh
         self.instantPowerW = instantPowerW
+        self.dailyMaxSoc = dailyMaxSoc
+        self.dailyMinSoc = dailyMinSoc
     }
 
     private enum CodingKeys: String, CodingKey {
         case percent, isCharging, isCharged, isOnACPower, timeRemaining, cycleCount
         case healthPercent, currentCapacityMAh, maxCapacityMAh, designCapacityMAh, instantPowerW
+        case dailyMaxSoc, dailyMinSoc
     }
 
     public init(from decoder: Decoder) throws {
@@ -117,6 +126,8 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         maxCapacityMAh = try c.decode(Int.self, forKey: .maxCapacityMAh)
         designCapacityMAh = try c.decode(Int.self, forKey: .designCapacityMAh)
         instantPowerW = try c.decodeIfPresent(Double.self, forKey: .instantPowerW) ?? 0
+        dailyMaxSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMaxSoc)
+        dailyMinSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMinSoc)
     }
 }
 
