@@ -88,4 +88,49 @@ final class LongevityAdvisorTests: XCTestCase {
         let a = LongevityAdvisor.assess(pristine())
         XCTAssertEqual(Set(a.factors.map { $0.id }), ["battery", "heat", "charging", "storage", "memory"])
     }
+
+    // MARK: - High-SoC exposure nudge (native charge-limit)
+
+    func testHighDailyMaxSocEmitsChargeLimitNudge() {
+        var s = pristine()
+        s.dailyMaxSoc = 98
+        let a = LongevityAdvisor.assess(s)
+        let nudge = a.actions.first { $0.id == "high-soc-limit" }
+        XCTAssertNotNil(nudge)
+        XCTAssertEqual(nudge?.severity, .suggest)
+    }
+
+    func testDailyMaxSocAtNinetyEmitsNudge() {
+        var s = pristine()
+        s.dailyMaxSoc = 90
+        let a = LongevityAdvisor.assess(s)
+        XCTAssertTrue(a.actions.contains { $0.id == "high-soc-limit" })
+    }
+
+    func testLimitedDailyMaxSocSuppressesNudge() {
+        var s = pristine()
+        s.dailyMaxSoc = 80 // limit likely already active
+        let a = LongevityAdvisor.assess(s)
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
+    }
+
+    func testNilDailyMaxSocSuppressesNudge() {
+        var s = pristine()
+        s.dailyMaxSoc = nil
+        let a = LongevityAdvisor.assess(s)
+        XCTAssertFalse(a.actions.contains { $0.id == "high-soc-limit" })
+    }
+
+    func testHighSocNudgeDoesNotOutrankUrgentBatteryFade() {
+        var s = pristine()
+        s.dailyMaxSoc = 99
+        s.batteryLongevity = BatteryLongevityReport(score: 60, healthPercent: 82, cycleCount: 400, healthDropPerWeek: 7, cyclesPerWeek: 5, projectedMonthsTo80: 1, alerts: [.fastFade])
+        let a = LongevityAdvisor.assess(s)
+        // urgent battery-fade must sort ahead of the suggest-level nudge
+        let fadeIdx = a.actions.firstIndex { $0.id == "battery-fade" }
+        let nudgeIdx = a.actions.firstIndex { $0.id == "high-soc-limit" }
+        XCTAssertNotNil(fadeIdx)
+        XCTAssertNotNil(nudgeIdx)
+        XCTAssertLessThan(fadeIdx!, nudgeIdx!)
+    }
 }

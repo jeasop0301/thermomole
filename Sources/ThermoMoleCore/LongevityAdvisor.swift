@@ -48,6 +48,9 @@ public struct LongevitySignals: Equatable, Sendable {
     public var isChargingWhileHot: Bool
     public var batteryTempC: Double?
     public var ssdTempC: Double?
+    /// Highest state-of-charge the BMS recorded recently (from ioreg BatteryData). nil = unknown.
+    /// Drives the native charge-limit nudge: high values mean the user keeps the pack near full.
+    public var dailyMaxSoc: Int?
 
     public init(
         batteryLongevity: BatteryLongevityReport? = nil,
@@ -59,7 +62,8 @@ public struct LongevitySignals: Equatable, Sendable {
         memoryPressure: String = "normal",
         isChargingWhileHot: Bool = false,
         batteryTempC: Double? = nil,
-        ssdTempC: Double? = nil
+        ssdTempC: Double? = nil,
+        dailyMaxSoc: Int? = nil
     ) {
         self.batteryLongevity = batteryLongevity
         self.batteryExposure = batteryExposure
@@ -71,6 +75,7 @@ public struct LongevitySignals: Equatable, Sendable {
         self.isChargingWhileHot = isChargingWhileHot
         self.batteryTempC = batteryTempC
         self.ssdTempC = ssdTempC
+        self.dailyMaxSoc = dailyMaxSoc
     }
 }
 
@@ -151,6 +156,20 @@ public enum LongevityAdvisor {
         factors.append(LongevityFactor(id: "charging", title: "Charging habits", status: chargingStatus, summary: chargingSummary(soc80: soc80, soc95: soc95)))
         if soc95 >= 30 {
             actions.append(LongevityAction(id: "high-soc", severity: .suggest, title: "Unplug around 80% when you can", detail: "Holding a high charge on AC for long stretches ages the cells faster."))
+        }
+
+        // High-SoC exposure → nudge the user toward macOS's native Charge Limit. Pure insight:
+        // measure how high the pack actually sits (BMS DailyMaxSoc) and point at Settings; no
+        // SMC writes, no daemon. >=90 means routinely near full; <=82 means a limit is likely
+        // already active (no nudge); nil means unknown (no nudge). .suggest so it never outranks
+        // genuine urgent actions (battery-fade, charge-hot).
+        if let maxSoc = s.dailyMaxSoc, maxSoc >= 90 {
+            actions.append(LongevityAction(
+                id: "high-soc-limit",
+                severity: .suggest,
+                title: NSLocalizedString("Enable charge limit", comment: ""),
+                detail: String(format: NSLocalizedString("Battery reaches %d%% daily — capping at 80%% in Settings → Battery cuts high-charge aging.", comment: ""), maxSoc)
+            ))
         }
 
         // Storage

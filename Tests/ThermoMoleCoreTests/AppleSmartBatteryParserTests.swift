@@ -40,4 +40,27 @@ final class AppleSmartBatteryParserTests: XCTestCase {
         let raw = #""BatteryData" = {"A"={"B"=1},"DesignCapacity"=1} "DesignCapacity" = 7"#
         XCTAssertEqual(AppleSmartBatteryParser.parse(raw).designCapacityMAh, 7)
     }
+
+    /// DailyMaxSoc / DailyMinSoc live INSIDE the nested BatteryData block (so they are not in the
+    /// stripped top-level view). They must be read from the full raw string.
+    func testParsesDailySocFromNestedBatteryData() {
+        let raw = """
+              "BatteryData" = {"DesignCapacity"=9999,"DailyMaxSoc"=98,"DailyMinSoc"=52,"Qmax"=(6094,6093)}
+              "DesignCapacity" = 5760
+              "CycleCount" = 8
+        """
+        let info = AppleSmartBatteryParser.parse(raw)
+        XCTAssertEqual(info.dailyMaxSoc, 98)
+        XCTAssertEqual(info.dailyMinSoc, 52)
+    }
+
+    func testDailySocAbsentIsNil() {
+        let raw = """
+              "DesignCapacity" = 5760
+              "CycleCount" = 12
+        """
+        let info = AppleSmartBatteryParser.parse(raw)
+        XCTAssertNil(info.dailyMaxSoc)
+        XCTAssertNil(info.dailyMinSoc)
+    }
 }
