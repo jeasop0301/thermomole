@@ -24,6 +24,9 @@ final class AppModel: ObservableObject {
     @Published var latestBatteryHealth: DailyBatteryHealth?
     @Published var batteryLongevity: BatteryLongevityReport?
     @Published var batteryCalibration: BatteryCalibrationResult = .modeled
+    /// Conservative "knee" signal — is capacity fade clearly speeding up? In-UI Details hint
+    /// only (no notification, no replace/months wording). `.insufficient`/`.steady` show nothing.
+    @Published var fadeTrend: FadeTrend = .insufficient
     @Published var todayCPUExposure = CPUExposureSummary.empty
     @Published var longevityAssessment = LongevityAssessment(score: 100, factors: [], actions: [])
     @Published var heatPattern = HeatPatternInsight.empty
@@ -269,6 +272,7 @@ final class AppModel: ObservableObject {
     private func recomputeCalibration(history: [DailyBatteryHealth]) {
         guard let firstDate = Self.parseDay(history.first?.day) else {
             batteryCalibration = .modeled
+            fadeTrend = .insufficient
             return
         }
         let points: [(day: Double, ratio: Double)] = history.compactMap { d in
@@ -284,6 +288,9 @@ final class AppModel: ObservableObject {
             strainRatio: agingStrain.ratio30d,
             cycleWearPctPerWeek: cycleWearPerWeek
         )
+        // Same points feed the conservative knee detector (needs a longer baseline than
+        // calibration; stays .insufficient until ≥180 days / ≥12 points per half).
+        fadeTrend = FadeTrend.evaluate(points: points)
     }
 
     private static func parseDay(_ day: String?) -> Date? {
