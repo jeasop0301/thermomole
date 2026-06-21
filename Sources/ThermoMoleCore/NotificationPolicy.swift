@@ -10,23 +10,35 @@ public enum LongevityNotification: String, Codable, Equatable, Sendable, CaseIte
 
     public var title: String {
         switch self {
-        case .chargingWhileHot: "Charging while hot"
-        case .sustainedHotBattery: "Battery running hot"
-        case .highSoCDwell: "Held at high charge"
-        case .lowStorage: "Storage almost full"
-        case .sustainedHotCPU: "CPU running hot"
-        case .highCycleRate: "High charge cycles"
+        case .chargingWhileHot: NSLocalizedString("Charging while hot", comment: "")
+        case .sustainedHotBattery: NSLocalizedString("Battery running hot", comment: "")
+        case .highSoCDwell: NSLocalizedString("Held at high charge", comment: "")
+        case .lowStorage: NSLocalizedString("Storage almost full", comment: "")
+        case .sustainedHotCPU: NSLocalizedString("CPU running hot", comment: "")
+        case .highCycleRate: NSLocalizedString("High charge cycles", comment: "")
         }
     }
 
-    public var body: String {
+    /// Notification body, OS-aware. On macOS 26.4+ (`nativeChargeLimitAvailable`) the high-SoC
+    /// dwell nudge points at the native Charge Limit toggle instead of telling the user to unplug.
+    /// Posted directly via UNUserNotificationCenter (no SwiftUI LocalizedStringKey layer), so each
+    /// string is wrapped in NSLocalizedString to localize from the .app bundle.
+    public func body(nativeChargeLimitAvailable: Bool) -> String {
         switch self {
-        case .chargingWhileHot: "Unplug to let the battery cool — heat plus charging ages it fastest."
-        case .sustainedHotBattery: "The battery has been hot for a while. Ease the load to cool it down."
-        case .highSoCDwell: "It's been near full on AC for hours. Unplug around 80% when you can."
-        case .lowStorage: "Low free space forces swap to the SSD. Free up some room."
-        case .sustainedHotCPU: "CPU has been very hot. Ease the load to cool it down."
-        case .highCycleRate: "Charge cycles are climbing fast. Fewer full charge/discharge swings help."
+        case .chargingWhileHot:
+            return NSLocalizedString("Unplug to let the battery cool — heat plus charging ages it fastest.", comment: "")
+        case .sustainedHotBattery:
+            return NSLocalizedString("The battery has been hot for a while. Ease the load to cool it down.", comment: "")
+        case .highSoCDwell:
+            return nativeChargeLimitAvailable
+                ? NSLocalizedString("It's been near full on AC for hours. Turn on Charge Limit in Settings → Battery to hold it lower.", comment: "")
+                : NSLocalizedString("It's been near full on AC for hours. Unplug around 80% when you can.", comment: "")
+        case .lowStorage:
+            return NSLocalizedString("Low free space forces swap to the SSD. Free up some room.", comment: "")
+        case .sustainedHotCPU:
+            return NSLocalizedString("CPU has been very hot. Ease the load to cool it down.", comment: "")
+        case .highCycleRate:
+            return NSLocalizedString("Charge cycles are climbing fast. Fewer full charge/discharge swings help.", comment: "")
         }
     }
 }
@@ -80,12 +92,16 @@ public extension NotificationPolicy {
         snapshot: SystemSnapshot,
         todayChargeExposure: ChargeExposureSummary,
         todayCPUExposure: CPUExposureSummary,
-        batteryLongevity: BatteryLongevityReport?
+        batteryLongevity: BatteryLongevityReport?,
+        dailyMaxSoc: Int? = nil
     ) -> Set<LongevityNotification> {
         var active = Set<LongevityNotification>()
         if StatusBrief(snapshot: snapshot).isChargingWhileHot { active.insert(.chargingWhileHot) }
         if snapshot.thermal.batteryWarningLevel == .hot { active.insert(.sustainedHotBattery) }
-        if todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
+        // Skip the high-SoC dwell nudge when a charge limit is effectively holding the pack down
+        // (inferred via ChargeLimitInsight): a limit is already doing the job, so don't nag.
+        let limitActive = ChargeLimitInsight.classify(dailyMaxSoc: dailyMaxSoc) == .limitActive
+        if !limitActive && todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
         if (100 - snapshot.disk.usedPercent) < 10 { active.insert(.lowStorage) }
         if todayCPUExposure.today.secondsAbove95 >= 30 * 60 { active.insert(.sustainedHotCPU) }
         if batteryLongevity?.alerts.contains(.highCycleRate) == true { active.insert(.highCycleRate) }

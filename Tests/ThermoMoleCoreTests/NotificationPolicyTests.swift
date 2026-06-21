@@ -129,4 +129,99 @@ final class NotificationPolicyTests: XCTestCase {
         )
         XCTAssertTrue(active.contains(.lowStorage))
     }
+
+    // MARK: - highSoCDwell trigger + suppression
+
+    private func chargeExposureDwelling(seconds: TimeInterval) -> ChargeExposureSummary {
+        var ce = ChargeExposureSummary.empty
+        ce.today.secondsAbove95OnAC = seconds
+        return ce
+    }
+
+    func testHighSoCDwellActiveWhenDwellAtThresholdAndNoLimit() {
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 2 * 3600),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: nil
+        )
+        XCTAssertTrue(active.contains(.highSoCDwell))
+    }
+
+    func testHighSoCDwellActiveWhenDailyMaxSocHigh() {
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 2 * 3600),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: 100
+        )
+        XCTAssertTrue(active.contains(.highSoCDwell))
+    }
+
+    func testHighSoCDwellBelowDwellThresholdInactive() {
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 2 * 3600 - 1),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: nil
+        )
+        XCTAssertFalse(active.contains(.highSoCDwell))
+    }
+
+    func testHighSoCDwellSuppressedWhenChargeLimitActive() {
+        // dwell crosses threshold, but a limit is effectively holding SoC down — don't nag.
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 4 * 3600),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: 80
+        )
+        XCTAssertFalse(active.contains(.highSoCDwell))
+    }
+
+    func testHighSoCDwellSuppressedAtLimitBoundary82() {
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 4 * 3600),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: 82
+        )
+        XCTAssertFalse(active.contains(.highSoCDwell))
+    }
+
+    func testHighSoCDwellNotSuppressedJustAboveLimitBoundary() {
+        let active = NotificationPolicy.activeNotifications(
+            snapshot: .placeholder,
+            todayChargeExposure: chargeExposureDwelling(seconds: 4 * 3600),
+            todayCPUExposure: .empty,
+            batteryLongevity: nil,
+            dailyMaxSoc: 83
+        )
+        XCTAssertTrue(active.contains(.highSoCDwell))
+    }
+
+    // MARK: - OS-aware body
+
+    func testHighSoCDwellBodyNativeChargeLimitAvailable() {
+        let body = LongevityNotification.highSoCDwell.body(nativeChargeLimitAvailable: true)
+        XCTAssertTrue(body.contains("Charge Limit"))
+        XCTAssertTrue(body.contains("Settings"))
+    }
+
+    func testHighSoCDwellBodyNativeChargeLimitUnavailable() {
+        let body = LongevityNotification.highSoCDwell.body(nativeChargeLimitAvailable: false)
+        XCTAssertTrue(body.contains("Unplug"))
+    }
+
+    func testOtherNotificationBodyIgnoresNativeFlag() {
+        XCTAssertEqual(
+            LongevityNotification.lowStorage.body(nativeChargeLimitAvailable: true),
+            LongevityNotification.lowStorage.body(nativeChargeLimitAvailable: false)
+        )
+    }
 }
