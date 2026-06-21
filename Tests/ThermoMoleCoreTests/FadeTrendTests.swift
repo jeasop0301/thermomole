@@ -56,6 +56,13 @@ final class FadeTrendTests: XCTestCase {
         // robust rank CI must absorb it: NOT accelerating.
         var pts: [(day: Double, ratio: Double)] = (0..<200).map { (day: Double($0), ratio: 0.95) }
         for i in 170..<200 { pts[i].ratio = 0.92 } // single ~3% step drop, then flat again
+
+        // Sanity: a NAIVE detector (recent half's mean ratio dropped vs earlier half) WOULD
+        // see this as a big recent loss and alarm — this is precisely the false positive we reject.
+        let earlierMean = pts[0..<100].map(\.ratio).reduce(0, +) / 100
+        let recentMean = pts[100..<200].map(\.ratio).reduce(0, +) / 100
+        XCTAssertLessThan(recentMean, earlierMean, "the step makes recent capacity lower (naive trap)")
+
         let r = FadeTrend.evaluate(points: pts)
         XCTAssertNotEqual(r, .accelerating, "a single step recalibration must not raise a knee alarm")
     }
