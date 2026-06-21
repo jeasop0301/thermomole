@@ -40,6 +40,11 @@
 "lifetime avg · heavy" = "전체 평균 · 과다";
 "Relative estimate — calendar aging only; cycle wear is tracked separately." = "상대 추정치 — 달력 노화만 반영, 사이클 마모는 별도 추적.";
 
+/* ---- Rated cycle context (card line + Details note) ---- */
+"Cycle count %d · ~%d rated" = "사이클 %d회 · 정격 ~%d회";
+"Cycle count %d · ~%d rated (%d%%)" = "사이클 %d회 · 정격 ~%d회 (%d%%)";
+"Apple rates this pack for ~%d cycles to 80%% health — a spec, not a hard limit. Batteries keep working past it." = "Apple은 이 배터리를 건강 80%%까지 ~%d회로 정격합니다 — 사양이며, 한계선이 아닙니다. 이를 넘어서도 배터리는 계속 동작합니다.";
+
 /* ---- Charge range (high-SoC exposure) ---- */
 "Charge range %d–%d%% recently" = "최근 충전 범위 %d–%d%%";
 "high-SoC exposure" = "고충전 노출";

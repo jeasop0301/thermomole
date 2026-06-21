@@ -63,4 +63,37 @@ final class AppleSmartBatteryParserTests: XCTestCase {
         XCTAssertNil(info.dailyMaxSoc)
         XCTAssertNil(info.dailyMinSoc)
     }
+
+    /// DesignCycleCount9C ("rated" cycle count, =1000 on Apple Silicon) is a TOP-LEVEL key, OUTSIDE
+    /// the nested BatteryData block. Read it from the stripped top-level view; a nested decoy must
+    /// not shadow it.
+    func testParsesRatedCycleCountFromTopLevel() {
+        let raw = """
+              "BatteryData" = {"DesignCycleCount9C"=1,"DesignCapacity"=9999,"Qmax"=(6094,6093)}
+              "DesignCapacity" = 5760
+              "CycleCount" = 8
+              "DesignCycleCount9C" = 1000
+        """
+        let info = AppleSmartBatteryParser.parse(raw)
+        XCTAssertEqual(info.ratedCycleCount, 1000)   // top-level, not nested decoy 1
+    }
+
+    func testRatedCycleCountAbsentIsNil() {
+        let raw = """
+              "DesignCapacity" = 5760
+              "CycleCount" = 12
+        """
+        XCTAssertNil(AppleSmartBatteryParser.parse(raw).ratedCycleCount)
+    }
+
+    /// Some Macs report 0 (or junk) — treat as unknown so the UI hides the line rather than
+    /// claiming "0 rated cycles".
+    func testRatedCycleCountZeroIsNil() {
+        let raw = """
+              "DesignCapacity" = 5760
+              "CycleCount" = 12
+              "DesignCycleCount9C" = 0
+        """
+        XCTAssertNil(AppleSmartBatteryParser.parse(raw).ratedCycleCount)
+    }
 }
