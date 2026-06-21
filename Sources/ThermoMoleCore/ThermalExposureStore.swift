@@ -1,18 +1,78 @@
 import Foundation
 
+/// Forward-only "since install" cumulative thermal exposure. Captures completed days BEFORE the
+/// 30-day prune drops them. Honest framing: "since install", never "lifetime". Mirrors
+/// CumulativeChargeExposure.
+public struct CumulativeThermalExposure: Codable, Equatable, Sendable {
+    public var firstDay: String?           // earliest counted "yyyy-MM-dd"
+    public var lastCountedDay: String?     // newest counted "yyyy-MM-dd" (high-water mark)
+    public var secondsAbove40: Double
+    public var secondsAbove45: Double
+
+    public init(
+        firstDay: String? = nil,
+        lastCountedDay: String? = nil,
+        secondsAbove40: Double = 0,
+        secondsAbove45: Double = 0
+    ) {
+        self.firstDay = firstDay
+        self.lastCountedDay = lastCountedDay
+        self.secondsAbove40 = secondsAbove40
+        self.secondsAbove45 = secondsAbove45
+    }
+
+    /// Folds in ONLY days strictly before `today` AND newer than `lastCountedDay`. Idempotent,
+    /// monotonic, prune-surviving — see CumulativeChargeExposure.accumulating for the contract.
+    public func accumulating(days: [DailyThermalExposure], today: String) -> CumulativeThermalExposure {
+        var result = self
+        for day in days.sorted(by: { $0.day < $1.day }) {
+            guard day.day < today else { continue }
+            if let last = result.lastCountedDay, day.day <= last { continue }
+            result.secondsAbove40 += day.secondsAbove40
+            result.secondsAbove45 += day.secondsAbove45
+            result.firstDay = result.firstDay.map { min($0, day.day) } ?? day.day
+            result.lastCountedDay = result.lastCountedDay.map { max($0, day.day) } ?? day.day
+        }
+        return result
+    }
+}
+
 public struct ThermalExposureRecord: Codable, Equatable, Sendable {
     public var schemaVersion: Int
     public var days: [DailyThermalExposure]
+    public var cumulative: CumulativeThermalExposure
 
-    public init(schemaVersion: Int = 2, days: [DailyThermalExposure] = []) {
+    public init(
+        schemaVersion: Int = 3,
+        days: [DailyThermalExposure] = [],
+        cumulative: CumulativeThermalExposure = CumulativeThermalExposure()
+    ) {
         self.schemaVersion = schemaVersion
         self.days = days
+        self.cumulative = cumulative
+    }
+
+    // Custom decode so pre-cumulative JSON (v2, no `cumulative` key) still loads with an empty
+    // cumulative. Note v1 (old 35/40 bands) is still discarded by the coordinator's bootstrap.
+    private enum CodingKeys: String, CodingKey { case schemaVersion, days, cumulative }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        self.days = try c.decode([DailyThermalExposure].self, forKey: .days)
+        self.cumulative = try c.decodeIfPresent(CumulativeThermalExposure.self, forKey: .cumulative)
+            ?? CumulativeThermalExposure()
     }
 
     /// Keeps the newest `limit` day-entries (sorted by "yyyy-MM-dd" string, which sorts chronologically).
+    /// Cumulative is preserved across the prune.
     public func pruned(toDays limit: Int = 30) -> ThermalExposureRecord {
         let sorted = days.sorted { $0.day < $1.day }
-        return ThermalExposureRecord(schemaVersion: schemaVersion, days: Array(sorted.suffix(max(0, limit))))
+        return ThermalExposureRecord(
+            schemaVersion: schemaVersion,
+            days: Array(sorted.suffix(max(0, limit))),
+            cumulative: cumulative
+        )
     }
 }
 

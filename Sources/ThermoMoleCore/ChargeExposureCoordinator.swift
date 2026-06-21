@@ -6,6 +6,8 @@ import os
 /// Mirrors ThermalExposureCoordinator.
 public actor ChargeExposureCoordinator {
     private var tracker: ChargeExposureTracker
+    private var cumulative = CumulativeChargeExposure()  // forward-only since-install totals
+    private var calendar = Calendar.current             // last recording calendar (for flush day-key)
     private let store: ChargeExposurePersisting
     private let flushInterval: TimeInterval
     private var lastFlushAt: Date?
@@ -25,9 +27,15 @@ public actor ChargeExposureCoordinator {
         var seeded: [String: DailyChargeExposure] = [:]
         for day in record.days { seeded[day.day] = day }
         tracker = ChargeExposureTracker(days: seeded)
+        cumulative = record.cumulative
     }
 
+    /// Forward-only since-install high-SoC totals (seconds). Combined with the thermal side into
+    /// the user-facing SinceInstallExposure by AppModel.
+    public func sinceInstall() -> CumulativeChargeExposure { cumulative }
+
     public func record(percent: Int, isOnACPower: Bool, at sampledAt: Date, calendar: Calendar) {
+        self.calendar = calendar
         tracker.ingest(percent: percent, isOnACPower: isOnACPower, at: sampledAt, calendar: calendar)
         if shouldFlush(at: sampledAt) { flush(at: sampledAt) }
     }
@@ -47,7 +55,12 @@ public actor ChargeExposureCoordinator {
     }
 
     private func flush(at date: Date) {
-        let record = ChargeExposureRecord(days: Array(tracker.days.values)).pruned(toDays: 30)
+        // Fold completed days into the since-install cumulative on the FULL day set BEFORE pruning,
+        // so days about to be dropped are captured. Then persist the pruned days + intact cumulative.
+        let allDays = Array(tracker.days.values)
+        let today = ChargeExposureTracker.dayKey(for: date, calendar: calendar)
+        cumulative = cumulative.accumulating(days: allDays, today: today)
+        let record = ChargeExposureRecord(days: allDays, cumulative: cumulative).pruned(toDays: 30)
         do {
             try store.save(record)
             lastFlushAt = date

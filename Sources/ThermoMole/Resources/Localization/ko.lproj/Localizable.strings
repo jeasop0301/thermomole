@@ -267,3 +267,13 @@
 "Low free space forces swap to the SSD. Free up some room." = "여유 공간이 부족해 SSD 스왑이 발생합니다. 공간을 확보하세요.";
 "CPU has been very hot. Ease the load to cool it down." = "CPU가 매우 뜨거웠습니다. 부하를 줄여 식히세요.";
 "Charge cycles are climbing fast. Fewer full charge/discharge swings help." = "충전 사이클이 빠르게 증가하고 있습니다. 완충/완전 방전 폭을 줄이면 도움이 됩니다.";
+
+/* ---- Since install (cumulative exposure totals — DetailsContent / SinceInstallSection) ---- */
+"SINCE INSTALL" = "설치 이후 누적";
+"SINCE INSTALL (%@)" = "설치 이후 누적 (%@)";
+"%@ h" = "%@시간";
+"≥80% on AC" = "AC에서 80% 이상";
+"≥95% on AC" = "AC에서 95% 이상";
+"Above 40°C" = "40°C 초과";
+"Above 45°C" = "45°C 초과";
+"Cumulative stressors since install — not a lifetime total." = "설치 이후 누적 스트레스 — 전체 수명 합계가 아닙니다.";
