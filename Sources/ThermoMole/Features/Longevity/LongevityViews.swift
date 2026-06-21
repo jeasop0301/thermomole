@@ -736,6 +736,15 @@ private struct DetailsContent: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Health reconciliation — explain the intraday % swing honestly.
+            let reconciliation = HealthReconciliation.from(
+                series: model.batteryHealthSeries,
+                reported: model.snapshot.battery.healthPercent
+            )
+            if reconciliation.sampleCount >= 2 {
+                HealthReconciliationSection(reconciliation: reconciliation)
+            }
+
             // Charge-limit options — compact comparison of native cap levels (80/85/90/95).
             // Pure insight: each row is the high-charge AGING reduction at that cap, never a
             // "recommended" pick. Shown only where macOS exposes the native Charge Limit and the
@@ -817,6 +826,51 @@ private struct DetailsContent: View {
         if score >= 85 { return Color.textPrimary }
         if score >= 65 { return Color.amberAccent }
         return Color.garnetAccent
+    }
+}
+
+/// Honest explainer for the intraday battery-health % swing. The gauge re-estimates capacity
+/// through the day (other apps show e.g. 83% then 98% same day); that's noise, not real loss.
+/// We surface Patina's robust TREND read (median of recent readings) and a coarse steady/variable
+/// flag — never a fabricated decimal confidence, and never a 4th "true" number.
+private struct HealthReconciliationSection: View {
+    let reconciliation: HealthReconciliation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Health readings swing intraday — that's the battery gauge, not real loss.")
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let smoothed = reconciliation.smoothedPercent {
+                Text(trendLine(smoothed))
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("macOS may report a different % — both are views of the same battery.")
+                .font(.patinaBody(12))
+                .foregroundStyle(Color.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// "Patina's trend reading: ~N% · steady" — flag word, not a percent confidence.
+    private func trendLine(_ smoothed: Int) -> String {
+        let template = NSLocalizedString(
+            "Patina's trend reading: ~%d%% · %@",
+            comment: "Smoothed (median) battery-health trend read with a steady/variable flag word"
+        )
+        return String(format: template, smoothed, flagWord)
+    }
+
+    private var flagWord: String {
+        switch reconciliation.stability {
+        case .stable:   NSLocalizedString("steady", comment: "Health reading is stable across recent days")
+        case .variable: NSLocalizedString("variable", comment: "Health reading swings across recent days")
+        }
     }
 }
 
