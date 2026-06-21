@@ -736,6 +736,18 @@ private struct DetailsContent: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Charge-limit options — compact comparison of native cap levels (80/85/90/95).
+            // Pure insight: each row is the high-charge AGING reduction at that cap, never a
+            // "recommended" pick. Shown only where macOS exposes the native Charge Limit and the
+            // pack actually sits above 80% (otherwise there's nothing below the habit to compare).
+            if AppModel.nativeChargeLimitAvailable,
+               let maxSoc = model.snapshot.battery.dailyMaxSoc, maxSoc > 80 {
+                let steps = ChargeLimitInsight.chargeLimitComparison(currentMaxSoc: maxSoc)
+                if !steps.isEmpty {
+                    ChargeLimitOptionsSection(steps: steps)
+                }
+            }
+
             // Health outlook
             VStack(alignment: .leading, spacing: 8) {
                 Text("HEALTH OUTLOOK")
@@ -805,6 +817,39 @@ private struct DetailsContent: View {
         if score >= 85 { return Color.textPrimary }
         if score >= 65 { return Color.amberAccent }
         return Color.garnetAccent
+    }
+}
+
+/// Compact comparison of the native macOS Charge Limit cap levels. Each row states the high-charge
+/// AGING reduction at that cap vs the current daily max — honest, no "best fit" / "recommended" row.
+private struct ChargeLimitOptionsSection: View {
+    let steps: [ChargeLimitInsight.ChargeLimitStep]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("CHARGE-LIMIT OPTIONS")
+                .font(.patinaBody(11, .semibold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.textTertiary)
+
+            ForEach(steps, id: \.cap) { step in
+                Text(rowText(step))
+                    .font(.patinaBody(12))
+                    .foregroundStyle(Color.textSecondary)
+                    .monospacedDigit()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("High-charge aging only — not total battery life.")
+                .font(.patinaBody(11))
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+
+    private func rowText(_ step: ChargeLimitInsight.ChargeLimitStep) -> String {
+        String(format: NSLocalizedString("Cap %d%% → ~%d%% less high-charge aging", comment: ""),
+               step.cap, step.reductionPct)
     }
 }
 
