@@ -194,3 +194,94 @@ final class SinceInstallExposureTests: XCTestCase {
         XCTAssertEqual(decoded.cumulative.secondsAbove45, 100, accuracy: 0.0001)
     }
 }
+
+// MARK: - Coordinator wiring
+
+private final class ChargeSpyStore: ChargeExposurePersisting, @unchecked Sendable {
+    var saved: [ChargeExposureRecord] = []
+    var loadResult: ChargeExposureRecord?
+    func load() throws -> ChargeExposureRecord? { loadResult }
+    func save(_ record: ChargeExposureRecord) throws { saved.append(record) }
+}
+
+private final class ThermalSpyStore: ThermalExposurePersisting, @unchecked Sendable {
+    var saved: [ThermalExposureRecord] = []
+    var loadResult: ThermalExposureRecord?
+    func load() throws -> ThermalExposureRecord? { loadResult }
+    func save(_ record: ThermalExposureRecord) throws { saved.append(record) }
+}
+
+final class SinceInstallCoordinatorTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c
+    }()
+    // 2026-06-01 00:00:00 UTC
+    private let day1 = Date(timeIntervalSince1970: 1_780_272_000)
+
+    func testChargeFlushAccumulatesCompletedDaysBeforePruneAndPersists() async {
+        let spy = ChargeSpyStore()
+        let coord = ChargeExposureCoordinator(store: spy, flushInterval: 0)
+        // Record dwell on day1, then a sample two days later → day1 is a completed day.
+        await coord.record(percent: 90, isOnACPower: true, at: day1, calendar: cal)
+        await coord.record(percent: 90, isOnACPower: true, at: day1.addingTimeInterval(4), calendar: cal)
+        // Force a flush from a later day so day1 is "completed".
+        let day3 = day1.addingTimeInterval(2 * 86_400)
+        await coord.flushNow(at: day3)
+        let last = try? XCTUnwrap(spy.saved.last)
+        XCTAssertEqual(last?.cumulative.secondsAbove80OnAC ?? -1, 4, accuracy: 0.001)
+        XCTAssertEqual(last?.cumulative.firstDay, "2026-06-01")
+        XCTAssertEqual(last?.schemaVersion, 2)
+    }
+
+    func testChargeCumulativeSurvivesAcrossFlushesNoDoubleCount() async {
+        let spy = ChargeSpyStore()
+        let coord = ChargeExposureCoordinator(store: spy, flushInterval: 0)
+        await coord.record(percent: 90, isOnACPower: true, at: day1, calendar: cal)
+        await coord.record(percent: 90, isOnACPower: true, at: day1.addingTimeInterval(4), calendar: cal)
+        let day3 = day1.addingTimeInterval(2 * 86_400)
+        await coord.flushNow(at: day3)
+        await coord.flushNow(at: day3) // second flush, same data → no double-count
+        XCTAssertEqual(spy.saved.last?.cumulative.secondsAbove80OnAC ?? -1, 4, accuracy: 0.001)
+    }
+
+    func testChargeBootstrapSeedsCumulative() async {
+        let spy = ChargeSpyStore()
+        spy.loadResult = ChargeExposureRecord(
+            schemaVersion: 2,
+            days: [],
+            cumulative: CumulativeChargeExposure(firstDay: "2026-05-01", lastCountedDay: "2026-05-31",
+                                                 secondsAbove80OnAC: 7200, secondsAbove95OnAC: 3600)
+        )
+        let coord = ChargeExposureCoordinator(store: spy, flushInterval: 0)
+        await coord.bootstrap()
+        let since = await coord.sinceInstall()
+        XCTAssertEqual(since.secondsAbove80OnAC, 7200, accuracy: 0.001)
+        XCTAssertEqual(since.firstDay, "2026-05-01")
+    }
+
+    func testThermalFlushAccumulatesAndPersists() async {
+        let spy = ThermalSpyStore()
+        let coord = ThermalExposureCoordinator(store: spy, flushInterval: 0)
+        await coord.record(temperatureC: 42, at: day1, calendar: cal)
+        await coord.record(temperatureC: 42, at: day1.addingTimeInterval(4), calendar: cal)
+        let day3 = day1.addingTimeInterval(2 * 86_400)
+        await coord.flushNow(at: day3)
+        XCTAssertEqual(spy.saved.last?.cumulative.secondsAbove40 ?? -1, 4, accuracy: 0.001)
+        XCTAssertEqual(spy.saved.last?.cumulative.firstDay, "2026-06-01")
+        XCTAssertEqual(spy.saved.last?.schemaVersion, 3)
+    }
+
+    func testThermalBootstrapSeedsCumulative() async {
+        let spy = ThermalSpyStore()
+        spy.loadResult = ThermalExposureRecord(
+            schemaVersion: 3,
+            days: [],
+            cumulative: CumulativeThermalExposure(firstDay: "2026-05-01", lastCountedDay: "2026-05-31",
+                                                  secondsAbove40: 7200, secondsAbove45: 3600)
+        )
+        let coord = ThermalExposureCoordinator(store: spy, flushInterval: 0)
+        await coord.bootstrap()
+        let since = await coord.sinceInstall()
+        XCTAssertEqual(since.secondsAbove40, 7200, accuracy: 0.001)
+    }
+}

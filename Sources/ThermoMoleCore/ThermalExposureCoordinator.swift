@@ -5,6 +5,8 @@ import os
 /// record(...) calls are serialized automatically, and its store I/O runs off the main actor.
 public actor ThermalExposureCoordinator {
     private var tracker: ThermalExposureTracker
+    private var cumulative = CumulativeThermalExposure()  // forward-only since-install totals
+    private var calendar = Calendar.current              // last recording calendar (for flush day-key)
     private let store: ThermalExposurePersisting
     private let flushInterval: TimeInterval
     private var lastFlushAt: Date?
@@ -26,9 +28,15 @@ public actor ThermalExposureCoordinator {
         var seeded: [String: DailyThermalExposure] = [:]
         for day in record.days { seeded[day.day] = day }
         tracker = ThermalExposureTracker(days: seeded)
+        cumulative = record.cumulative  // empty for pre-cumulative v2; populated for v3+
     }
 
+    /// Forward-only since-install thermal totals (seconds). Combined with the charge side into
+    /// the user-facing SinceInstallExposure by AppModel.
+    public func sinceInstall() -> CumulativeThermalExposure { cumulative }
+
     public func record(temperatureC: Double?, at sampledAt: Date, calendar: Calendar) {
+        self.calendar = calendar
         tracker.ingest(temperatureC: temperatureC, at: sampledAt, calendar: calendar)
         if shouldFlush(at: sampledAt) { flush(at: sampledAt) }
     }
@@ -53,7 +61,12 @@ public actor ThermalExposureCoordinator {
     }
 
     private func flush(at date: Date) {
-        let record = ThermalExposureRecord(days: Array(tracker.days.values)).pruned(toDays: 30)
+        // Fold completed days into the since-install cumulative on the FULL day set BEFORE pruning,
+        // so days about to be dropped are captured. Then persist the pruned days + intact cumulative.
+        let allDays = Array(tracker.days.values)
+        let today = ThermalExposureTracker.dayKey(for: date, calendar: calendar)
+        cumulative = cumulative.accumulating(days: allDays, today: today)
+        let record = ThermalExposureRecord(days: allDays, cumulative: cumulative).pruned(toDays: 30)
         do {
             try store.save(record)
             lastFlushAt = date
