@@ -39,9 +39,11 @@ struct PatinaAgingCard: View {
                 .padding(.bottom, 18)
 
             // Recent charge range — surfaces high-SoC dwell, the lever behind the charge-limit nudge.
-            ChargeRangeLine(maxSoc: model.snapshot.battery.dailyMaxSoc,
-                            minSoc: model.snapshot.battery.dailyMinSoc)
-                .padding(.bottom, 18)
+            // Guard at the parent so firmware that doesn't report daily SoC reserves no phantom gap.
+            if let minSoc = model.snapshot.battery.dailyMinSoc, let maxSoc = model.snapshot.battery.dailyMaxSoc {
+                ChargeRangeLine(minSoc: minSoc, maxSoc: maxSoc)
+                    .padding(.bottom, 18)
+            }
 
             // 5. When it runs hot — promoted from Details: the one pattern no competitor shows.
             if model.heatPattern.hasEnoughData {
@@ -523,26 +525,25 @@ private struct StrainSparkline: View {
 
 /// Unobtrusive line: the recent charge window the BMS recorded, plus a subtle high-SoC hint when
 /// the pack routinely sits near full. The actionable nudge lives in the ActionChip; this is context.
+/// The parent only instantiates this when both values are present, so params are non-optional.
 private struct ChargeRangeLine: View {
-    let maxSoc: Int?
-    let minSoc: Int?
+    let minSoc: Int
+    let maxSoc: Int
 
-    private var highExposure: Bool { (maxSoc ?? 0) >= 90 }
+    private var highExposure: Bool { maxSoc >= 90 }
 
     var body: some View {
-        if let maxSoc, let minSoc {
-            HStack(spacing: 6) {
-                Text(String(format: NSLocalizedString("Charge range %d–%d%% recently", comment: ""), minSoc, maxSoc))
-                    .font(.patinaBody(12))
-                    .foregroundStyle(Color.textTertiary)
-                if highExposure {
-                    Text(NSLocalizedString("high-SoC exposure", comment: ""))
-                        .font(.patinaBody(12, .semibold))
-                        .foregroundStyle(Color.amberAccent)
-                }
+        HStack(spacing: 6) {
+            Text(String(format: NSLocalizedString("Charge range %d–%d%% recently", comment: ""), minSoc, maxSoc))
+                .font(.patinaBody(12))
+                .foregroundStyle(Color.textTertiary)
+            if highExposure {
+                Text(NSLocalizedString("high-SoC exposure", comment: ""))
+                    .font(.patinaBody(12, .semibold))
+                    .foregroundStyle(Color.amberAccent)
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
