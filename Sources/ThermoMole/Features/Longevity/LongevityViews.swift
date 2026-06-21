@@ -145,6 +145,26 @@ private struct AgingHeroSection: View {
         }
     }
 
+    /// Qualitative takeaway: is the measured wear driven by calendar (time at high charge)
+    /// or by cycles? Names the user's main lever. Informational, never alarming — textSecondary.
+    /// Deliberately no number/bar: the split is a coarse tag, not a published percentage.
+    private var attributionLine: String? {
+        guard calibration.status == .calibrated, let a = calibration.attribution else { return nil }
+        switch a {
+        case .calendarDominant: return NSLocalizedString("Wear is mostly calendar (time at high charge) — Apple’s Charge Limit is your main lever.", comment: "")
+        case .cycleDominant:    return NSLocalizedString("Wear is mostly cycles (charge/discharge) — fewer full swings help most.", comment: "")
+        case .balanced:         return NSLocalizedString("Wear is a mix of calendar and cycles.", comment: "")
+        }
+    }
+
+    /// Before calibration unlocks (≥56-day window) but with a window already accruing, a quiet
+    /// progress line so the user knows it's working toward a verdict. windowDays 0 → no line.
+    private var calibrationProgressLine: String? {
+        guard calibration.status == .modeled, calibration.windowDays > 0 else { return nil }
+        let fmt = NSLocalizedString("Calibrating to your battery · %d/%d days", comment: "")
+        return String(format: fmt, calibration.windowDays, BatteryCalibration.minWindowDays)
+    }
+
     /// The one-decimal value the user actually sees. Band word, tint, and the "≈ N×"
     /// numeral all derive from THIS, so they can never disagree at a rounding boundary
     /// (e.g. 1.48 must not show "LOW" next to "1.5×").
@@ -297,6 +317,23 @@ private struct AgingHeroSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 6)
+            }
+
+            // Qualitative calendar-vs-cycle takeaway — names the main lever, no number/bar.
+            if let attribution = attributionLine {
+                Text(attribution)
+                    .font(.patinaBody(11))
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            }
+
+            // Quiet progress toward calibration once a window is accruing.
+            if let progress = calibrationProgressLine {
+                Text(progress)
+                    .font(.patinaBody(11))
+                    .foregroundStyle(Color.textTertiary)
+                    .padding(.top, 6)
             }
         }
         .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))

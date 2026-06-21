@@ -248,6 +248,10 @@
 "Calibrated to your battery — aging slower than the model" = "내 배터리 기준 보정 — 모델보다 느리게 노화";
 "Calibrated to your battery — about as the model predicts" = "내 배터리 기준 보정 — 모델 예측과 비슷";
 "Calibrated to your battery — aging faster than the model" = "내 배터리 기준 보정 — 모델보다 빠르게 노화";
+"Wear is mostly calendar (time at high charge) — Apple’s Charge Limit is your main lever." = "마모는 대부분 캘린더(높은 충전 상태로 보낸 시간) — Apple 충전 제한이 가장 큰 레버입니다.";
+"Wear is mostly cycles (charge/discharge) — fewer full swings help most." = "마모는 대부분 사이클(충·방전) — 완전 충·방전을 줄이는 게 가장 효과적입니다.";
+"Wear is a mix of calendar and cycles." = "마모는 캘린더와 사이클이 섞여 있습니다.";
+"Calibrating to your battery · %d/%d days" = "내 배터리에 맞춰 보정 중 · %d/%d일";
 
 /* ---- Longevity notifications (LongevityNotification, Core — posted via UNUserNotificationCenter) ---- */
 "Charging while hot" = "뜨거운 상태로 충전 중";
