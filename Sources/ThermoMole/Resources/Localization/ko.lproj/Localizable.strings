@@ -43,6 +43,7 @@
 /* ---- Charge range (high-SoC exposure) ---- */
 "Charge range %d–%d%% recently" = "최근 충전 범위 %d–%d%%";
 "high-SoC exposure" = "고충전 노출";
+"Charge limit active ✓ — high-charge aging minimized" = "충전 제한 작동 중 ✓ — 고충전 노화 최소화됨";
 
 /* ---- When it runs hot ---- */
 "WHEN IT RUNS HOT" = "언제 뜨거워지나";
