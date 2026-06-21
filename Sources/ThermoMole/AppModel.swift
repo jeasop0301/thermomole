@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     @Published var lastError: String?
     @Published var todayExposure = ThermalExposureSummary.empty
     @Published var todayChargeExposure = ChargeExposureSummary.empty
+    @Published var sinceInstall = SinceInstallExposure.empty
     @Published var batteryHealthSeries: [Double] = []
     @Published var latestBatteryHealth: DailyBatteryHealth?
     @Published var batteryLongevity: BatteryLongevityReport?
@@ -94,6 +95,7 @@ final class AppModel: ObservableObject {
             todayExposure = await exposureCoordinator.summary(at: Date(), calendar: .current)
             todayChargeExposure = await chargeCoordinator.summary(at: Date(), calendar: .current)
             todayCPUExposure = await cpuExposureCoordinator.summary(at: Date(), calendar: .current)
+            await refreshSinceInstall()
             healthProjection = HealthProjection.evaluate(batteryHealthLog.all())
             heatHealthInsight = HeatHealthCorrelation.evaluate(
                 thermal: await exposureCoordinator.allDays(),
@@ -135,6 +137,7 @@ final class AppModel: ObservableObject {
                 calendar: .current
             )
             todayChargeExposure = await chargeCoordinator.summary(at: next.sampledAt, calendar: .current)
+            await refreshSinceInstall()
             await cpuExposureCoordinator.record(
                 temperatureC: next.thermal.cpuDisplayC,
                 at: next.sampledAt,
@@ -232,6 +235,15 @@ final class AppModel: ObservableObject {
     /// Marketing version for the machine-readable metrics export (CFBundleShortVersionString).
     static let appVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+
+    /// Assemble the forward-only "since install" exposure totals from both coordinators' cumulatives.
+    /// Cheap reads; the cumulative only changes on flush.
+    private func refreshSinceInstall() async {
+        sinceInstall = SinceInstallExposure.from(
+            thermal: await exposureCoordinator.sinceInstall(),
+            charge: await chargeCoordinator.sinceInstall()
+        )
+    }
 
     private func recomputeLongevity() {
         let signals = LongevitySignals(

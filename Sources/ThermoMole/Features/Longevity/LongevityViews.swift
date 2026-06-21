@@ -794,6 +794,12 @@ private struct DetailsContent: View {
                 }
             }
 
+            // Since install — forward-only cumulative exposure totals. Honest "since install"
+            // (not "lifetime"); shown only once at least one completed day has been counted.
+            if model.sinceInstall.sinceDay != nil {
+                SinceInstallSection(exposure: model.sinceInstall)
+            }
+
             // Health outlook
             VStack(alignment: .leading, spacing: 8) {
                 Text("HEALTH OUTLOOK")
@@ -941,6 +947,70 @@ private struct ChargeLimitOptionsSection: View {
     private func rowText(_ step: ChargeLimitInsight.ChargeLimitStep) -> String {
         String(format: NSLocalizedString("Cap %d%% → ~%d%% less high-charge aging", comment: ""),
                step.cap, step.reductionPct)
+    }
+}
+
+/// Compact "since install" cumulative-exposure panel. Forward-only totals that survive the 30-day
+/// prune, so users see the real long-run stressors. Honest label: "since install" (we only measure
+/// since the app first started recording), never "lifetime". Rows are hours above each band; only
+/// non-zero rows are shown to keep it tight.
+private struct SinceInstallSection: View {
+    let exposure: SinceInstallExposure
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(headerText)
+                .font(.patinaBody(11, .semibold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.textTertiary)
+
+            if exposure.hoursAbove80OnAC >= 0.05 { row("≥80% on AC", hours: exposure.hoursAbove80OnAC) }
+            if exposure.hoursAbove95OnAC >= 0.05 { row("≥95% on AC", hours: exposure.hoursAbove95OnAC) }
+            if exposure.hoursAbove40 >= 0.05 { row("Above 40°C", hours: exposure.hoursAbove40) }
+            if exposure.hoursAbove45 >= 0.05 { row("Above 45°C", hours: exposure.hoursAbove45) }
+
+            Text("Cumulative stressors since install — not a lifetime total.")
+                .font(.patinaBody(11))
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+
+    private var headerText: String {
+        guard let day = exposure.sinceDay else { return NSLocalizedString("SINCE INSTALL", comment: "since-install panel header") }
+        return String(format: NSLocalizedString("SINCE INSTALL (%@)", comment: "since-install panel header with start date"),
+                      Self.displayDate(day))
+    }
+
+    @ViewBuilder
+    private func row(_ label: String, hours: Double) -> some View {
+        HStack {
+            Text(LocalizedStringKey(label))
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+            Text(String(format: NSLocalizedString("%@ h", comment: "hours value, e.g. '140 h'"), Self.hoursText(hours)))
+                .font(.patinaBody(13))
+                .foregroundStyle(Color.textPrimary)
+                .monospacedDigit()
+        }
+    }
+
+    /// "140" for whole, "3.5" below 10 h so short exposures aren't all rounded to the same number.
+    private static func hoursText(_ hours: Double) -> String {
+        hours < 10 ? String(format: "%.1f", hours) : String(format: "%.0f", hours)
+    }
+
+    /// "2026-06-01" → localized medium date. Falls back to the raw string if it can't parse.
+    private static func displayDate(_ day: String) -> String {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3,
+              let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        else { return day }
+        let fmt = DateFormatter()
+        fmt.dateStyle = .medium
+        fmt.timeStyle = .none
+        return fmt.string(from: date)
     }
 }
 
