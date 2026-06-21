@@ -553,8 +553,13 @@ private struct ChargeRangeLine: View {
                 Text(NSLocalizedString("Charge limit active ✓ — high-charge aging minimized", comment: ""))
                     .font(.patinaBody(12, .semibold))
                     .foregroundStyle(Color.textSecondary)
-            case .highExposure:
-                Text(NSLocalizedString("high-SoC exposure", comment: ""))
+            case .highExposure(let reductionPct):
+                // Surface the quantified benefit ON the visible card line — the ActionChip renders
+                // only the action title, so this is the only place the user actually SEES the %.
+                // amber = the "you could do better" hint. Fall back to the static label at 0% gain.
+                Text(reductionPct > 0
+                     ? String(format: NSLocalizedString("high-SoC exposure · ~%d%% less high-charge aging if capped at 80%%", comment: ""), reductionPct)
+                     : NSLocalizedString("high-SoC exposure", comment: ""))
                     .font(.patinaBody(12, .semibold))
                     .foregroundStyle(Color.amberAccent)
             default:
