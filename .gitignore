@@ -11,3 +11,6 @@ dist/
 
 # AI design/plan/spec docs — kept local, out of the public repo
 docs/superpowers/
+
+# stray local clone of charlie0129/batt used for SMC-key reference — not part of Patina
+.batt_check/
