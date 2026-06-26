@@ -72,10 +72,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Renders the popover card to a PNG (dark appearance, @2x) then terminates.
     /// Invoked via THERMOMOLE_SNAPSHOT=<path>. Waits briefly so the model loads
     /// persisted history and takes a first live sample before rendering.
+    /// Snapshot color scheme — `THERMOMOLE_SNAPSHOT_SCHEME=light` renders Light mode (for adaptive
+    /// regression checks); defaults to dark. The app itself is fully adaptive at runtime.
+    private var snapshotColorScheme: ColorScheme {
+        ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT_SCHEME"] == "light" ? .light : .dark
+    }
+    private var snapshotAppearance: NSAppearance {
+        NSAppearance(named: snapshotColorScheme == .light ? .aqua : .darkAqua)!
+    }
+
     private func runSnapshotMode(path: String) {
         isSnapshotMode = true
         NSApp.setActivationPolicy(.accessory)
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        NSApp.appearance = snapshotAppearance
         model.start()
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
             self?.captureSnapshot(to: path)
@@ -87,27 +96,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func captureSnapshot(to path: String) {
         // THERMOMOLE_SNAPSHOT_VIEW: "window" = main window; "card" = the aging card alone
         // (clean hero for the README); default = the menu-bar popover (card + footer).
+        let scheme = snapshotColorScheme
         let content: AnyView
         switch ProcessInfo.processInfo.environment["THERMOMOLE_SNAPSHOT_VIEW"] {
         case "window":
             content = AnyView(MainWindowView(model: model)
-                .frame(width: 1040, height: 720)
-                .environment(\.colorScheme, .dark))
+                .frame(width: 1200, height: 760)
+                .environment(\.colorScheme, scheme))
         case "card":
             content = AnyView(PatinaAgingCard(model: model)
-                .padding(20)
+                .padding(16)
                 .background(Color.appBackground)
-                .environment(\.colorScheme, .dark))
+                .environment(\.colorScheme, scheme))
         default:
             content = AnyView(MenuBarPopoverView(model: model) {}
-                .environment(\.colorScheme, .dark))
+                .environment(\.colorScheme, scheme))
         }
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
 
         var image: NSImage?
-        let dark = NSAppearance(named: .darkAqua)!
-        dark.performAsCurrentDrawingAppearance {
+        snapshotAppearance.performAsCurrentDrawingAppearance {
             image = renderer.nsImage
         }
         guard let image,
@@ -137,12 +146,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.showMainWindow()
             }
         )
-        // Size the popover to the SwiftUI content (the Patina card is 424 wide with
-        // intrinsic height) so the box hugs the card and the arrow stays aligned.
+        // Size the popover to the SwiftUI content (auto-sizing card) so the box hugs the content
+        // and the arrow stays aligned. The card is fully adaptive — no appearance pin.
         hosting.sizingOptions = [.preferredContentSize]
-        // The card is Dark Jewel only — pin the host appearance so thermoAdaptive resolves
-        // dark even when the system is in Light mode (mirrors the snapshot path).
-        hosting.view.appearance = NSAppearance(named: .darkAqua)
         popover.contentViewController = hosting
     }
 
@@ -200,7 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -208,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Patina"
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: .darkAqua) // Dark Jewel only, like the popover
+        // Fully adaptive — follows the system appearance (no dark pin).
         window.contentViewController = NSHostingController(
             rootView: MainWindowView(model: model)
         )

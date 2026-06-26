@@ -80,18 +80,14 @@ struct PatinaAgingCard: View {
                     .frame(height: detailsViewportHeight)
             }
         }
-        .padding(24)
-        .frame(width: 392, alignment: .leading)
-        .background(Color.cardFill)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
+        .padding(16)
+        // Auto-size within an AlDente-like band; the NSPopover's own material is the card surface,
+        // so no manual fill/stroke/clip — fully adaptive light/dark.
+        .frame(minWidth: 300, idealWidth: 340, maxWidth: 380, alignment: .leading)
     }
 
-    private var hairline: some View {
-        Rectangle()
-            .fill(Color.subtleStroke)
-            .frame(height: 1)
-    }
+    /// Native section separator (was a hand-drawn 1pt rule).
+    private var hairline: some View { Divider() }
 
     /// Cap the expanded details to what fits under the menu bar on the current screen,
     /// leaving room for the collapsed card + footer. DetailsContent is longer than this,
@@ -243,25 +239,26 @@ private struct AgingHeroSection: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     // "≈ " prefix
                     Text("≈ ")
-                        .font(.patinaDisplay(40, .medium))
+                        .font(.patinaDisplay(34, .medium))
                         .foregroundStyle(warmth)
 
-                    // Hero numeral
+                    // Hero numeral (system rounded; sized for the narrower native card, no glow)
                     Text(formattedNumber)
-                        .font(.patinaDisplay(86, .medium))
+                        .font(.patinaDisplay(68, .medium))
                         .foregroundStyle(warmth)
-                        .shadow(color: warmth.opacity(0.5), radius: 10)
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
 
                     // "×" suffix
                     Text("×")
-                        .font(.patinaDisplay(40, .medium))
+                        .font(.patinaDisplay(34, .medium))
                         .foregroundStyle(warmth)
 
                     // Companion arc
                     CompanionArc(color: warmth)
-                        .frame(width: 48, height: 80)
-                        .padding(.leading, 14)
+                        .frame(width: 44, height: 70)
+                        .padding(.leading, 12)
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle, \(bandWord) band"))
@@ -405,9 +402,8 @@ private struct DriversRow: View {
     }
 
     private var driverDivider: some View {
-        Rectangle()
-            .fill(Color.subtleStroke)
-            .frame(width: 1, height: 28)
+        Divider()
+            .frame(height: 28)
             .padding(.horizontal, 4)
     }
 }
@@ -570,7 +566,6 @@ private struct StrainSparkline: View {
                         .fill(dotColor)
                         .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
                         .position(x: x(idx), y: y(val))
-                        .shadow(color: isLast ? dotColor.opacity(0.6) : .clear, radius: 4)
                 }
             })
         }
@@ -905,7 +900,6 @@ private struct DetailsContent: View {
                 Text("\(score)")
                     .font(.patinaDisplay(38, .medium))
                     .foregroundStyle(scoreTint(score))
-                    .shadow(color: scoreTint(score).opacity(0.45), radius: 6)
                     .monospacedDigit()
                 Text("/ 100 longevity score")
                     .font(.patinaBody(13))
