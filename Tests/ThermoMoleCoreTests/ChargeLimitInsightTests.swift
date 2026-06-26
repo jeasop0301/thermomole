@@ -127,4 +127,59 @@ final class ChargeLimitInsightTests: XCTestCase {
     func testClassifyNormalWhenNil() {
         XCTAssertEqual(ChargeLimitInsight.classify(dailyMaxSoc: nil), .normal)
     }
+
+    // MARK: - nativeLimitHolding (authoritative BMS ChargerData read)
+
+    func testNativeLimitHoldingWhenHeldOnAC() {
+        // On AC, not charging, sitting at 80% with a non-zero reason → the OS is holding the pack.
+        XCTAssertTrue(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: false, currentCapacityPercent: 80, notChargingReason: 16777216))
+    }
+
+    func testNativeLimitNotHoldingWhileCharging() {
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: true, currentCapacityPercent: 60, notChargingReason: 16777216))
+    }
+
+    func testNativeLimitNotHoldingOnBattery() {
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: false, isCharging: false, currentCapacityPercent: 80, notChargingReason: 16777216))
+    }
+
+    func testNativeLimitNotHoldingWhenFull() {
+        // 100% on AC, not charging is a normal full pack, not a limit — the ≤90 ceiling excludes it.
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: false, currentCapacityPercent: 100, notChargingReason: 16777216))
+    }
+
+    func testNativeLimitNotHoldingNearFull() {
+        // 95% holding could be a 95 limit OR a near-full taper — ambiguous, so excluded (≤90).
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: false, currentCapacityPercent: 95, notChargingReason: 16777216))
+    }
+
+    func testNativeLimitNotHoldingWithoutReason() {
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: false, currentCapacityPercent: 80, notChargingReason: nil))
+        XCTAssertFalse(ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: true, isCharging: false, currentCapacityPercent: 80, notChargingReason: 0))
+    }
+
+    // MARK: - classify with authoritative override
+
+    func testClassifyAuthoritativeOverridesHighExposure() {
+        // dailyMaxSoc=95 alone → highExposure, but a confirmed hold → limitActive wins.
+        XCTAssertEqual(ChargeLimitInsight.classify(dailyMaxSoc: 95, nativeLimitHolding: true), .limitActive)
+    }
+
+    func testClassifyAuthoritativeOverridesNilSoc() {
+        XCTAssertEqual(ChargeLimitInsight.classify(dailyMaxSoc: nil, nativeLimitHolding: true), .limitActive)
+    }
+
+    func testClassifyFallsBackToInferenceWhenNotHolding() {
+        XCTAssertEqual(
+            ChargeLimitInsight.classify(dailyMaxSoc: 95, nativeLimitHolding: false),
+            .highExposure(reductionPct: 16))
+        XCTAssertEqual(ChargeLimitInsight.classify(dailyMaxSoc: 85, nativeLimitHolding: false), .normal)
+    }
 }

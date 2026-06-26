@@ -45,7 +45,8 @@ struct PatinaAgingCard: View {
             // Guard at the parent so firmware that doesn't report daily SoC reserves no phantom gap.
             if let minSoc = model.snapshot.battery.dailyMinSoc, let maxSoc = model.snapshot.battery.dailyMaxSoc {
                 ChargeRangeLine(minSoc: minSoc, maxSoc: maxSoc,
-                                nativeChargeLimitAvailable: AppModel.nativeChargeLimitAvailable)
+                                nativeChargeLimitAvailable: AppModel.nativeChargeLimitAvailable,
+                                nativeLimitHolding: model.snapshot.battery.nativeLimitHolding)
                     .padding(.bottom, 18)
             }
 
@@ -589,9 +590,11 @@ private struct ChargeRangeLine: View {
     /// Gates the positive "limit active" confirmation — only meaningful where macOS exposes the
     /// native Charge Limit (26.4+). Without it, a low max SoC is just a habit, not a confirmed limit.
     let nativeChargeLimitAvailable: Bool
+    /// Authoritative BMS read that the OS is holding the pack below full — overrides the SoC inference.
+    let nativeLimitHolding: Bool
 
     private var state: ChargeLimitInsight.State {
-        ChargeLimitInsight.classify(dailyMaxSoc: maxSoc)
+        ChargeLimitInsight.classify(dailyMaxSoc: maxSoc, nativeLimitHolding: nativeLimitHolding)
     }
 
     var body: some View {

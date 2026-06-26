@@ -100,7 +100,9 @@ public extension NotificationPolicy {
         if snapshot.thermal.batteryWarningLevel == .hot { active.insert(.sustainedHotBattery) }
         // Skip the high-SoC dwell nudge when a charge limit is effectively holding the pack down
         // (inferred via ChargeLimitInsight): a limit is already doing the job, so don't nag.
-        let limitActive = ChargeLimitInsight.classify(dailyMaxSoc: dailyMaxSoc) == .limitActive
+        let limitActive = ChargeLimitInsight.classify(
+            dailyMaxSoc: dailyMaxSoc,
+            nativeLimitHolding: snapshot.battery.nativeLimitHolding) == .limitActive
         if !limitActive && todayChargeExposure.today.secondsAbove95OnAC >= 2 * 3600 { active.insert(.highSoCDwell) }
         if (100 - snapshot.disk.usedPercent) < 10 { active.insert(.lowStorage) }
         if todayCPUExposure.today.secondsAbove95 >= 30 * 60 { active.insert(.sustainedHotCPU) }

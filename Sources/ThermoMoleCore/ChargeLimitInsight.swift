@@ -58,10 +58,31 @@ public enum ChargeLimitInsight {
         case normal
     }
 
-    /// Classify from the BMS daily max SoC.
-    /// NOTE: "limitActive" is INFERRED — macOS exposes no public API for the native charge-limit
-    /// state, so we treat a recent max of ≤82% as evidence a limit (or careful habit) is in effect.
-    public static func classify(dailyMaxSoc: Int?) -> State {
+    /// Authoritative read of whether macOS is deliberately holding the pack below full on AC — the
+    /// native Charge Limit or Optimized Battery Charging — from the BMS `ChargerData`. True only
+    /// when on AC, not charging, sitting at ≤90%, with a non-zero `NotChargingReason`: a combination
+    /// a normal near-full taper or an unplugged pack can't produce. The ≤90 ceiling keeps a 95%
+    /// limit or a near-full charging pause from false-positiving (both carry little SoC benefit and
+    /// are left to the dailyMaxSoc inference). macOS 26.4+ exposes no public charge-limit API, so
+    /// this BMS read is the closest thing to an authoritative state.
+    public static func nativeLimitHolding(
+        isOnACPower: Bool,
+        isCharging: Bool,
+        currentCapacityPercent: Int,
+        notChargingReason: Int?
+    ) -> Bool {
+        isOnACPower
+            && !isCharging
+            && (1...90).contains(currentCapacityPercent)
+            && (notChargingReason ?? 0) != 0
+    }
+
+    /// Classify from the BMS daily max SoC, with an optional authoritative `nativeLimitHolding`
+    /// read that overrides the inference. When the OS is confirmed holding the pack below full
+    /// that's direct evidence of a limit, so it wins over the SoC heuristic. Otherwise "limitActive"
+    /// stays INFERRED: a recent max ≤82% is treated as evidence a limit (or careful habit) is active.
+    public static func classify(dailyMaxSoc: Int?, nativeLimitHolding: Bool = false) -> State {
+        if nativeLimitHolding { return .limitActive }
         guard let maxSoc = dailyMaxSoc else { return .normal }
         if maxSoc <= 82 { return .limitActive }
         if maxSoc >= 90 { return .highExposure(reductionPct: socAgingReductionPercent(currentMaxSoc: maxSoc)) }
