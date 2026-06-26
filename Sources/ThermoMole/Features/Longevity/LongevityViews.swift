@@ -45,7 +45,8 @@ struct PatinaAgingCard: View {
             // Guard at the parent so firmware that doesn't report daily SoC reserves no phantom gap.
             if let minSoc = model.snapshot.battery.dailyMinSoc, let maxSoc = model.snapshot.battery.dailyMaxSoc {
                 ChargeRangeLine(minSoc: minSoc, maxSoc: maxSoc,
-                                nativeChargeLimitAvailable: AppModel.nativeChargeLimitAvailable)
+                                nativeChargeLimitAvailable: AppModel.nativeChargeLimitAvailable,
+                                nativeLimitHolding: model.snapshot.battery.nativeLimitHolding)
                     .padding(.bottom, 18)
             }
 
@@ -79,18 +80,14 @@ struct PatinaAgingCard: View {
                     .frame(height: detailsViewportHeight)
             }
         }
-        .padding(24)
-        .frame(width: 392, alignment: .leading)
-        .background(Color.cardFill)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.subtleStroke, lineWidth: 1))
+        .padding(16)
+        // Auto-size within an AlDente-like band; the NSPopover's own material is the card surface,
+        // so no manual fill/stroke/clip — fully adaptive light/dark.
+        .frame(minWidth: 300, idealWidth: 340, maxWidth: 380, alignment: .leading)
     }
 
-    private var hairline: some View {
-        Rectangle()
-            .fill(Color.subtleStroke)
-            .frame(height: 1)
-    }
+    /// Native section separator (was a hand-drawn 1pt rule).
+    private var hairline: some View { Divider() }
 
     /// Cap the expanded details to what fits under the menu bar on the current screen,
     /// leaving room for the collapsed card + footer. DetailsContent is longer than this,
@@ -242,25 +239,26 @@ private struct AgingHeroSection: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     // "≈ " prefix
                     Text("≈ ")
-                        .font(.patinaDisplay(40, .medium))
+                        .font(.patinaDisplay(34, .medium))
                         .foregroundStyle(warmth)
 
-                    // Hero numeral
+                    // Hero numeral (system rounded; sized for the narrower native card, no glow)
                     Text(formattedNumber)
-                        .font(.patinaDisplay(86, .medium))
+                        .font(.patinaDisplay(68, .medium))
                         .foregroundStyle(warmth)
-                        .shadow(color: warmth.opacity(0.5), radius: 10)
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
 
                     // "×" suffix
                     Text("×")
-                        .font(.patinaDisplay(40, .medium))
+                        .font(.patinaDisplay(34, .medium))
                         .foregroundStyle(warmth)
 
                     // Companion arc
                     CompanionArc(color: warmth)
-                        .frame(width: 48, height: 80)
-                        .padding(.leading, 14)
+                        .frame(width: 44, height: 70)
+                        .padding(.leading, 12)
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Aging speed now: about \(formattedNumber) times an ideal idle, \(bandWord) band"))
@@ -404,9 +402,8 @@ private struct DriversRow: View {
     }
 
     private var driverDivider: some View {
-        Rectangle()
-            .fill(Color.subtleStroke)
-            .frame(width: 1, height: 28)
+        Divider()
+            .frame(height: 28)
             .padding(.horizontal, 4)
     }
 }
@@ -569,7 +566,6 @@ private struct StrainSparkline: View {
                         .fill(dotColor)
                         .frame(width: isLast ? 7 : 4, height: isLast ? 7 : 4)
                         .position(x: x(idx), y: y(val))
-                        .shadow(color: isLast ? dotColor.opacity(0.6) : .clear, radius: 4)
                 }
             })
         }
@@ -589,9 +585,11 @@ private struct ChargeRangeLine: View {
     /// Gates the positive "limit active" confirmation — only meaningful where macOS exposes the
     /// native Charge Limit (26.4+). Without it, a low max SoC is just a habit, not a confirmed limit.
     let nativeChargeLimitAvailable: Bool
+    /// Authoritative BMS read that the OS is holding the pack below full — overrides the SoC inference.
+    let nativeLimitHolding: Bool
 
     private var state: ChargeLimitInsight.State {
-        ChargeLimitInsight.classify(dailyMaxSoc: maxSoc)
+        ChargeLimitInsight.classify(dailyMaxSoc: maxSoc, nativeLimitHolding: nativeLimitHolding)
     }
 
     var body: some View {
@@ -902,7 +900,6 @@ private struct DetailsContent: View {
                 Text("\(score)")
                     .font(.patinaDisplay(38, .medium))
                     .foregroundStyle(scoreTint(score))
-                    .shadow(color: scoreTint(score).opacity(0.45), radius: 6)
                     .monospacedDigit()
                 Text("/ 100 longevity score")
                     .font(.patinaBody(13))

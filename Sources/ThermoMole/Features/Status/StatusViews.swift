@@ -21,77 +21,87 @@ struct StatusTab: View {
             VStack(alignment: .leading, spacing: 14) {
                 TabHeader(subtitle: NSLocalizedString("Battery heat, CPU warmth, and memory pressure without the noise.", comment: "")) {}
 
-                if statusBrief.isChargingWhileHot {
-                    ChargeWhileHotBanner()
-                }
+                // Two-column grid with even columns; full-width items span both via gridCellColumns(2).
+                Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 14) {
+                    if statusBrief.isChargingWhileHot {
+                        GridRow { ChargeWhileHotBanner().gridCellColumns(2) }
+                    }
 
-                HStack(alignment: .top, spacing: 12) {
-                    BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 132)
-                        .frame(width: 188)
-                        .frame(maxHeight: .infinity)
-                        .padding(16)
-                        .softPanel()
-                    StatusBriefPanel(brief: statusBrief)
+                    GridRow(alignment: .top) {
+                        BatteryTemperatureRing(temperatureC: model.snapshot.thermal.batteryDisplayC, diameter: 132)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(16)
+                            .softPanel()
+                        StatusBriefPanel(brief: statusBrief)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    GridRow {
+                        TrendTile(
+                            title: "Real battery pack",
+                            value: formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC),
+                            detail: batteryPackDetail,
+                            series: model.statusHistory.batteryTemperatureSeries,
+                            tint: batteryColor(model.snapshot.thermal.batteryWarningLevel)
+                        )
                         .frame(maxWidth: .infinity)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 12) {
-                    TrendTile(
-                        title: "Real battery pack",
-                        value: formatTemperaturePrecise(model.snapshot.thermal.batteryDisplayC),
-                        detail: batteryPackDetail,
-                        series: model.statusHistory.batteryTemperatureSeries,
-                        tint: batteryColor(model.snapshot.thermal.batteryWarningLevel)
-                    )
-                    TrendTile(
-                        title: "CPU warmth",
-                        value: formatTemperaturePrecise(model.snapshot.thermal.cpuDisplayC),
-                        detail: cpuSourceLabel(model.snapshot.thermal.cpuTemperatureSource),
-                        series: model.statusHistory.cpuTemperatureSeries,
-                        tint: .orange
-                    )
-                }
-
-                HStack(alignment: .top, spacing: 12) {
-                    CPUCoreGridView(cpu: model.snapshot.cpu)
+                        TrendTile(
+                            title: "CPU warmth",
+                            value: formatTemperaturePrecise(model.snapshot.thermal.cpuDisplayC),
+                            detail: cpuSourceLabel(model.snapshot.thermal.cpuTemperatureSource),
+                            series: model.statusHistory.cpuTemperatureSeries,
+                            tint: .orange
+                        )
                         .frame(maxWidth: .infinity)
-                    TrendTile(
-                        title: "Battery power",
-                        // Held on AC = no current flow → show an explicit "0 W" instead of "--".
-                        value: formatBatteryPower(model.snapshot.battery.instantPowerW)
-                            ?? (model.snapshot.battery.isOnACPower ? "0 W" : "--"),
-                        detail: batteryPowerDirection(model.snapshot.battery),
-                        series: model.statusHistory.batteryPowerSeries,
-                        tint: Color.thermoAccent
-                    )
-                    .frame(maxWidth: .infinity)
-                }
+                    }
 
-                HStack(alignment: .top, spacing: 12) {
-                    ThermalExposureCard(
-                        summary: model.todayExposure,
-                        warningLevel: model.snapshot.thermal.batteryWarningLevel
-                    )
-                    .frame(maxWidth: .infinity)
-                    ChargeExposureCard(summary: model.todayChargeExposure)
+                    GridRow(alignment: .top) {
+                        CPUCoreGridView(cpu: model.snapshot.cpu)
+                            .frame(maxWidth: .infinity)
+                        TrendTile(
+                            title: "Battery power",
+                            // Held on AC = no current flow → show an explicit "0 W" instead of "--".
+                            value: formatBatteryPower(model.snapshot.battery.instantPowerW)
+                                ?? (model.snapshot.battery.isOnACPower ? "0 W" : "--"),
+                            detail: batteryPowerDirection(model.snapshot.battery),
+                            series: model.statusHistory.batteryPowerSeries,
+                            tint: Color.thermoAccent
+                        )
                         .frame(maxWidth: .infinity)
-                }
+                    }
 
-                HStack(alignment: .top, spacing: 12) {
-                    BatteryHealthCard(report: model.batteryLongevity, health: model.latestBatteryHealth, series: model.batteryHealthSeries)
+                    GridRow(alignment: .top) {
+                        ThermalExposureCard(
+                            summary: model.todayExposure,
+                            warningLevel: model.snapshot.thermal.batteryWarningLevel
+                        )
                         .frame(maxWidth: .infinity)
-                    CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
-                        .frame(maxWidth: .infinity)
-                }
+                        ChargeExposureCard(summary: model.todayChargeExposure)
+                            .frame(maxWidth: .infinity)
+                    }
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
-                    MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: String(format: NSLocalizedString("%d%% health · %d cycles", comment: ""), model.snapshot.battery.healthPercent, model.snapshot.battery.cycleCount), tint: .mint)
-                    MetricTile(title: "SSD Temp", value: formatTemperature(model.snapshot.thermal.ssdTemperatureC), detail: "Internal drive", tint: Color.plumAccent)
-                    MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : NSLocalizedString("Read-only", comment: ""), detail: "No fan control", tint: .gray)
-                }
+                    GridRow(alignment: .top) {
+                        BatteryHealthCard(report: model.batteryLongevity, health: model.latestBatteryHealth, series: model.batteryHealthSeries)
+                            .frame(maxWidth: .infinity)
+                        CompactProcessList(processes: Array(model.snapshot.topProcesses.prefix(5)))
+                            .frame(maxWidth: .infinity)
+                    }
 
-                BatterySensorDetailCard(summary: BatterySensorSummary(thermal: model.snapshot.thermal))
+                    GridRow {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
+                            MetricTile(title: "Battery", value: "\(model.snapshot.battery.percent)%", detail: String(format: NSLocalizedString("%d%% health · %d cycles", comment: ""), model.snapshot.battery.healthPercent, model.snapshot.battery.cycleCount), tint: .mint)
+                            MetricTile(title: "SSD Temp", value: formatTemperature(model.snapshot.thermal.ssdTemperatureC), detail: "Internal drive", tint: Color.plumAccent)
+                            MetricTile(title: "Fan", value: model.snapshot.fanRPM > 0 ? "\(model.snapshot.fanRPM) RPM" : NSLocalizedString("Read-only", comment: ""), detail: "No fan control", tint: .gray)
+                        }
+                        .gridCellColumns(2)
+                    }
+
+                    GridRow {
+                        BatterySensorDetailCard(summary: BatterySensorSummary(thermal: model.snapshot.thermal))
+                            .gridCellColumns(2)
+                    }
+                }
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)

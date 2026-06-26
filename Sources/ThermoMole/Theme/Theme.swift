@@ -3,89 +3,52 @@ import AppKit
 import ThermoMoleCore
 
 extension Color {
-    // MARK: - Surfaces
-    static let appBackground = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.957, green: 0.957, blue: 0.965, alpha: 1),
-        dark: NSColor(calibratedRed: 0.086, green: 0.090, blue: 0.098, alpha: 1)  // #161719
-    ))
-    static let appSidebar = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.925, green: 0.925, blue: 0.937, alpha: 1),
-        dark: NSColor(calibratedRed: 0.102, green: 0.110, blue: 0.122, alpha: 1)  // #1A1C1F
-    ))
-    static let cardFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
-        dark: NSColor(calibratedRed: 0.118, green: 0.125, blue: 0.137, alpha: 1)  // #1E2023
-    ))
-    static let insetFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.937, green: 0.937, blue: 0.949, alpha: 1),
-        dark: NSColor(calibratedRed: 0.137, green: 0.149, blue: 0.169, alpha: 1)  // #23262B
-    ))
-    static let selectionFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.894, green: 0.941, blue: 1.0, alpha: 1),
-        dark: NSColor(calibratedRed: 0.071, green: 0.227, blue: 0.388, alpha: 1)
-    ))
-    static let iconBadgeFill = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.933, green: 0.945, blue: 0.961, alpha: 1),
-        dark: NSColor(calibratedRed: 0.173, green: 0.184, blue: 0.208, alpha: 1)
-    ))
-    static let subtleStroke = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedWhite: 0, alpha: 0.10),
-        dark: NSColor(calibratedWhite: 1, alpha: 0.10)   // α0.10 (flat design)
-    ))
-    /// Flat design: no shadow in dark mode
-    static let panelShadow = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedWhite: 0, alpha: 0.06),
-        dark: NSColor(calibratedWhite: 0, alpha: 0.0)    // clear
-    ))
+    // MARK: - Surfaces (native system semantics — adaptive light/dark for free)
+    static let appBackground  = Color(nsColor: .windowBackgroundColor)
+    static let appSidebar     = Color(nsColor: .windowBackgroundColor)
+    static let cardFill       = Color(nsColor: .controlBackgroundColor)
+    static let insetFill      = Color(nsColor: .controlBackgroundColor)
+    static let selectionFill  = Color(nsColor: .selectedContentBackgroundColor)
+    static let iconBadgeFill  = Color(nsColor: .quaternaryLabelColor)
+    static let subtleStroke   = Color(nsColor: .separatorColor)
+    /// Native materials carry their own depth — no manual shadow.
+    static let panelShadow    = Color.clear
 
-    // MARK: - Text (adaptive)
-    static let textPrimary = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.098, green: 0.098, blue: 0.106, alpha: 1),
-        dark: NSColor(calibratedRed: 0.945, green: 0.937, blue: 0.918, alpha: 1)  // #F1EFEA
-    ))
-    static let textSecondary = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.380, green: 0.380, blue: 0.400, alpha: 1),
-        dark: NSColor(calibratedRed: 0.612, green: 0.596, blue: 0.561, alpha: 1)  // #9C988F
-    ))
-    static let textTertiary = Color(nsColor: .thermoAdaptive(
-        light: NSColor(calibratedRed: 0.500, green: 0.500, blue: 0.518, alpha: 1),
-        dark: NSColor(calibratedRed: 0.545, green: 0.529, blue: 0.494, alpha: 1)  // #8B877E
-    ))
+    // MARK: - Text (native label hierarchy)
+    static let textPrimary    = Color(nsColor: .labelColor)
+    static let textSecondary  = Color(nsColor: .secondaryLabelColor)
+    static let textTertiary   = Color(nsColor: .tertiaryLabelColor)
 
-    // MARK: - Jewel Accents
-    static let amberAccent  = Color(red: 0.878, green: 0.647, blue: 0.227)  // #E0A53A
-    /// garnet accent for high-severity states
-    static let garnetAccent = Color(red: 0.886, green: 0.376, blue: 0.290)  // #E2604A
-    // Patina has no green/teal/indigo. The window (Status/Settings) shares the card's
-    // Dark-Jewel palette: calm "good/healthy/live" = cream, chrome accent = gold.
-    // These four tokens are window-only (the card uses amber/garnet/textPrimary directly).
-    static let leafAccent   = Color(red: 0.945, green: 0.937, blue: 0.918)  // good/healthy → cream
-    static let oceanAccent  = Color(red: 0.945, green: 0.937, blue: 0.918)  // good → cream
-    static let thermoAccent = Color(red: 0.878, green: 0.647, blue: 0.227)  // chrome → gold
-    static let plumAccent   = Color(red: 0.878, green: 0.647, blue: 0.227)  // SSD tile → gold (was indigo)
+    // MARK: - Semantic accents (severity only — system colors)
+    /// "Elevated / caution" — warm system orange.
+    static let amberAccent  = Color(nsColor: .systemOrange)
+    /// "Hot / urgent" — system red.
+    static let garnetAccent = Color(nsColor: .systemRed)
+    // "Good / healthy / live" stays calm (no green) — primary label, the native equivalent of the
+    // old cream; color is reserved for elevated states. Chrome accents follow the system accent.
+    static let leafAccent   = Color(nsColor: .labelColor)
+    static let oceanAccent  = Color(nsColor: .labelColor)
+    static let thermoAccent = Color.accentColor
+    static let plumAccent   = Color.accentColor
 
     // MARK: - Semantic helper
-    /// Returns garnet / amber / calm-cream based on battery aging multiplier magnitude.
-    /// "Good" is a calm warm-neutral (no green/teal) — color is reserved for elevated states.
+    /// Returns red / orange / calm-primary based on battery aging multiplier magnitude.
+    /// "Good" is calm (no green) — color is reserved for elevated states.
     static func agingWarmth(_ multiplier: Double) -> Color {
         multiplier > 3 ? .garnetAccent : (multiplier >= 1.5 ? .amberAccent : .textPrimary)
     }
 }
 
 extension Font {
-    // MARK: - Patina custom fonts (graceful fallback)
+    // MARK: - Display / body (native SF — rounded numerals for the clean, AlDente-like look)
     static func patinaDisplay(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
-        NSFont(name: "Fraunces", size: size) != nil
-            ? Font.custom("Fraunces", size: size).weight(weight)
-            : .system(size: size, weight: weight, design: .serif)
+        .system(size: size, weight: weight, design: .rounded)
     }
     static func patinaBody(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        NSFont(name: "Figtree", size: size) != nil
-            ? Font.custom("Figtree", size: size).weight(weight)
-            : .system(size: size, weight: weight)
+        .system(size: size, weight: weight)
     }
 
-    // MARK: - Existing tokens (values updated to use Patina fonts)
+    // MARK: - Aggregate tokens
     static let thermoTitle    = patinaDisplay(20, .semibold)
     static let thermoHeadline = Font.system(size: 16, weight: .semibold)
     static let thermoMetric   = patinaDisplay(22, .medium)
@@ -93,33 +56,23 @@ extension Font {
     static let thermoCaption  = Font.system(size: 11, weight: .medium)
 }
 
-extension NSColor {
-    static func thermoAdaptive(light: NSColor, dark: NSColor) -> NSColor {
-        NSColor(name: nil) { appearance in
-            let match = appearance.bestMatch(from: [.darkAqua, .aqua])
-            return match == .darkAqua ? dark : light
-        }
-    }
-}
+// (Removed thermoAdaptive — all color tokens now resolve to system semantic colors that adapt
+//  to light/dark automatically; no hand-rolled appearance matching needed.)
 
 // MARK: - Panel Modifiers
 
 struct SoftPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(Color.cardFill)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.subtleStroke, lineWidth: 1))
-            // flat: no shadow
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(nsColor: .separatorColor), lineWidth: 1))
     }
 }
 
 struct HeroPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(Color.insetFill)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            // flat: no shadow
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -233,8 +186,8 @@ func conditionColor(_ condition: SystemConditionLevel) -> Color {
 
 func nsColor(for condition: SystemConditionLevel) -> NSColor {
     switch condition {
-    case .normal: NSColor(calibratedRed: 0.22, green: 0.56, blue: 0.36, alpha: 1)
-    case .caution: NSColor(calibratedRed: 0.84, green: 0.58, blue: 0.20, alpha: 1)
+    case .normal: .labelColor
+    case .caution: .systemOrange
     case .hot: .systemRed
     }
 }

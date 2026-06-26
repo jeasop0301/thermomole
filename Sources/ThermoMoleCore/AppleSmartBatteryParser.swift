@@ -18,6 +18,10 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
     /// Apple's rated cycle count for this pack (BMS `DesignCycleCount9C`, =1000 on Apple Silicon —
     /// the spec to ~80% health, NOT a hard limit). nil when the firmware doesn't report it.
     public var ratedCycleCount: Int?
+    /// BMS `ChargerData.NotChargingReason` bitfield. Non-zero while the OS is deliberately holding
+    /// charging (native Charge Limit / Optimized Charging / thermal). nil when unreported. Read
+    /// authoritatively so the charge-limit insight doesn't have to infer the state from SoC alone.
+    public var notChargingReason: Int?
 
     public init(
         temperatureC: Double? = nil,
@@ -31,7 +35,8 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         amperageMA: Int = 0,
         dailyMaxSoc: Int? = nil,
         dailyMinSoc: Int? = nil,
-        ratedCycleCount: Int? = nil
+        ratedCycleCount: Int? = nil,
+        notChargingReason: Int? = nil
     ) {
         self.temperatureC = temperatureC
         self.virtualTemperatureC = virtualTemperatureC
@@ -45,6 +50,7 @@ public struct AppleSmartBatteryInfo: Equatable, Sendable {
         self.dailyMaxSoc = dailyMaxSoc
         self.dailyMinSoc = dailyMinSoc
         self.ratedCycleCount = ratedCycleCount
+        self.notChargingReason = notChargingReason
     }
 
     public var healthPercent: Int {
@@ -84,7 +90,10 @@ public enum AppleSmartBatteryParser {
             dailyMinSoc: optionalIntValue(for: "DailyMinSoc", in: raw),
             // DesignCycleCount9C is TOP-LEVEL (outside BatteryData), so read it from `top` to avoid
             // a nested decoy shadowing it. 0/missing → nil so junk/unreporting Macs hide the line.
-            ratedCycleCount: optionalIntValue(for: "DesignCycleCount9C", in: top)
+            ratedCycleCount: optionalIntValue(for: "DesignCycleCount9C", in: top),
+            // NotChargingReason lives INSIDE the ChargerData block (which is not stripped), so read
+            // it from the full `raw`. 0/missing → nil = "charging normally / unreported".
+            notChargingReason: optionalIntValue(for: "NotChargingReason", in: raw)
         )
     }
 

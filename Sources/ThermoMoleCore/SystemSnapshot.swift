@@ -79,6 +79,20 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
     /// Apple's rated cycle count (BMS DesignCycleCount9C, ~1000 to 80% health). nil = unreported.
     /// Context only — Apple's spec, NOT a hard limit. decodeIfPresent for old persisted snapshots.
     public var ratedCycleCount: Int?
+    /// BMS `ChargerData.NotChargingReason`; non-zero while the OS is holding charging. nil =
+    /// unreported. decodeIfPresent for old persisted snapshots.
+    public var notChargingReason: Int?
+
+    /// True when the OS is holding the pack below full on AC (native Charge Limit / Optimized
+    /// Charging), read authoritatively from `ChargerData` rather than inferred from SoC.
+    public var nativeLimitHolding: Bool {
+        ChargeLimitInsight.nativeLimitHolding(
+            isOnACPower: isOnACPower,
+            isCharging: isCharging,
+            currentCapacityPercent: percent,
+            notChargingReason: notChargingReason
+        )
+    }
 
     public init(
         percent: Int,
@@ -94,7 +108,8 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         instantPowerW: Double = 0,
         dailyMaxSoc: Int? = nil,
         dailyMinSoc: Int? = nil,
-        ratedCycleCount: Int? = nil
+        ratedCycleCount: Int? = nil,
+        notChargingReason: Int? = nil
     ) {
         self.percent = percent
         self.isCharging = isCharging
@@ -110,12 +125,13 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         self.dailyMaxSoc = dailyMaxSoc
         self.dailyMinSoc = dailyMinSoc
         self.ratedCycleCount = ratedCycleCount
+        self.notChargingReason = notChargingReason
     }
 
     private enum CodingKeys: String, CodingKey {
         case percent, isCharging, isCharged, isOnACPower, timeRemaining, cycleCount
         case healthPercent, currentCapacityMAh, maxCapacityMAh, designCapacityMAh, instantPowerW
-        case dailyMaxSoc, dailyMinSoc, ratedCycleCount
+        case dailyMaxSoc, dailyMinSoc, ratedCycleCount, notChargingReason
     }
 
     public init(from decoder: Decoder) throws {
@@ -134,6 +150,7 @@ public struct BatteryStatus: Codable, Equatable, Sendable {
         dailyMaxSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMaxSoc)
         dailyMinSoc = try c.decodeIfPresent(Int.self, forKey: .dailyMinSoc)
         ratedCycleCount = try c.decodeIfPresent(Int.self, forKey: .ratedCycleCount)
+        notChargingReason = try c.decodeIfPresent(Int.self, forKey: .notChargingReason)
     }
 }
 

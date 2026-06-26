@@ -96,4 +96,27 @@ final class AppleSmartBatteryParserTests: XCTestCase {
         """
         XCTAssertNil(AppleSmartBatteryParser.parse(raw).ratedCycleCount)
     }
+
+    // MARK: - NotChargingReason (ChargerData; authoritative charge-limit hold signal)
+
+    /// NotChargingReason lives inside the ChargerData block (NOT stripped), so it's read from the
+    /// full raw. Non-zero = the OS is deliberately holding charging.
+    func testParsesNotChargingReasonFromChargerData() {
+        let raw = """
+              "ChargerData" = {"NotChargingReason"=16777216,"IsCharging"=0,"FullyCharged"=0}
+              "DesignCapacity" = 5760
+              "CycleCount" = 8
+        """
+        XCTAssertEqual(AppleSmartBatteryParser.parse(raw).notChargingReason, 16777216)
+    }
+
+    func testNotChargingReasonAbsentIsNil() {
+        XCTAssertNil(AppleSmartBatteryParser.parse(#""DesignCapacity" = 5760"#).notChargingReason)
+    }
+
+    /// Reason 0 = charging normally → nil ("no hold"), so the holding check reads false.
+    func testNotChargingReasonZeroIsNil() {
+        let raw = #""ChargerData" = {"NotChargingReason"=0,"IsCharging"=1}"#
+        XCTAssertNil(AppleSmartBatteryParser.parse(raw).notChargingReason)
+    }
 }

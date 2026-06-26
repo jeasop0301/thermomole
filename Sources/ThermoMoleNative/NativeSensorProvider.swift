@@ -221,7 +221,8 @@ public actor NativeSensorProvider: SensorProvider {
             instantPowerW: info.instantPowerW,
             dailyMaxSoc: info.dailyMaxSoc,
             dailyMinSoc: info.dailyMinSoc,
-            ratedCycleCount: info.ratedCycleCount
+            ratedCycleCount: info.ratedCycleCount,
+            notChargingReason: info.notChargingReason
         )
     }
 

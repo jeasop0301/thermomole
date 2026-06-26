@@ -135,7 +135,9 @@ public struct FleetMetricsExport: Codable, Equatable, Sendable {
         generatedAt: Date
     ) -> FleetMetricsExport {
         let multiplier = agingRate?.multiplier ?? 1.0
-        let limit = chargeLimit(from: ChargeLimitInsight.classify(dailyMaxSoc: dailyMaxSoc))
+        let limit = chargeLimit(from: ChargeLimitInsight.classify(
+            dailyMaxSoc: dailyMaxSoc,
+            nativeLimitHolding: battery.nativeLimitHolding))
         let today = chargeExposure.today
         return FleetMetricsExport(
             generatedAt: generatedAt,

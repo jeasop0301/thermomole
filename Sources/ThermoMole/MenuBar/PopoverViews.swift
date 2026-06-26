@@ -24,14 +24,9 @@ struct MenuBarPopoverView: View {
             }
             .padding(.horizontal, 4)
         }
-        .padding(16)
-        .frame(width: 424)
-        .background(Color.appBackground)
-        // Neutral chrome tint — amber is reserved for aging-state meaning, not buttons.
-        .tint(Color.textSecondary)
-        // The card is designed Dark Jewel only; pin dark so a Light-mode Mac doesn't
-        // flip the adaptive surfaces to white and wash out the amber/garnet accents.
-        .preferredColorScheme(.dark)
+        .padding(12)
+        // Auto-size to content within an AlDente-like band; the NSPopover hugs the ideal width.
+        .frame(minWidth: 300, idealWidth: 340, maxWidth: 380, alignment: .leading)
     }
 }
 
