@@ -40,71 +40,50 @@ enum AppSection: String, CaseIterable, Identifiable {
 
 struct MainWindowView: View {
     @ObservedObject var model: AppModel
-    @State private var selection: AppSection = AppSection.initial
+    @State private var selection: AppSection? = AppSection.initial
 
     var body: some View {
-        VStack(spacing: 0) {
-            AppToolbar(model: model)
-            TabPillBar(selection: $selection)
-            Rectangle()
-                .fill(Color.subtleStroke)
-                .frame(height: 1)
+        NavigationSplitView {
+            List(AppSection.allCases, selection: $selection) { section in
+                Label(section.title, systemImage: section.symbol)
+                    .tag(section)
+            }
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.appBackground)
+                .toolbar { toolbarContent }
         }
-        .frame(minWidth: 1040, minHeight: 680)
-        .background(Color.appBackground)
+        .frame(minWidth: 1180, minHeight: 720)
         .tint(Color.thermoAccent)
-        // Dark Jewel only — match the popover so a Light-mode Mac doesn't flip surfaces.
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
     private var detail: some View {
-        switch selection {
+        switch selection ?? .status {
         case .status:
             StatusTab(model: model)
         case .settings:
             SettingsTab(model: model, settings: model.settings)
         }
     }
-}
 
-struct AppToolbar: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Match the card header: "Patina" + a small live aging-status dot (no icon badge).
-            HStack(spacing: 7) {
-                Text("Patina")
-                    .font(.patinaDisplay(20, .semibold))
-                    .foregroundStyle(Color.textPrimary)
-                Circle()
-                    .fill(Color.agingWarmth(model.agingRate?.multiplier ?? 1.0))
-                    .frame(width: 7, height: 7)
-                    .accessibilityHidden(true)
-            }
-
+    // Native window toolbar: live status chips + Refresh on the trailing side. The window title
+    // ("Patina") is set on the NSWindow; the sidebar carries section navigation.
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
             BatteryPackChip(
                 temperatureC: model.snapshot.thermal.batteryDisplayC,
                 level: model.snapshot.thermal.batteryWarningLevel
             )
-
-            Spacer()
-
             FreshnessChip(sampledAt: model.snapshot.sampledAt)
             Button {
                 model.refresh()
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
-        .background(Color.appSidebar)
     }
 }
 
@@ -124,55 +103,6 @@ struct BatteryPackChip: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text("Battery pack temperature"))
             .accessibilityValue(Text(formatTemperaturePrecise(temperatureC)))
-    }
-}
-
-struct TabPillBar: View {
-    @Binding var selection: AppSection
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(AppSection.allCases) { section in
-                    TabPill(section: section, isSelected: selection == section) {
-                        selection = section
-                    }
-                }
-            }
-            .padding(4)
-            .background(Color.insetFill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.subtleStroke))
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-        }
-    }
-}
-
-struct TabPill: View {
-    var section: AppSection
-    var isSelected: Bool
-    var select: () -> Void
-
-    var body: some View {
-        Button(action: select) {
-            HStack(spacing: 6) {
-                Image(systemName: section.symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(section.title)
-                    .font(.callout.weight(.medium))
-            }
-            .foregroundStyle(isSelected ? Color.white : Color.secondary)
-            .padding(.horizontal, 13)
-            .padding(.vertical, 6)
-            .background(isSelected ? Color.thermoAccent : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .contentShape(RoundedRectangle(cornerRadius: 7))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(section.title))
-        .accessibilityHint(Text(isSelected ? "Current section" : "Open section"))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
