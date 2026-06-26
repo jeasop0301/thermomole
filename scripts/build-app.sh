@@ -19,12 +19,7 @@ swift build -c release
 mkdir -p "$MACOS"
 cp "$ROOT/.build/arm64-apple-macosx/release/ThermoMole" "$MACOS/ThermoMole"
 
-# Stage bundled fonts (SIL OFL) — macOS registers them at launch via ATSApplicationFontsPath
-FONTS_SRC="$ROOT/Sources/ThermoMole/Resources/Fonts"
-FONTS_DST="$CONTENTS/Resources/Fonts"
-mkdir -p "$FONTS_DST"
-cp "$FONTS_SRC/"*.ttf "$FONTS_DST/"
-cp "$FONTS_SRC/"*.txt "$FONTS_DST/"
+# (No bundled fonts — the UI uses system SF Pro / SF Rounded exclusively after the native conversion.)
 
 # Stage .lproj localizations into Contents/Resources so Bundle.main (the .app) resolves
 # them. English is the development-language fallback (keys are English), so only ko.lproj
@@ -76,8 +71,6 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <${LSUI_VALUE}/>
   <key>NSHighResolutionCapable</key>
   <true/>
-  <key>ATSApplicationFontsPath</key>
-  <string>Fonts</string>
 </dict>
 </plist>
 PLIST
